@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sponsor page | Cover</title>
+<link rel="icon" href="brand/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/cover.css">
+<!-- Stripe.js must load from Stripe's own site (required for card security rules). -->
+<script src="https://js.stripe.com/endive/stripe.js"></script>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="container">
+    <div class="brand-text"><span class="brand-mark" data-f="initials"></span><span data-f="name"></span></div>
+    <div class="nav-links"><a href="#list" data-f="navLabel"></a><a href="#how">How it works</a><a href="#business">For businesses</a><a href="#faq">Questions</a></div>
+    <a class="btn btn-primary" href="#list" data-f="cta"></a>
+  </div>
+</nav>
+
+<main>
+<header class="hero">
+  <div class="container">
+    <div>
+      <div class="eyebrow" data-f="eyebrow"></div>
+      <h1 data-f="headline"></h1>
+      <p class="lead" data-f="lead"></p>
+      <div class="actions">
+        <a class="btn btn-primary btn-lg" href="#list" data-f="browse"></a>
+        <a class="btn btn-ghost btn-lg" href="#how">How it works</a>
+      </div>
+      <div class="trust"><span class="check" data-check></span><span data-f="trust"></span></div>
+    </div>
+    <div class="hero-media">
+      <img id="hero-photo" alt="">
+      <div class="float goal shadow">
+        <div class="row"><span>This month</span><span id="pct"></span></div>
+        <b id="covered"></b> <span style="color:var(--muted);font-size:14px" id="goal"></span>
+        <div class="bar" style="margin-top:12px" role="progressbar" aria-label="Monthly goal covered" id="bar-wrap"><i id="bar"></i></div>
+      </div>
+      <div class="float new shadow" id="toast" aria-live="polite"><span class="check" data-check></span><div><strong id="toast-a"></strong><span id="toast-b"></span></div></div>
+    </div>
+  </div>
+</header>
+
+<section class="section" id="list" style="padding-top:24px">
+  <div class="container">
+    <div class="section-head">
+      <div class="eyebrow" data-f="listEyebrow"></div>
+      <h2 style="margin-top:12px" data-f="listTitle"></h2>
+      <p data-f="listLead"></p>
+    </div>
+    <div class="filters" id="filters"></div>
+    <div class="items" id="items"></div>
+  </div>
+</section>
+
+<section class="section" id="how" style="padding-top:0">
+  <div class="container">
+    <div class="section-head"><div class="eyebrow">How it works</div><h2 style="margin-top:12px">Three steps, about a minute.</h2></div>
+    <div class="steps" id="steps"></div>
+  </div>
+</section>
+
+<section class="section promise">
+  <div class="container">
+    <div>
+      <blockquote class="serif" id="quote"></blockquote>
+      <cite id="quote-by"></cite>
+    </div>
+    <img id="quote-photo" alt="">
+  </div>
+</section>
+
+<section class="section biz" id="business">
+  <div class="container">
+    <img src="photos/shop-owner.jpg" alt="A shop owner standing in his store">
+    <div>
+      <div class="eyebrow">For local businesses</div>
+      <h2 style="margin-top:12px">Sponsor as a business. Get thanked where your neighbors see it.</h2>
+      <ul>
+        <li><span class="check" data-check></span>Your business name on this page and in sponsor updates</li>
+        <li><span class="check" data-check></span>A thank-you post on our social media</li>
+        <li><span class="check" data-check></span>A window sticker for your shop</li>
+      </ul>
+      <div class="card example"><div class="logo">BS</div><div><strong>Bay Street Hardware</strong><span>Example business sponsor</span></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="faq" style="padding-top:0">
+  <div class="container faq">
+    <div><div class="eyebrow">Questions</div><h2 style="margin-top:12px">Good to know.</h2></div>
+    <div id="faq-list"></div>
+  </div>
+</section>
+</main>
+
+<footer class="footer">
+  <div class="container">
+    <div id="foot"></div>
+    <div class="powered"><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · Powered by <a href="index.html"><img src="brand/logo.svg" alt="Cover"></a></div>
+  </div>
+</footer>
+
+<!-- The sponsor pop-up: form, then payment hand-off, then the thank-you moment. -->
+<dialog class="sponsor-dialog" id="sponsor-dialog" aria-labelledby="dialog-title">
+  <div class="dialog-head">
+    <img id="dialog-photo" alt="">
+    <div><h2 id="dialog-title"></h2><p id="dialog-sub"></p></div>
+    <button class="dialog-close" type="button" id="dialog-close" aria-label="Close">×</button>
+  </div>
+  <div class="dialog-body">
+
+    <form class="flow-step" id="step-form" novalidate>
+      <div class="field-group">
+        <label for="f-first">First name</label>
+        <input id="f-first" name="firstName" autocomplete="given-name" maxlength="40" required>
+        <div class="field-error" id="e-firstName"></div>
+      </div>
+      <div class="field-group">
+        <label for="f-email">Email for updates</label>
+        <input id="f-email" name="email" type="email" autocomplete="email" maxlength="254" required>
+        <div class="field-error" id="e-email"></div>
+      </div>
+      <label class="toggle"><input type="checkbox" name="showName" checked> Show my first name on this page</label>
+      <label class="toggle"><input type="checkbox" name="isBusiness" id="f-is-business"> I'm sponsoring as a business</label>
+      <div class="field-group" id="business-group" hidden>
+        <label for="f-business">Business name</label>
+        <input id="f-business" name="businessName" autocomplete="organization" maxlength="80">
+        <div class="field-error" id="e-businessName"></div>
+      </div>
+      <button class="btn btn-primary btn-lg btn-block" type="submit" id="form-submit"></button>
+      <p class="fine" id="form-fine"></p>
+      <p class="fine">By sponsoring, you agree to Cover's <a href="terms.html" target="_blank" style="text-decoration:underline">terms</a> and <a href="privacy.html" target="_blank" style="text-decoration:underline">privacy policy</a>.</p>
+    </form>
+
+    <div class="flow-step" id="step-pay" hidden>
+      <!-- Real nonprofits: Stripe's secure card form appears here. -->
+      <div id="pay-live">
+        <p class="pay-status" id="pay-status" role="status">Loading the secure payment form…</p>
+        <div id="pay-mount"></div>
+      </div>
+      <!-- Demo pages: no real payment. -->
+      <div id="pay-demo" hidden>
+        <div class="demo-note">Demo page with made-up content, so there's no real payment. On a real nonprofit's page, Stripe's secure card form appears right here.</div>
+        <button class="btn btn-primary btn-lg btn-block" type="button" id="pay-done">Finish the demo</button>
+      </div>
+      <button class="link-btn" type="button" id="pay-back">Go back</button>
+    </div>
+
+    <div class="flow-step done" id="step-done" hidden>
+      <div class="stamp" id="stamp"></div>
+      <div class="note">
+        <h3 id="thanks-title"></h3>
+        <p id="thanks-body"></p>
+        <div class="sig" id="thanks-sig"></div>
+      </div>
+      <button class="btn btn-dark btn-lg btn-block" type="button" id="done-close">Done</button>
+      <p class="fine" id="done-fine"></p>
+    </div>
+
+  </div>
+</dialog>
+
+<script type="module" src="js/give.js"></script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1.00000 1.00000" width="512" height="512">
+  <title>Cover</title>
+  <g transform="matrix(1 0 0 -1 -0.00000 1.00000)">
+    <rect x="0.00000" y="0.00000" width="1.00000" height="1.00000" rx="0.22000" fill="#1F7A6D"/>
+    <polyline points="0.25000,0.52000 0.43000,0.33000 0.76000,0.70000" fill="none" stroke="#FAFAF7" stroke-width="0.12000" stroke-linejoin="round"/>
+  </g>
+</svg>

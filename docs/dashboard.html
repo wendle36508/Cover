@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard | Cover</title>
+<link rel="icon" href="brand/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/cover.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<!-- Stripe's embedded screens (sign-up, payments, payouts) must load from Stripe's own site. -->
+<script src="https://connect-js.stripe.com/v1.0/connect.js" async></script>
+</head>
+<body>
+<div class="loading" id="loading">Loading your dashboard…</div>
+
+<!-- First visit: create the nonprofit -->
+<div class="wrap-create" id="create" hidden>
+  <main style="max-width:640px;margin:0 auto;padding:48px 16px">
+    <img src="brand/logo.svg" alt="Cover" style="height:26px;margin-bottom:28px">
+    <h1 style="font-size:34px;letter-spacing:-.03em">Set up your sponsor page</h1>
+    <p class="lead" style="margin:8px 0 26px">A few basics. You can change all of this later.</p>
+    <form class="panel" id="create-form" novalidate>
+      <div class="form-grid">
+        <div class="field-group full"><label for="c-name">Nonprofit's name</label><input id="c-name" name="name" maxlength="120" required><div class="field-error" id="ce-name"></div></div>
+        <div class="field-group full"><label for="c-slug">Page link</label><input id="c-slug" name="slug" maxlength="60" required><div class="hint" id="c-slug-preview"></div><div class="field-error" id="ce-slug"></div></div>
+        <div class="field-group"><label for="c-kind">Supporters follow</label><select id="c-kind" name="kind"><option value="program">Programs</option><option value="animal">Animals</option></select></div>
+        <div class="field-group"><label for="c-label">What you call them</label><input id="c-label" name="followLabel" maxlength="30" value="Programs"><div class="hint">Like "Dogs", "Programs" or "Rooms"</div><div class="field-error" id="ce-followLabel"></div></div>
+        <div class="field-group"><label for="c-price">Monthly gift ($)</label><input id="c-price" name="price" type="number" min="5" max="1000" step="1" value="25"><div class="field-error" id="ce-price"></div></div>
+        <div class="field-group"><label for="c-goal">Monthly goal ($)</label><input id="c-goal" name="goal" type="number" min="1" step="1" value="2000"><div class="field-error" id="ce-goal"></div></div>
+      </div>
+      <button class="btn btn-primary btn-lg btn-block" type="submit" id="create-submit">Create my page</button>
+      <div class="field-error" id="ce-form" role="alert"></div>
+    </form>
+  </main>
+</div>
+
+<!-- The dashboard -->
+<div class="app" id="app" hidden>
+  <aside class="side">
+    <div class="org"><span class="brand-mark" style="background:var(--deep);color:var(--green)" id="org-initials"></span><span id="org-name"></span></div>
+    <a data-nav="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-8 9 8M5 10v10h14V10"/></svg>Overview</a>
+    <a data-nav="sponsors"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5M16 4.8a3.5 3.5 0 010 6.4M18 14.8c1.9.6 3.1 2.3 3.5 5.2"/></svg>Sponsors</a>
+    <a data-nav="items"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg><span id="nav-items-label">Things to follow</span></a>
+    <a data-nav="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4zM4 9h16M9 9v11"/></svg>Your page</a>
+    <a data-nav="payments"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 10h19M6.5 15h4"/></svg>Payments &amp; payouts</a>
+    <a data-nav="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>Settings</a>
+    <div class="bottom"><span id="me"></span><img src="brand/logo.svg" alt="Cover"></div>
+  </aside>
+
+  <main>
+    <div class="banner-mount" id="banner-mount"></div>
+
+    <!-- Overview -->
+    <section class="view" data-view="overview">
+      <div class="top">
+        <div><h1 id="hello"></h1><p>Here's how this month is going.</p></div>
+        <div class="linkbox"><span id="page-link-text"></span><button class="btn btn-dark" type="button" data-copy-link>Copy link</button><a class="btn btn-ghost" id="view-page" target="_blank" rel="noopener">View page</a></div>
+      </div>
+      <div class="grid">
+        <div>
+          <div class="panel month">
+            <h2>This month</h2>
+            <div class="big"><span id="m-covered"></span> <small id="m-goal"></small></div>
+            <div class="bar"><i id="m-bar"></i></div>
+            <div class="meta"><span id="m-pct"></span><span id="m-togo"></span></div>
+            <div class="tiles">
+              <div class="tile"><span>Active sponsors</span><b id="t-active"></b><em id="t-active-new"></em></div>
+              <div class="tile"><span>Businesses</span><b id="t-biz"></b><em id="t-biz-new"></em></div>
+              <div class="tile"><span>New this month</span><b id="t-new"></b><span>sponsors joined</span></div>
+            </div>
+          </div>
+          <div class="panel" style="margin-top:22px">
+            <h2>Newest sponsors <a data-nav="sponsors">See all</a></h2>
+            <div class="table-wrap"><table id="newest"></table></div>
+            <div id="attention"></div>
+          </div>
+        </div>
+        <div>
+          <div class="panel">
+            <h2>Get your page ready</h2>
+            <p class="progress-note" id="todo-count"></p>
+            <ul class="todo" id="todo"></ul>
+          </div>
+          <div class="panel" style="margin-top:22px">
+            <h2>Followed most</h2>
+            <table id="most"></table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Connect Stripe -->
+    <section class="view" data-view="connect" hidden>
+      <div class="top"><div><h1>Set up payouts</h1><p>Tell us where to send your donations. It takes about 10 minutes.</p></div></div>
+      <div class="connect-box">
+        <h2 id="connect-title">Get ready to take sponsors</h2>
+        <p id="connect-status"></p>
+        <div class="stripe-mount" id="onboarding-mount"></div>
+      </div>
+    </section>
+
+    <!-- Sponsors -->
+    <section class="view" data-view="sponsors" hidden>
+      <div class="top"><div><h1>Sponsors</h1><p>Everyone who sponsors you. Emails are private: only your team sees them.</p></div></div>
+      <div class="panel"><div class="table-wrap"><table id="all-sponsors"></table></div></div>
+    </section>
+
+    <!-- Things to follow -->
+    <section class="view" data-view="items" hidden>
+      <div class="top">
+        <div><h1 id="items-title"></h1><p>What sponsors pick to follow. Every gift still goes to your general fund.</p></div>
+        <button class="btn btn-primary btn-lg" type="button" id="add-item"></button>
+      </div>
+      <div class="items" id="item-grid"></div>
+    </section>
+
+    <!-- Your page -->
+    <section class="view" data-view="page" hidden>
+      <div class="top">
+        <div><h1>Your page</h1><p>What donors see. Leave a box empty to use Cover's wording.</p></div>
+        <a class="btn btn-ghost btn-lg" id="view-page-2" target="_blank" rel="noopener">View page</a>
+      </div>
+      <form class="panel" id="page-form" novalidate>
+        <div class="form-grid">
+          <div class="field-group full"><label for="p-name">Nonprofit's name</label><input id="p-name" name="name" maxlength="120"><div class="field-error" id="pe-name"></div></div>
+          <div class="field-group full"><label for="p-headline">Headline</label><input id="p-headline" name="headline" maxlength="90"><div class="hint">Example: "Sponsor a dog for $25 a month."</div><div class="field-error" id="pe-headline"></div></div>
+          <div class="field-group full"><label for="p-lead">Intro</label><textarea id="p-lead" name="lead" maxlength="400"></textarea><div class="field-error" id="pe-lead"></div></div>
+          <div class="field-group"><label for="p-label">What supporters follow</label><input id="p-label" name="navLabel" maxlength="30"><div class="field-error" id="pe-navLabel"></div></div>
+          <div class="field-group"><label for="p-everyone">Who the gift helps</label><input id="p-everyone" name="everyone" maxlength="80"><div class="hint">Finishes "Your gift helps …", like "every dog here"</div><div class="field-error" id="pe-everyone"></div></div>
+          <div class="field-group"><label for="p-price">Monthly gift ($)</label><input id="p-price" name="price" type="number" min="5" max="1000" step="1"><div class="hint">New sponsors only. Existing sponsors keep their amount.</div><div class="field-error" id="pe-price"></div></div>
+          <div class="field-group"><label for="p-goal">Monthly goal ($)</label><input id="p-goal" name="goal" type="number" min="1" step="1"><div class="field-error" id="pe-goal"></div></div>
+        </div>
+        <button class="btn btn-primary btn-lg" type="submit">Save changes</button><span class="saved-note" id="page-saved" hidden>Saved</span>
+        <div class="field-error" id="pe-form" role="alert"></div>
+      </form>
+    </section>
+
+    <!-- Payments & payouts -->
+    <section class="view" data-view="payments" hidden>
+      <div class="top"><div><h1>Payments &amp; payouts</h1><p>Every gift, refund and payout to your bank.</p></div></div>
+      <div class="panel" id="payments-wrap"><div class="stripe-mount" id="payments-mount"></div></div>
+      <div class="panel" style="margin-top:22px"><h2>Payouts to your bank</h2><div class="stripe-mount" id="payouts-mount"></div></div>
+    </section>
+
+    <!-- Settings -->
+    <section class="view" data-view="settings" hidden>
+      <div class="top"><div><h1>Settings</h1><p>Your bank account and business details.</p></div><button class="btn btn-ghost btn-lg" type="button" id="sign-out">Sign out</button></div>
+      <div class="panel"><div class="stripe-mount" id="account-mount"></div></div>
+    </section>
+  </main>
+</div>
+
+<!-- Add or edit a thing to follow -->
+<dialog class="sponsor-dialog" id="item-dialog" aria-labelledby="item-dialog-title">
+  <div class="dialog-head"><div><h2 id="item-dialog-title"></h2><p id="item-dialog-sub"></p></div><button class="dialog-close" type="button" id="item-close" aria-label="Close">×</button></div>
+  <form class="dialog-body" id="item-form" novalidate>
+    <div class="field-group"><label for="i-name">Name</label><input id="i-name" name="name" maxlength="80"><div class="field-error" id="ie-name"></div></div>
+    <div class="field-group"><label>Photo</label><div class="photo-pick"><img id="i-photo-preview" alt=""><input id="i-photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp"></div><div class="hint">JPG, PNG or WebP, up to 5 MB</div><div class="field-error" id="ie-photo"></div></div>
+    <div class="field-group"><label for="i-badge">Short tag (optional)</label><input id="i-badge" name="badge" maxlength="40"><div class="hint">Like "Waiting 94 days" or "Ages 5-8"</div><div class="field-error" id="ie-badge"></div></div>
+    <div class="field-group"><label for="i-note">One line about them</label><textarea id="i-note" name="note" maxlength="200"></textarea><div class="field-error" id="ie-note"></div></div>
+    <button class="btn btn-primary btn-lg btn-block" type="submit" id="item-save">Save</button>
+    <div class="field-error" id="ie-form" role="alert"></div>
+  </form>
+</dialog>
+
+<!-- Mark a thing to follow as finished (adopted, wrapped up) -->
+<dialog class="sponsor-dialog" id="finish-dialog" aria-labelledby="finish-title">
+  <div class="dialog-head"><div><h2 id="finish-title"></h2><p>Sponsors keep giving to your general fund.</p></div><button class="dialog-close" type="button" id="finish-close" aria-label="Close">×</button></div>
+  <form class="dialog-body" id="finish-form" novalidate>
+    <div class="field-group"><label for="f-note">A note for their sponsors</label><textarea id="f-note" name="note" maxlength="300"></textarea><div class="hint">Like "Bella went home with the Garcia family on Saturday!"</div></div>
+    <button class="btn btn-dark btn-lg btn-block" type="submit" id="finish-save"></button>
+  </form>
+</dialog>
+
+<div class="toast-msg" id="toast-msg" role="status" hidden></div>
+<script type="module" src="js/dashboard.js"></script>
+</body>
+</html>

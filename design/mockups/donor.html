@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sponsor page</title>
+<link rel="stylesheet" href="v2.css">
+<style>
+  .hero { padding: 72px 0 96px; }
+  .hero .container { display: grid; grid-template-columns: 1fr 1.05fr; gap: 64px; align-items: center; }
+  .hero h1 { margin: 16px 0 22px; }
+  .hero .actions { display: flex; gap: 12px; margin-top: 34px; }
+  .hero .trust { display: flex; align-items: center; gap: 10px; margin-top: 30px; font-size: 15px; color: var(--muted); }
+  .hero-media { position: relative; }
+  .hero-media img { border-radius: 24px; aspect-ratio: 5/4.3; object-fit: cover; width: 100%; }
+  .float { position: absolute; background: #fff; border-radius: 14px; padding: 18px 20px; }
+  .float.goal { left: -40px; bottom: 36px; width: 300px; }
+  .float.goal .row { display: flex; justify-content: space-between; font-size: 14px; color: var(--muted); margin-bottom: 10px; }
+  .float.goal b { font-size: 22px; color: var(--ink); letter-spacing: -.02em; }
+  .float.new { right: -24px; top: 34px; display: flex; gap: 12px; align-items: center; font-size: 14px; }
+  .float.new strong { display: block; font-size: 15px; }
+  .float.new span { color: var(--muted); }
+
+  .month { background: var(--soft); padding: 36px 0; }
+  .month .container { display: grid; grid-template-columns: auto 1fr auto; gap: 40px; align-items: center; }
+  .month .big { font-size: 34px; font-weight: 720; letter-spacing: -.03em; }
+  .month .big small { font-size: 17px; color: var(--muted); font-weight: 500; letter-spacing: 0; }
+  .month .bar { height: 14px; }
+  .month .note { font-size: 15px; color: var(--muted); }
+
+  .filters { display: flex; gap: 8px; margin-bottom: 28px; }
+  .filters span { white-space: nowrap; padding: 9px 16px; border-radius: 999px; border: 1px solid var(--line); font-size: 14px; font-weight: 600; color: var(--body); }
+  .filters span.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .items { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+  .items.four { grid-template-columns: repeat(4, 1fr); gap: 22px; }
+  .item img { aspect-ratio: 4/3.2; object-fit: cover; width: 100%; }
+  .item .body { padding: 20px 22px 22px; }
+  .item .top { display: flex; justify-content: space-between; align-items: center; }
+  .item p { color: var(--body); font-size: 15px; margin: 6px 0 18px; }
+  .item .foot { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--line); padding-top: 16px; }
+  .item .sponsors { font-size: 14px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  .item .btn { padding: 11px 18px; font-size: 14px; }
+
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+  .step { padding: 30px; border-radius: var(--radius); background: var(--soft); }
+  .step .n { width: 40px; height: 40px; border-radius: 10px; background: var(--ink); color: #fff; display: grid; place-items: center; font-weight: 700; margin-bottom: 22px; }
+  .step p { color: var(--body); font-size: 16px; margin-top: 8px; }
+
+  .promise { background: var(--deep); color: #fff; }
+  .promise .container { display: grid; grid-template-columns: 1.3fr 1fr; gap: 64px; align-items: center; }
+  .promise blockquote { font-size: 54px; line-height: 1.08; }
+  .promise blockquote em { font-style: normal; color: var(--green); }
+  .promise cite { display: block; font-style: normal; margin-top: 26px; color: rgba(255,255,255,.65); font-size: 16px; }
+  .promise img { border-radius: 20px; aspect-ratio: 4/4.6; object-fit: cover; }
+
+  .biz .container { display: grid; grid-template-columns: 1fr 1fr; gap: 72px; align-items: center; }
+  .biz img { border-radius: 20px; aspect-ratio: 5/4; object-fit: cover; }
+  .biz ul { list-style: none; margin-top: 28px; display: grid; gap: 14px; }
+  .biz li { display: flex; gap: 12px; align-items: flex-start; color: var(--body); }
+  .biz .example { margin-top: 30px; padding: 16px 18px; display: flex; gap: 14px; align-items: center; font-size: 15px; }
+  .biz .example .logo { width: 44px; height: 44px; border-radius: 10px; background: #F2E6D3; display: grid; place-items: center; font-weight: 750; color: #7A5A2B; }
+  .biz .example span { color: var(--muted); font-size: 13px; display: block; }
+
+  .faq { display: grid; grid-template-columns: 1fr 1.4fr; gap: 72px; }
+  .faq details { border-bottom: 1px solid var(--line); padding: 22px 0; }
+  .faq summary { font-weight: 650; font-size: 18px; list-style: none; display: flex; justify-content: space-between; }
+  .faq summary::after { content: "+"; color: var(--muted); font-weight: 400; font-size: 22px; line-height: 1; }
+  .faq details[open] summary::after { content: "–"; }
+  .faq details p { color: var(--body); margin-top: 10px; }
+
+  .powered { display: flex; align-items: center; gap: 8px; }
+  .powered img { height: 18px; }
+
+  @media (max-width: 760px) {
+    .hero { padding: 36px 0 56px; }
+    .hero .container { grid-template-columns: 1fr; gap: 40px; }
+    .hero .actions { flex-direction: column; }
+    .hero .actions .btn { justify-content: center; }
+    .float.goal { left: 12px; right: 12px; width: auto; bottom: 12px; }
+    .float.new { right: 12px; top: 12px; }
+    .month .container { grid-template-columns: 1fr; gap: 14px; }
+    .filters { overflow-x: auto; }
+    .items, .items.four, .steps { grid-template-columns: 1fr; gap: 20px; }
+    .promise .container, .biz .container, .faq { grid-template-columns: 1fr; gap: 36px; }
+    .promise blockquote { font-size: 38px; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="container">
+    <div class="brand-text"><span class="brand-mark" data-f="initials"></span><span data-f="name"></span></div>
+    <div class="nav-links"><a href="#list" data-f="navLabel"></a><a href="#how">How it works</a><a href="#business">For businesses</a><a href="#faq">Questions</a></div>
+    <a class="btn btn-primary" href="#list" data-f="cta"></a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="container">
+    <div>
+      <div class="eyebrow" data-f="eyebrow"></div>
+      <h1 data-f="headline"></h1>
+      <p class="lead" data-f="lead"></p>
+      <div class="actions">
+        <a class="btn btn-primary btn-lg" href="#list" data-f="browse"></a>
+        <a class="btn btn-ghost btn-lg" href="#how">How it works</a>
+      </div>
+      <div class="trust"><span class="check" data-check></span><span data-f="trust"></span></div>
+    </div>
+    <div class="hero-media">
+      <img id="hero-photo" alt="">
+      <div class="float goal shadow">
+        <div class="row"><span>This month</span><span id="pct"></span></div>
+        <b id="covered"></b> <span style="color:var(--muted);font-size:14px" id="goal"></span>
+        <div class="bar" style="margin-top:12px"><i id="bar"></i></div>
+      </div>
+      <div class="float new shadow"><span class="check" data-check></span><div><strong id="toast-a"></strong><span id="toast-b"></span></div></div>
+    </div>
+  </div>
+</header>
+
+<section class="section" id="list" style="padding-top:24px">
+  <div class="container">
+    <div class="section-head">
+      <div class="eyebrow" data-f="listEyebrow"></div>
+      <h2 style="margin-top:12px" data-f="listTitle"></h2>
+      <p data-f="listLead"></p>
+    </div>
+    <div class="filters" id="filters"></div>
+    <div class="items" id="items"></div>
+  </div>
+</section>
+
+<section class="section" id="how" style="padding-top:0">
+  <div class="container">
+    <div class="section-head"><div class="eyebrow">How it works</div><h2 style="margin-top:12px">Three steps, about a minute.</h2></div>
+    <div class="steps" id="steps"></div>
+  </div>
+</section>
+
+<section class="section promise">
+  <div class="container">
+    <div>
+      <blockquote class="serif" id="quote"></blockquote>
+      <cite id="quote-by"></cite>
+    </div>
+    <img id="quote-photo" alt="">
+  </div>
+</section>
+
+<section class="section biz" id="business">
+  <div class="container">
+    <img src="../photos/shop-owner.jpg" alt="A shop owner standing in his store">
+    <div>
+      <div class="eyebrow">For local businesses</div>
+      <h2 style="margin-top:12px">Sponsor as a business. Get thanked where your neighbors see it.</h2>
+      <ul>
+        <li><span class="check" data-check></span>Your business name on this page and in sponsor updates</li>
+        <li><span class="check" data-check></span>A thank-you post on our social media</li>
+        <li><span class="check" data-check></span>A window sticker for your shop</li>
+      </ul>
+      <div class="card example"><div class="logo">BS</div><div><strong>Bay Street Hardware</strong><span>Example business sponsor</span></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="faq" style="padding-top:0">
+  <div class="container faq">
+    <div><div class="eyebrow">Questions</div><h2 style="margin-top:12px">Good to know.</h2></div>
+    <div id="faq-list"></div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="container">
+    <div id="foot"></div>
+    <div class="powered">Powered by <img src="../../assets/brand/logo.svg" alt="Cover"></div>
+  </div>
+</footer>
+
+<script src="orgs.js"></script>
+<script>
+  const CHECK = '<svg viewBox="0 0 24 24"><polyline points="5,12.5 10,17 19,7" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/></svg>';
+  const key = new URLSearchParams(location.search).get("org");
+  const org = ORGS[key] || ORGS.rescue;
+  const $ = (id) => document.getElementById(id);
+  const money = (n) => "$" + n.toLocaleString("en-US");
+  const photo = (name) => `../photos/${name}.jpg`;
+
+  document.title = `${org.cta} | ${org.name}`;
+  document.querySelectorAll("[data-f]").forEach((el) => (el.textContent = org[el.dataset.f]));
+  $("hero-photo").src = photo(org.heroPhotoWide);
+  $("hero-photo").alt = org.heroAlt;
+  const pct = Math.round((org.covered / org.goal) * 100);
+  $("pct").textContent = `${pct}%`;
+  $("covered").textContent = money(org.covered);
+  $("goal").textContent = `of ${money(org.goal)} covered`;
+  $("bar").style.width = `${pct}%`;
+  [$("toast-a").textContent, $("toast-b").textContent] = org.toast;
+  $("filters").innerHTML = org.filters.map((f, i) => `<span class="${i === 0 ? "on" : ""}">${f}</span>`).join("");
+  if (org.items.length === 4) $("items").classList.add("four");
+  $("items").innerHTML = org.items.map((item) => `
+    <article class="card item">
+      <img src="${photo(item.photo)}" alt="${item.name}">
+      <div class="body">
+        <div class="top"><h3>${item.name}</h3></div>
+        <span class="pill ${item.hot ? "green" : ""}" style="margin-top:10px">${item.badge}</span>
+        <p>${item.note}</p>
+        <div class="foot"><span class="sponsors">${item.sponsors} sponsor${item.sponsors > 1 ? "s" : ""}</span><a class="btn btn-dark" href="#">Sponsor</a></div>
+      </div>
+    </article>`).join("");
+  $("steps").innerHTML = org.steps.map(([title, text], i) => `<div class="step"><div class="n">${i + 1}</div><h3>${title}</h3><p>${text}</p></div>`).join("");
+  $("quote").innerHTML = `"${org.quote[0]}<em>${org.quote[1]}</em>"`;
+  $("quote-by").textContent = `The ${org.name} team`;
+  $("quote-photo").src = photo(org.quotePhoto);
+  $("faq-list").innerHTML = [...org.faq, ...SHARED_FAQ(org)].map(([q, a], i) => `<details ${i === 0 ? "open" : ""}><summary>${q}</summary><p>${a}</p></details>`).join("");
+  $("foot").textContent = `${org.name} · ${org.place} · Demo page with made-up content`;
+  document.querySelectorAll("[data-check]").forEach((el) => (el.innerHTML = CHECK));
+</script>
+</body>
+</html>

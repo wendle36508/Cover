@@ -1,0 +1,85 @@
+/* Shared look for round-two mockups: real-product style, Bricolage with a few serif moments,
+   brighter green accent. Used by donor.html (the rescue's page) and company.html (Cover's site). */
+
+@font-face { font-family: "Instrument Serif"; src: url("../../assets/fonts/InstrumentSerif-Regular.ttf"); }
+@font-face { font-family: "Bricolage"; src: url("../../assets/fonts/BricolageGrotesque%5Bopsz,wdth,wght%5D.ttf"); font-weight: 200 800; }
+
+:root {
+  --ink: #14181C;
+  --body: #4A525A;
+  --muted: #6B747C;
+  --line: #E6E9EC;
+  --bg: #FFFFFF;
+  --soft: #F5F7F6;
+  --mint: #EAF8F0;
+  --green: #22C67A;       /* bright accent: buttons, bars, checks */
+  --green-dark: #0B6B47;  /* green text on white */
+  --deep: #0C2B24;        /* dark sections */
+  --radius: 16px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-font-smoothing: antialiased; }
+body { font-family: "Bricolage", system-ui, sans-serif; color: var(--ink); background: var(--bg); font-size: 17px; line-height: 1.55; }
+img { display: block; max-width: 100%; }
+a { color: inherit; text-decoration: none; }
+.container { max-width: 1200px; margin: 0 auto; padding: 0 32px; }
+
+/* Nav */
+.nav { position: sticky; top: 0; z-index: 10; background: rgba(255,255,255,.92); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.nav .container { display: flex; align-items: center; justify-content: space-between; height: 72px; }
+.nav-links { display: flex; gap: 32px; font-size: 15px; font-weight: 500; color: var(--body); }
+.brand-text { font-weight: 750; font-size: 19px; letter-spacing: -.02em; display: flex; align-items: center; gap: 10px; }
+.brand-mark { width: 30px; height: 30px; border-radius: 8px; background: var(--deep); color: var(--green); display: grid; place-items: center; }
+.brand-mark svg { width: 18px; }
+
+/* Buttons */
+.btn { display: inline-flex; align-items: center; gap: 8px; font-weight: 650; font-size: 15px; padding: 13px 22px; border-radius: 10px; line-height: 1; white-space: nowrap; }
+.btn-primary { background: var(--green); color: var(--ink); }
+.btn-dark { background: var(--ink); color: #fff; }
+.btn-ghost { border: 1.5px solid var(--line); color: var(--ink); background: #fff; }
+.btn-lg { padding: 17px 28px; font-size: 16px; }
+
+/* Type */
+.eyebrow { font-size: 13px; font-weight: 650; letter-spacing: .08em; text-transform: uppercase; color: var(--green-dark); }
+h1 { font-size: 64px; line-height: 1.02; letter-spacing: -.035em; font-weight: 750; }
+h2 { font-size: 44px; line-height: 1.08; letter-spacing: -.03em; font-weight: 720; }
+h3 { font-size: 21px; letter-spacing: -.015em; font-weight: 680; line-height: 1.25; }
+.lead { font-size: 20px; color: var(--body); line-height: 1.5; }
+.serif { font-family: "Instrument Serif", serif; font-weight: 400; letter-spacing: -.01em; }
+.section { padding: 112px 0; }
+.section-head { max-width: 640px; margin-bottom: 52px; }
+.section-head p { margin-top: 14px; color: var(--body); font-size: 18px; }
+
+/* Progress */
+.bar { height: 10px; border-radius: 999px; background: var(--line); overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--green); border-radius: 999px; }
+
+/* Cards */
+.card { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.shadow { box-shadow: 0 1px 2px rgba(20,24,28,.04), 0 12px 32px rgba(20,24,28,.08); }
+.pill { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; padding: 6px 11px; border-radius: 999px; background: var(--soft); color: var(--body); }
+.pill.green { background: var(--mint); color: var(--green-dark); }
+.check { width: 22px; height: 22px; border-radius: 50%; background: var(--green); color: var(--ink); display: inline-grid; place-items: center; flex: none; }
+.check svg { width: 13px; }
+
+/* Footer */
+.footer { border-top: 1px solid var(--line); padding: 48px 0; color: var(--muted); font-size: 14px; }
+.footer .container { display: flex; justify-content: space-between; align-items: center; gap: 24px; }
+
+@media (max-width: 760px) {
+  body { font-size: 16px; }
+  .container { padding: 0 20px; }
+  .nav .container { height: 62px; }
+  .nav-links { display: none; }
+  .nav .container { gap: 12px; }
+  .brand-text { font-size: 16px; min-width: 0; }
+  .brand-text > span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .nav .btn { padding: 11px 14px; font-size: 14px; }
+  h1 { font-size: 42px; }
+  h2 { font-size: 32px; }
+  .lead { font-size: 18px; }
+  .section { padding: 72px 0; }
+  .section-head { margin-bottom: 34px; }
+  .footer .container { flex-direction: column; align-items: flex-start; }
+}

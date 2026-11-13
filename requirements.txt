@@ -1,0 +1,2 @@
+# Python tools for Cover (screenshots of the design mockups)
+pillow>=10.0

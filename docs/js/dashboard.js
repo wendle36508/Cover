@@ -1,0 +1,590 @@
+// dashboard.js - the signed-in nonprofit's dashboard: overview, sponsors, things to follow,
+// page settings, and Stripe's embedded screens (sign-up, payments, payouts, account).
+//
+// Everything read or changed here goes through the database's safety rules as this person,
+// so they only ever see and edit their own nonprofit. Typed text is shown with textContent only.
+
+import { STRIPE_PUBLISHABLE_KEY } from "./config.js";
+import {
+  checklist, followedMost, greeting, monthStats, newestSponsors, photoPath, photoProblem, slugify,
+  sponsorName, statusLabel, validateItem, validatePage, validateSignup, whenText, countsByItem,
+} from "./dashboard-logic.js";
+import { money } from "./sponsor.js";
+import { callServer, pageUrl, supabase } from "./supabase.js";
+
+const CHECK_SVG = '<svg viewBox="0 0 24 24"><polyline points="5,12.5 10,17 19,7" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/></svg>';
+const AVATAR_COLORS = ["#C98B5E", "#5B8F7E", "#7B7FB8", "#B86E7B", "#6E9BB8", "#A08A4E"];
+const $ = (id) => document.getElementById(id);
+
+const state = { user: null, nonprofit: null, items: [], sponsors: [], connect: null, mounted: new Set(), editing: null, finishing: null, accountCreated: false };
+
+/** True once the nonprofit has a Stripe account (saved earlier, or just created by Stripe's sign-up form). */
+const hasStripeAccount = () => Boolean(state.nonprofit?.stripe_account_id) || state.accountCreated;
+
+// ---------- small helpers ----------
+
+function el(tag, className, text) {
+  const node = document.createElement(tag);
+  if (className) node.className = className;
+  if (text !== undefined && text !== null) node.textContent = text;
+  return node;
+}
+
+function checkIcon() {
+  const span = el("span", "check");
+  span.innerHTML = CHECK_SVG;
+  return span;
+}
+
+let toastTimer;
+function toast(message) {
+  $("toast-msg").textContent = message;
+  $("toast-msg").hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => ($("toast-msg").hidden = true), 3200);
+}
+
+function showErrors(prefix, errors) {
+  document.querySelectorAll(`[id^="${prefix}"]`).forEach((node) => (node.textContent = ""));
+  for (const [field, message] of Object.entries(errors)) {
+    const target = $(`${prefix}${field}`);
+    if (target) target.textContent = message;
+  }
+}
+
+const label = () => state.nonprofit.page?.navLabel || "Things to follow";
+const singular = () => label().replace(/s$/i, "") || "one";
+const publicUrl = () => `${pageUrl("give.html")}?org=${state.nonprofit.slug}`;
+const linkSharedKey = () => `cover.linkShared.${state.nonprofit.id}`;
+function linkShared() {
+  try {
+    return localStorage.getItem(linkSharedKey()) === "yes";
+  } catch {
+    return false;
+  }
+}
+
+// ---------- loading ----------
+
+async function loadNonprofit(nonprofitId) {
+  const [np, items, sponsors] = await Promise.all([
+    supabase.from("nonprofits").select("*").eq("id", nonprofitId).single(),
+    supabase.from("follow_items").select("*").eq("nonprofit_id", nonprofitId).order("sort_order").order("created_at"),
+    supabase.from("sponsors")
+      .select("id, item_id, first_name, email, business_name, monthly_cents, status, created_at")
+      .eq("nonprofit_id", nonprofitId)
+      .order("created_at", { ascending: false }),
+  ]);
+  for (const result of [np, items, sponsors]) if (result.error) throw result.error;
+  state.nonprofit = np.data;
+  state.items = items.data;
+  state.sponsors = sponsors.data;
+}
+
+async function refreshStripeStatus() {
+  if (!hasStripeAccount()) return null;
+  try {
+    const result = await callServer("stripe-connect", { action: "status" });
+    state.nonprofit.is_live = result.live;
+    return result;
+  } catch (error) {
+    console.warn("Couldn't check Stripe status", error);
+    return null;
+  }
+}
+
+// ---------- Stripe's embedded screens ----------
+
+function waitForConnectJs() {
+  return new Promise((resolve, reject) => {
+    const started = Date.now();
+    (function check() {
+      if (window.StripeConnect?.init) return resolve(window.StripeConnect);
+      if (Date.now() - started > 15000) return reject(new Error("The payment screens didn't load. Refresh the page."));
+      setTimeout(check, 100);
+    })();
+  });
+}
+
+async function stripeConnect() {
+  if (state.connect) return state.connect;
+  const StripeConnect = await waitForConnectJs();
+  state.connect = StripeConnect.init({
+    publishableKey: STRIPE_PUBLISHABLE_KEY,
+    fetchClientSecret: async () => {
+      const { clientSecret } = await callServer("stripe-connect", { action: "session" });
+      state.accountCreated = true; // the first session creates the Stripe account
+      return clientSecret;
+    },
+    appearance: { variables: { colorPrimary: "#0B6B47", fontFamily: "Bricolage, system-ui, sans-serif", borderRadius: "10px" } },
+  });
+  return state.connect;
+}
+
+async function mountStripe(component, mountId, configure) {
+  if (state.mounted.has(mountId)) return;
+  state.mounted.add(mountId);
+  try {
+    const instance = await stripeConnect();
+    const element = instance.create(component);
+    configure?.(element);
+    $(mountId).replaceChildren(element);
+  } catch (error) {
+    state.mounted.delete(mountId);
+    $(mountId).replaceChildren(el("p", "empty", error.message));
+  }
+}
+
+// ---------- overview ----------
+
+function drawOverview() {
+  const np = state.nonprofit;
+  const stats = monthStats(state.sponsors, np.monthly_goal_cents);
+  $("hello").textContent = `${greeting()}, ${np.name}`;
+  $("page-link-text").textContent = publicUrl().replace(/^https?:\/\//, "");
+  $("view-page").href = publicUrl();
+  $("view-page-2").href = publicUrl();
+  $("m-covered").textContent = money(stats.covered);
+  $("m-goal").textContent = `of ${money(stats.goal)} goal`;
+  $("m-bar").style.width = `${stats.percent}%`;
+  $("m-pct").textContent = `${stats.percent}% covered`;
+  $("m-togo").textContent = stats.sponsorsToGoal ? `${stats.sponsorsToGoal} more sponsors reaches your goal` : "Goal reached!";
+  $("t-active").textContent = stats.activeCount;
+  $("t-active-new").textContent = stats.newThisMonth ? `+${stats.newThisMonth} this month` : "";
+  $("t-biz").textContent = stats.businesses;
+  $("t-biz-new").textContent = stats.businessesNew ? `+${stats.businessesNew} this month` : "";
+  $("t-new").textContent = stats.newThisMonth;
+
+  const rows = newestSponsors(state.sponsors, state.items, 5);
+  const table = $("newest");
+  if (!rows.length) {
+    table.replaceChildren(el("tr", "", null));
+    table.firstChild.append(el("td", "empty", "No sponsors yet. Share your page link to get your first one."));
+  } else {
+    const head = el("tr");
+    ["Sponsor", "Following", "Monthly", "Status"].forEach((h) => head.append(el("th", "", h)));
+    table.replaceChildren(head, ...rows.map((row, i) => sponsorRow(row, i, false)));
+  }
+  $("attention").replaceChildren();
+  if (stats.needsAttention) {
+    const box = el("div", "alert");
+    box.append(el("b", "", `${stats.needsAttention} sponsor${stats.needsAttention > 1 ? "s'" : "'s"} card failed. `),
+      el("span", "", "We retry the card automatically and email them to update it. Nothing you need to do."));
+    $("attention").append(box);
+  }
+
+  const todo = checklist({ nonprofit: np, items: state.items, linkShared: linkShared() });
+  $("todo-count").textContent = `${todo.done} of ${todo.steps.length} done`;
+  $("todo").replaceChildren(...todo.steps.map((step) => {
+    const li = el("li");
+    li.append(step.done ? checkIcon() : el("span", "ring"), el("span", step.done ? "done-text" : "", step.text));
+    if (!step.done && step.action) {
+      const go = el("a", "go", step.action === "connect" ? "Set up" : step.action === "share" ? "Copy link" : "Add");
+      go.href = "#";
+      go.addEventListener("click", (event) => {
+        event.preventDefault();
+        if (step.action === "share") copyLink();
+        else show(step.action);
+      });
+      li.append(go);
+    }
+    return li;
+  }));
+
+  const most = followedMost(state.items, state.sponsors);
+  $("most").replaceChildren(...(most.length ? most.slice(0, 5).map((item, i) => {
+    const tr = el("tr");
+    const right = el("td", "", `${item.sponsors} sponsor${item.sponsors === 1 ? "" : "s"}`);
+    right.style.textAlign = "right";
+    if (i === most.length - 1 && most.length > 1 && item.sponsors <= 1) {
+      right.textContent += " · needs some love";
+      right.style.color = "var(--green-dark)";
+      right.style.fontWeight = "650";
+    }
+    tr.append(el("td", "", item.name), right);
+    return tr;
+  }) : [(() => { const tr = el("tr"); tr.append(el("td", "empty", `Add ${label().toLowerCase()} so people can pick one.`)); return tr; })()]));
+}
+
+function sponsorRow(row, index, full) {
+  const tr = el("tr");
+  const who = el("div", "who");
+  const avatar = el("span", "avatar", (sponsorName(row)[0] ?? "?").toUpperCase());
+  avatar.style.background = AVATAR_COLORS[index % AVATAR_COLORS.length];
+  const name = el("div", "", sponsorName(row));
+  name.append(el("small", "", `${whenText(row.created_at)}${row.business_name ? " · business" : ""}`));
+  who.append(avatar, name);
+  const whoCell = el("td");
+  whoCell.append(who);
+  const statusCell = el("td");
+  const badge = row.label ?? statusLabel(row.status);
+  statusCell.append(el("span", `status s-${badge.tone}`, badge.text));
+  tr.append(whoCell);
+  if (full) tr.append(el("td", "", row.email));
+  tr.append(el("td", "", row.following), el("td", "", money(row.monthly_cents / 100)), statusCell);
+  return tr;
+}
+
+function drawSponsors() {
+  const names = new Map(state.items.map((item) => [item.id, item.name]));
+  const rows = state.sponsors.map((s) => ({ ...s, following: names.get(s.item_id) ?? "—" }));
+  const table = $("all-sponsors");
+  if (!rows.length) {
+    const tr = el("tr");
+    tr.append(el("td", "empty", "No sponsors yet."));
+    table.replaceChildren(tr);
+    return;
+  }
+  const head = el("tr");
+  ["Sponsor", "Email", "Following", "Monthly", "Status"].forEach((h) => head.append(el("th", "", h)));
+  table.replaceChildren(head, ...rows.map((row, i) => sponsorRow(row, i, true)));
+}
+
+// ---------- things to follow ----------
+
+function drawItems() {
+  $("items-title").textContent = label();
+  $("nav-items-label").textContent = label();
+  $("add-item").textContent = `+ Add ${singular().toLowerCase()}`;
+  const counts = countsByItem(state.sponsors);
+  const cards = state.items.map((item) => {
+    const card = el("div", `item-card${item.status === "finished" ? " finished" : ""}`);
+    if (item.photo_url) {
+      const img = el("img");
+      img.src = item.photo_url;
+      img.alt = item.name;
+      card.append(img);
+    } else {
+      card.append(el("div", "no-photo", "No photo yet"));
+    }
+    const body = el("div", "b");
+    const row = el("div", "row");
+    const count = counts.get(item.id) ?? 0;
+    row.append(el("h3", "", item.name), el("span", `status ${item.status === "finished" ? "s-new" : "s-active"}`,
+      item.status === "finished" ? "Finished" : `${count} sponsor${count === 1 ? "" : "s"}`));
+    body.append(row, el("p", "", item.status === "finished" ? item.finished_note || "Finished" : [item.badge, item.note].filter(Boolean).join(" · ")));
+    const actions = el("div", "actions");
+    const edit = el("button", "btn btn-ghost", "Edit");
+    edit.type = "button";
+    edit.addEventListener("click", () => openItem(item));
+    actions.append(edit);
+    if (item.status === "active") {
+      const finish = el("button", "btn btn-dark", state.nonprofit.kind === "animal" ? "Mark adopted" : "Mark finished");
+      finish.type = "button";
+      finish.addEventListener("click", () => openFinish(item));
+      actions.append(finish);
+    } else {
+      const reopen = el("button", "btn btn-ghost", "Bring back");
+      reopen.type = "button";
+      reopen.addEventListener("click", () => setItemStatus(item, "active", null));
+      actions.append(reopen);
+    }
+    body.append(actions);
+    card.append(body);
+    return card;
+  });
+  const add = el("button", "add-card");
+  add.type = "button";
+  const inner = el("div");
+  inner.append(el("div", "plus", "+"), el("div", "", `Add ${singular().toLowerCase()}`), el("span", "", "Photo, name and one line about them"));
+  inner.lastChild.style.cssText = "font-weight:400;font-size:13px";
+  add.append(inner);
+  add.addEventListener("click", () => openItem(null));
+  $("item-grid").replaceChildren(...cards, add);
+}
+
+function openItem(item) {
+  state.editing = item;
+  const form = $("item-form");
+  form.reset();
+  showErrors("ie-", {});
+  $("item-dialog-title").textContent = item ? `Edit ${item.name}` : `Add ${singular().toLowerCase()}`;
+  $("item-dialog-sub").textContent = state.nonprofit.name;
+  form.elements.name.value = item?.name ?? "";
+  form.elements.badge.value = item?.badge ?? "";
+  form.elements.note.value = item?.note ?? "";
+  $("i-photo-preview").src = item?.photo_url ?? "";
+  $("i-photo-preview").hidden = !item?.photo_url;
+  $("item-save").disabled = false;
+  $("item-dialog").showModal();
+  form.elements.name.focus();
+}
+
+$("i-photo").addEventListener("change", (event) => {
+  const file = event.target.files?.[0];
+  const problem = photoProblem(file);
+  $("ie-photo").textContent = problem;
+  if (file && !problem) {
+    $("i-photo-preview").src = URL.createObjectURL(file);
+    $("i-photo-preview").hidden = false;
+  }
+});
+
+async function uploadPhoto(file) {
+  const path = photoPath(state.nonprofit.id, file, crypto.randomUUID());
+  const { error } = await supabase.storage.from("photos").upload(path, file, { contentType: file.type, upsert: false });
+  if (error) throw new Error("The photo didn't upload. Try a smaller JPG or PNG.");
+  return supabase.storage.from("photos").getPublicUrl(path).data.publicUrl;
+}
+
+$("item-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.target;
+  const result = validateItem({ name: form.elements.name.value, badge: form.elements.badge.value, note: form.elements.note.value });
+  const file = form.elements.photo.files?.[0];
+  const photoError = photoProblem(file);
+  showErrors("ie-", { ...result.errors, ...(photoError ? { photo: photoError } : {}) });
+  if (!result.ok || photoError) return;
+  $("item-save").disabled = true;
+  $("item-save").textContent = "Saving…";
+  try {
+    const row = { name: result.values.name, badge: result.values.badge || null, note: result.values.note || null };
+    if (file) row.photo_url = await uploadPhoto(file);
+    const query = state.editing
+      ? supabase.from("follow_items").update(row).eq("id", state.editing.id)
+      : supabase.from("follow_items").insert({ ...row, nonprofit_id: state.nonprofit.id, sort_order: state.items.length });
+    const { error } = await query;
+    if (error) throw new Error(error.code === "23505" ? "You already have one with that name." : "That didn't save. Please try again.");
+    $("item-dialog").close();
+    toast(state.editing ? "Saved" : `${result.values.name} added`);
+    await reload();
+  } catch (error) {
+    $("ie-form").textContent = error.message;
+  } finally {
+    $("item-save").disabled = false;
+    $("item-save").textContent = "Save";
+  }
+});
+
+function openFinish(item) {
+  state.finishing = item;
+  $("finish-form").reset();
+  const adopted = state.nonprofit.kind === "animal";
+  $("finish-title").textContent = adopted ? `Did ${item.name} go home?` : `Wrap up ${item.name}?`;
+  $("finish-save").textContent = adopted ? `Yes, ${item.name} was adopted` : "Mark finished";
+  $("finish-dialog").showModal();
+}
+
+async function setItemStatus(item, status, note) {
+  const { error } = await supabase.from("follow_items").update({ status, finished_note: note }).eq("id", item.id);
+  if (error) {
+    toast("That didn't save. Please try again.");
+    return;
+  }
+  toast(status === "finished" ? `${item.name} marked finished` : `${item.name} is back on your page`);
+  await reload();
+}
+
+$("finish-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const note = event.target.elements.note.value.trim().slice(0, 300) || null;
+  $("finish-dialog").close();
+  await setItemStatus(state.finishing, "finished", note);
+});
+
+// ---------- your page ----------
+
+function fillPageForm() {
+  const np = state.nonprofit;
+  const form = $("page-form");
+  form.elements.name.value = np.name;
+  form.elements.headline.value = np.page?.headline ?? "";
+  form.elements.lead.value = np.page?.lead ?? "";
+  form.elements.navLabel.value = np.page?.navLabel ?? "";
+  form.elements.everyone.value = np.page?.everyone ?? "";
+  form.elements.price.value = np.monthly_price_cents / 100;
+  form.elements.goal.value = np.monthly_goal_cents / 100;
+}
+
+$("page-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.target;
+  const result = validatePage(Object.fromEntries(new FormData(form)));
+  showErrors("pe-", result.errors);
+  if (!result.ok) return;
+  const { values } = result;
+  const page = { ...(state.nonprofit.page ?? {}) };
+  for (const key of ["headline", "lead", "navLabel", "everyone"]) {
+    if (values[key]) page[key] = values[key];
+    else delete page[key];
+  }
+  const { error } = await supabase.from("nonprofits")
+    .update({ name: values.name, page, monthly_price_cents: values.priceCents, monthly_goal_cents: values.goalCents })
+    .eq("id", state.nonprofit.id);
+  if (error) {
+    $("pe-form").textContent = "That didn't save. Please try again.";
+    return;
+  }
+  $("page-saved").hidden = false;
+  setTimeout(() => ($("page-saved").hidden = true), 2500);
+  await reload();
+});
+
+// ---------- connect Stripe ----------
+
+async function drawConnect() {
+  const status = await refreshStripeStatus();
+  $("connect-status").textContent = status?.message ?? "Fill in the form below. The law requires checking who receives donations, so donors can trust where their money goes.";
+  if (state.nonprofit.is_live) {
+    $("connect-title").textContent = "Payouts are set up";
+    $("onboarding-mount").replaceChildren();
+    return;
+  }
+  mountStripe("account-onboarding", "onboarding-mount", (onboarding) => {
+    onboarding.setOnExit(async () => {
+      const result = await refreshStripeStatus();
+      toast(result?.live ? "You're approved. Your page is live!" : "Saved. We're verifying your details.");
+      await reload();
+      show(result?.live ? "overview" : "connect");
+    });
+  });
+}
+
+// ---------- copy link, navigation, sign out ----------
+
+async function copyLink() {
+  try {
+    await navigator.clipboard.writeText(publicUrl());
+    toast("Page link copied");
+  } catch {
+    toast(publicUrl());
+  }
+  try {
+    localStorage.setItem(linkSharedKey(), "yes");
+  } catch {
+    // remembering is optional
+  }
+  drawOverview();
+}
+
+function show(view) {
+  if (view === "connect" && state.nonprofit.is_live) view = "overview";
+  document.querySelectorAll("[data-view]").forEach((section) => (section.hidden = section.dataset.view !== view));
+  document.querySelectorAll(".side [data-nav]").forEach((link) => link.classList.toggle("on", link.dataset.nav === view));
+  history.replaceState(null, "", `#${view}`);
+  window.scrollTo(0, 0);
+  if (view === "connect") drawConnect();
+  if (view === "payments" || view === "settings") {
+    if (!hasStripeAccount()) {
+      const target = view === "payments" ? "payments-mount" : "account-mount";
+      const note = el("p", "empty", "Set up payouts first, then your payments and bank details show here.");
+      const go = el("button", "btn btn-primary", "Set up payouts");
+      go.type = "button";
+      go.addEventListener("click", () => show("connect"));
+      $(target).replaceChildren(note, go);
+      if (view === "payments") $("payouts-mount").replaceChildren();
+    } else if (view === "payments") {
+      mountStripe("payments", "payments-mount");
+      mountStripe("payouts", "payouts-mount");
+    } else {
+      mountStripe("account-management", "account-mount");
+    }
+  }
+}
+
+document.querySelectorAll("[data-nav]").forEach((link) => link.addEventListener("click", (event) => {
+  event.preventDefault();
+  show(link.dataset.nav);
+}));
+document.querySelectorAll("[data-copy-link]").forEach((button) => button.addEventListener("click", copyLink));
+$("add-item").addEventListener("click", () => openItem(null));
+$("item-close").addEventListener("click", () => $("item-dialog").close());
+$("finish-close").addEventListener("click", () => $("finish-dialog").close());
+$("sign-out").addEventListener("click", async () => {
+  await supabase.auth.signOut();
+  location.replace(pageUrl("signin.html"));
+});
+
+function drawAll() {
+  const np = state.nonprofit;
+  document.title = `${np.name} | Cover`;
+  $("org-name").textContent = np.name;
+  $("org-initials").textContent = np.name.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
+  $("me").textContent = state.user.email;
+  drawOverview();
+  drawSponsors();
+  drawItems();
+  fillPageForm();
+  if (hasStripeAccount()) mountStripe("notification-banner", "banner-mount");
+}
+
+async function reload() {
+  await loadNonprofit(state.nonprofit.id);
+  drawAll();
+}
+
+// ---------- first visit: create the nonprofit ----------
+
+let slugEdited = false;
+$("c-name").addEventListener("input", () => {
+  if (!slugEdited) $("c-slug").value = slugify($("c-name").value);
+  $("c-slug-preview").textContent = `${pageUrl("give.html")}?org=${$("c-slug").value || "your-link"}`;
+});
+$("c-slug").addEventListener("input", () => {
+  slugEdited = true;
+  $("c-slug-preview").textContent = `${pageUrl("give.html")}?org=${$("c-slug").value || "your-link"}`;
+});
+$("c-kind").addEventListener("change", (event) => {
+  if (!$("c-label").dataset.edited) $("c-label").value = event.target.value === "animal" ? "Animals" : "Programs";
+});
+$("c-label").addEventListener("input", (event) => (event.target.dataset.edited = "yes"));
+
+$("create-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const result = validateSignup(Object.fromEntries(new FormData(event.target)));
+  showErrors("ce-", result.errors);
+  if (!result.ok) return;
+  $("create-submit").disabled = true;
+  const { values } = result;
+  const { error } = await supabase.rpc("create_my_nonprofit", {
+    nonprofit_name: values.name,
+    page_slug: values.slug,
+    page_kind: values.kind,
+    follow_label: values.followLabel,
+    price_cents: values.priceCents,
+    goal_cents: values.goalCents,
+  });
+  $("create-submit").disabled = false;
+  if (error) {
+    $("ce-form").textContent = error.code === "P0001" ? error.message : "That didn't work. Please try again.";
+    return;
+  }
+  await start();
+});
+
+// ---------- start ----------
+
+async function start() {
+  const { data } = await supabase.auth.getSession();
+  if (!data.session) {
+    location.replace(pageUrl("signin.html"));
+    return;
+  }
+  state.user = data.session.user;
+  const { data: staff, error } = await supabase.from("staff").select("nonprofit_id").maybeSingle();
+  $("loading").hidden = true;
+  if (error) {
+    $("loading").hidden = false;
+    $("loading").textContent = "Couldn't load your dashboard. Refresh to try again.";
+    return;
+  }
+  if (!staff) {
+    $("create").hidden = false;
+    $("c-slug-preview").textContent = `${pageUrl("give.html")}?org=your-link`;
+    $("c-name").focus();
+    return;
+  }
+  $("create").hidden = true;
+  await loadNonprofit(staff.nonprofit_id);
+  if (state.nonprofit.stripe_account_id && !state.nonprofit.is_live) await refreshStripeStatus();
+  $("app").hidden = false;
+  drawAll();
+  const wanted = location.hash.replace("#", "");
+  show(document.querySelector(`[data-view="${wanted}"]`) ? wanted : "overview");
+}
+
+start().catch((error) => {
+  console.error(error);
+  $("loading").hidden = false;
+  $("loading").textContent = "Couldn't load your dashboard. Refresh to try again.";
+});

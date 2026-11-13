@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Direction C: Meet your buddy</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  @font-face { font-family: "Bricolage"; src: url("../../assets/fonts/BricolageGrotesque%5Bopsz,wdth,wght%5D.ttf"); font-weight: 200 800; }
+  :root { --bg: #E6EEE9; --ink: #1F2328; --green: #1F7A6D; --mint: #CFE3DA; --card: #FFFFFF; --slate: #5F6B66; --sun: #F4D9A6; }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: var(--bg); color: var(--ink); font-family: "Bricolage", system-ui, sans-serif; overflow-x: hidden; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 28px 32px 70px; position: relative; }
+  header { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+  .rescue { font-weight: 750; font-size: 20px; letter-spacing: -.01em; }
+  .pill { background: var(--card); border-radius: 999px; padding: 8px 10px 8px 18px; display: flex; align-items: center; gap: 14px; font-size: 14px; font-weight: 600; box-shadow: 0 6px 18px rgba(31,35,40,.07); }
+  .bar { width: 220px; height: 12px; border-radius: 999px; background: var(--bg); overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--green); border-radius: 999px; }
+  .with { font-size: 13px; color: var(--slate); display: flex; align-items: center; gap: 8px; }
+  .with img { height: 18px; }
+
+  .stage { margin-top: 44px; display: grid; grid-template-columns: 70px 1fr 70px; align-items: center; gap: 18px; }
+  .arrow { width: 62px; height: 62px; border-radius: 50%; background: var(--card); display: grid; place-items: center; font-size: 26px; box-shadow: 0 8px 20px rgba(31,35,40,.08); }
+  .card { background: var(--card); border-radius: 36px; display: grid; grid-template-columns: 1fr 1fr; overflow: hidden; box-shadow: 0 30px 60px rgba(31,35,40,.12); }
+  .photo { background: #E8D5BF; min-height: 560px; display: grid; place-items: center; color: rgba(31,35,40,.5); position: relative; }
+  .photo svg { width: 48%; }
+  .badge { position: absolute; top: 22px; left: 22px; background: var(--sun); padding: 8px 14px; border-radius: 999px; font-weight: 700; font-size: 14px; }
+  .info { padding: 54px 50px; display: flex; flex-direction: column; }
+  .hello { font-size: 18px; font-weight: 600; color: var(--green); }
+  .info h1 { font-size: 112px; font-weight: 800; letter-spacing: -.045em; line-height: .9; margin-top: 6px; }
+  .note { font-family: "Caveat", cursive; font-size: 32px; margin-top: 14px; line-height: 1.1; }
+  .chips { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 26px; }
+  .chip { background: var(--bg); border-radius: 999px; padding: 9px 15px; font-size: 14px; font-weight: 600; }
+  .people { display: flex; align-items: center; gap: 12px; margin-top: 30px; font-size: 15px; color: var(--slate); }
+  .faces { display: flex; }
+  .face { width: 38px; height: 38px; border-radius: 50%; border: 3px solid var(--card); margin-left: -10px; display: grid; place-items: center; font-weight: 700; font-size: 14px; color: #fff; }
+  .face:first-child { margin-left: 0; }
+  .face.you { background: var(--card); border: 2px dashed var(--green); color: var(--green); }
+  .cta { margin-top: auto; padding-top: 34px; }
+  .btn { display: flex; justify-content: space-between; align-items: center; background: var(--green); color: #fff; border-radius: 22px; padding: 22px 26px; font-weight: 750; font-size: 20px; text-decoration: none; }
+  .btn span { background: rgba(255,255,255,.18); padding: 6px 12px; border-radius: 999px; font-size: 15px; }
+  .fine { font-size: 13px; color: var(--slate); margin-top: 12px; line-height: 1.4; }
+
+  .strip { margin: 40px auto 0; display: flex; justify-content: center; gap: 16px; align-items: center; }
+  .thumb { width: 74px; height: 74px; border-radius: 50%; display: grid; place-items: center; color: rgba(31,35,40,.5); border: 4px solid transparent; }
+  .thumb svg { width: 62%; }
+  .thumb.on { border-color: var(--green); width: 86px; height: 86px; }
+  .count { text-align: center; margin-top: 14px; font-size: 14px; color: var(--slate); font-weight: 600; }
+
+  .toast { position: absolute; left: 150px; top: 640px; background: var(--card); border-radius: 22px; padding: 18px 22px; display: flex; gap: 14px; align-items: center; box-shadow: 0 24px 50px rgba(31,35,40,.18); transform: rotate(-2deg); }
+  .toast .stamp { width: 46px; height: 46px; border-radius: 50%; background: var(--green); color: #fff; display: grid; place-items: center; }
+  .toast .stamp svg { width: 26px; }
+  .toast .hand { font-family: "Caveat", cursive; font-size: 30px; line-height: 1; }
+  .toast small { display: block; font-size: 12px; color: var(--slate); margin-top: 4px; font-family: "Bricolage"; }
+
+  @media (max-width: 760px) {
+    .wrap { padding: 18px 16px 50px; }
+    header { flex-wrap: wrap; }
+    .pill { order: 3; width: 100%; justify-content: space-between; }
+    .bar { width: 130px; }
+    .stage { grid-template-columns: 1fr; margin-top: 22px; }
+    .arrow { display: none; }
+    .card { grid-template-columns: 1fr; border-radius: 28px; }
+    .photo { min-height: 330px; }
+    .info { padding: 28px 24px; }
+    .info h1 { font-size: 76px; }
+    .toast { position: static; margin: 24px auto 0; width: fit-content; }
+    .thumb { width: 52px; height: 52px; }
+    .thumb.on { width: 62px; height: 62px; }
+    .strip { gap: 8px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="rescue" id="rescue"></div>
+    <div class="pill"><span id="pill-text"></span><div class="bar"><i id="bar"></i></div></div>
+    <div class="with">with <img src="../../assets/brand/logo.svg" alt="Cover"></div>
+  </header>
+
+  <section class="stage">
+    <div class="arrow">←</div>
+    <article class="card">
+      <div class="photo" id="photo"><div class="badge">Waiting longest</div></div>
+      <div class="info">
+        <div class="hello">Meet your buddy</div>
+        <h1 id="name"></h1>
+        <div class="note" id="note"></div>
+        <div class="chips" id="chips"></div>
+        <div class="people"><div class="faces" id="faces"></div><span id="people-text"></span></div>
+        <div class="cta">
+          <a class="btn" href="#" id="btn"></a>
+          <p class="fine">Your gift goes into one pot that cares for every dog at the rescue. Bella sends you updates until she goes home.</p>
+        </div>
+      </div>
+    </article>
+    <div class="arrow">→</div>
+  </section>
+
+  <div class="strip" id="strip"></div>
+  <div class="count">1 of 6 waiting · swipe to meet the others</div>
+
+  <div class="toast"><div class="stamp" id="stamp"></div><div><div class="hand">Thanks, Sarah! — Bella</div><small>What you see right after you sponsor</small></div></div>
+</div>
+<script src="shared.js"></script>
+<script>
+  const dog = DOGS[0];
+  const faceColors = ["#C98B5E", "#5B8F7E"];
+  document.getElementById("rescue").textContent = RESCUE.name;
+  document.getElementById("pill-text").textContent = `${dollars(RESCUE.monthlyCovered)} of ${dollars(RESCUE.monthlyGoal)} this month`;
+  document.getElementById("bar").style.width = `${(RESCUE.monthlyCovered / RESCUE.monthlyGoal) * 100}%`;
+  document.getElementById("photo").insertAdjacentHTML("beforeend", DOG_FACE);
+  document.getElementById("name").textContent = dog.name;
+  document.getElementById("note").textContent = dog.note;
+  document.getElementById("chips").innerHTML = [`Waiting ${dog.days} days`, "Good with kids", "Medium energy"].map((c) => `<span class="chip">${c}</span>`).join("");
+  document.getElementById("faces").innerHTML = ["S", "J"].slice(0, dog.sponsors).map((l, i) => `<div class="face" style="background:${faceColors[i]}">${l}</div>`).join("") + `<div class="face you">+</div>`;
+  document.getElementById("people-text").textContent = `${dog.sponsors} people sponsor ${dog.name}. Be the next.`;
+  document.getElementById("btn").innerHTML = `Be ${dog.name}'s sponsor <span>$25 / month</span>`;
+  document.getElementById("stamp").innerHTML = CHECK;
+  document.getElementById("strip").innerHTML = DOGS.map((d, i) => `<div class="thumb ${i === 0 ? "on" : ""}" style="background:${d.tone}">${DOG_FACE}</div>`).join("");
+</script>
+</body>
+</html>

@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cover | Monthly sponsors for nonprofits</title>
+<meta name="description" content="Cover gives any nonprofit a sponsor page people want to join: supporters pick something real to follow and give monthly.">
+<link rel="icon" href="brand/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/cover.css">
+<style>
+  .nav .logo img { height: 26px; }
+  .hero { background: linear-gradient(180deg, var(--mint) 0%, #fff 100%); padding: 84px 0 0; overflow: hidden; }
+  .hero .container { display: grid; grid-template-columns: 1.05fr 1fr; gap: 56px; align-items: end; }
+  .hero h1 { font-size: 66px; margin: 18px 0 22px; }
+  .hero .actions { display: flex; gap: 12px; margin-top: 34px; }
+  .hero .text { padding-bottom: 104px; }
+  .hero .note { margin-top: 22px; font-size: 14px; color: var(--muted); }
+  .stage { position: relative; height: 600px; }
+  .stage .photo { position: absolute; right: 0; bottom: 0; width: 64%; height: 500px; object-fit: cover; border-radius: 24px 24px 0 0; }
+  .phone { position: absolute; left: 0; bottom: -80px; width: 280px; height: 590px; border-radius: 44px; background: #0F1215; padding: 11px; box-shadow: 0 40px 80px rgba(12,43,36,.28); }
+  .phone img { width: 100%; height: 100%; object-fit: cover; object-position: top; border-radius: 34px; }
+  .toast { position: absolute; right: 28px; top: 70px; background: #fff; border-radius: 14px; padding: 14px 18px; display: flex; gap: 12px; align-items: center; font-size: 14px; }
+  .toast strong { display: block; font-size: 15px; }
+  .toast span { color: var(--muted); }
+
+  .stats { padding: 96px 0 40px; }
+  .stats .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+  .stat { border-top: 2px solid var(--ink); padding-top: 22px; }
+  .stat b { font-size: 60px; font-weight: 720; letter-spacing: -.04em; line-height: 1; display: block; }
+  .stat p { color: var(--body); margin-top: 10px; }
+  .source { font-size: 13px; color: var(--muted); margin-top: 26px; }
+
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; padding: 56px 0; }
+  .row.flip .media { order: 2; }
+  .row h2 { font-size: 40px; margin: 12px 0 16px; }
+  .row p { color: var(--body); font-size: 18px; }
+  .row ul { list-style: none; margin-top: 22px; display: grid; gap: 12px; }
+  .row li { display: flex; gap: 12px; color: var(--body); }
+  .media { position: relative; }
+  .media .back { position: absolute; inset: 28px -28px -28px 28px; border-radius: 20px; background: var(--mint); }
+  .media .back.dark { background: var(--deep); }
+  .media > .shot { position: relative; border-radius: 16px; overflow: hidden; border: 1px solid var(--line); background: #fff; }
+  .media > .shot img { width: 100%; height: 420px; object-fit: cover; object-position: top; }
+
+  .email { position: relative; padding: 26px; }
+  .email .meta { font-size: 13px; color: var(--muted); border-bottom: 1px solid var(--line); padding-bottom: 14px; }
+  .email .meta b { color: var(--ink); }
+  .email img { height: 230px !important; border-radius: 12px; margin: 18px 0 14px; object-position: center 40% !important; }
+  .email h4 { font-size: 20px; letter-spacing: -.02em; }
+  .email p { font-size: 15px; margin-top: 6px; }
+
+  .dash { position: relative; padding: 24px; }
+  .dash .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .dash .tile { background: var(--soft); border-radius: 12px; padding: 14px; }
+  .dash .tile span { font-size: 12px; color: var(--muted); }
+  .dash .tile b { display: block; font-size: 24px; letter-spacing: -.02em; }
+  .dash table { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 14px; }
+  .dash th { text-align: left; color: var(--muted); font-weight: 500; font-size: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .dash td { padding: 11px 0; border-bottom: 1px solid var(--line); }
+  .dash .ok { color: var(--green-dark); font-weight: 600; }
+  .dash .wait { color: #9A6B12; font-weight: 600; }
+
+  .quote { background: var(--deep); color: #fff; text-align: center; }
+  .quote blockquote { font-size: 58px; line-height: 1.08; max-width: 24ch; margin: 0 auto; }
+  .quote em { font-style: normal; color: var(--green); }
+  .quote cite { display: block; font-style: normal; margin-top: 28px; color: rgba(255,255,255,.65); }
+
+  .cta .container { display: grid; grid-template-columns: 1fr 1fr; gap: 72px; align-items: center; }
+  .form { padding: 34px; border-radius: 20px; background: var(--soft); display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form .full { grid-column: 1 / -1; }
+  .field { background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; font-size: 15px; color: var(--muted); }
+  .form .btn { justify-content: center; }
+
+
+  .kind-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .kind img { aspect-ratio: 4/3; object-fit: cover; width: 100%; }
+  .kind .body { padding: 22px 24px 24px; }
+  .kind h3 { margin-top: 12px; }
+  .kind p { color: var(--body); font-size: 15px; margin-top: 6px; }
+  .kind .more { display: inline-block; margin-top: 16px; font-weight: 650; font-size: 15px; color: var(--green-dark); }
+  .also { margin-top: 28px; color: var(--muted); font-size: 15px; }
+
+  @media (max-width: 760px) {
+    .kind-grid { grid-template-columns: 1fr; }
+    .hero { padding-top: 40px; }
+    .hero .container { grid-template-columns: 1fr; gap: 0; }
+    .hero h1 { font-size: 42px; }
+    .hero .text { padding-bottom: 40px; }
+    .hero .actions { flex-direction: column; }
+    .hero .actions .btn { justify-content: center; }
+    .stage { height: 470px; }
+    .stage .photo { width: 100%; height: 300px; }
+    .phone { width: 200px; height: 420px; left: 12px; bottom: -40px; border-radius: 34px; padding: 8px; }
+    .phone img { border-radius: 27px; }
+    .toast { right: 10px; top: 10px; }
+    .stats .grid, .row, .cta .container { grid-template-columns: 1fr; gap: 32px; }
+    .row.flip .media { order: 0; }
+    .row h2 { font-size: 30px; }
+    .media .back { inset: 16px -10px -16px 16px; }
+    .quote blockquote { font-size: 38px; }
+    .form { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="container">
+    <a class="logo" href="#"><img src="brand/logo.svg" alt="Cover"></a>
+    <div class="nav-links"><a href="#any">Who it's for</a><a href="#how">How it works</a><a href="#donors">Updates</a><a href="#businesses">For businesses</a><a href="#pilot">Pilot</a></div>
+    <a class="btn btn-ghost" href="signin.html" style="margin-right:8px">Sign in</a><a class="btn btn-primary" href="#pilot">Join the pilot</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="container">
+    <div class="text">
+      <div class="eyebrow">For nonprofits</div>
+      <h1>Monthly sponsors for the work you do every day.</h1>
+      <p class="lead">Cover gives any nonprofit a sponsor page people actually want to join. Supporters pick something real to follow, like a program, a room or an animal, give monthly, and get updates that write themselves.</p>
+      <div class="actions">
+        <a class="btn btn-primary btn-lg" href="#pilot">Join the pilot</a>
+        <a class="btn btn-ghost btn-lg" href="#how">See how it works</a>
+      </div>
+      <p class="note">Free during the pilot. Donations go straight to your nonprofit.</p>
+    </div>
+    <div class="stage">
+      <img class="photo" src="photos/youth-painting.jpg" alt="Kids painting at a table in an after-school program">
+      <div class="phone"><img src="photos/screens/pantry-phone.jpg" alt="A Cover sponsor page for a food pantry, on a phone"></div>
+      <div class="toast shadow"><span class="check" data-check></span><div><strong>New monthly sponsor</strong><span>Dana is now following Art Studio</span></div></div>
+    </div>
+  </div>
+</header>
+
+<section class="stats">
+  <div class="container">
+    <div class="eyebrow">The problem</div>
+    <h2 style="margin:12px 0 44px;max-width:20ch">Most nonprofits can't cover what it costs to keep going.</h2>
+    <div class="grid">
+      <div class="stat"><b>36%</b><p>of US nonprofits ran a deficit in 2024, the most in 10 years of the survey.</p></div>
+      <div class="stat"><b>52%</b><p>had three months of cash or less on hand.</p></div>
+      <div class="stat"><b>81%</b><p>say raising money that covers their full costs is a challenge.</p></div>
+    </div>
+    <p class="source">Source: Nonprofit Finance Fund, 2025 State of the Nonprofit Sector Survey (2,206 nonprofits).</p>
+  </div>
+</section>
+
+
+<section class="section kinds" id="any">
+  <div class="container">
+    <div class="section-head">
+      <div class="eyebrow">One page, any mission</div>
+      <h2 style="margin-top:12px">Built for whatever your nonprofit does every day.</h2>
+      <p>Same page, your words and photos. Pick what supporters follow, set your monthly amount, and you're live.</p>
+    </div>
+    <div class="kind-grid">
+      <a class="card kind" href="give.html?org=pantry"><img src="photos/pantry-fruit.jpg" alt="Volunteers handing out fresh produce"><div class="body"><span class="pill">Food pantry</span><h3>Keep the shelves full</h3><p>Supporters follow programs like Family Night or the produce table.</p><span class="more">See the demo page →</span></div></a>
+      <a class="card kind" href="give.html?org=youth"><img src="photos/youth-tutor.jpg" alt="A mentor helping a student with homework"><div class="body"><span class="pill">Youth program</span><h3>Keep after-school open</h3><p>Supporters follow rooms like Homework Help or the Art Studio.</p><span class="more">See the demo page →</span></div></a>
+      <a class="card kind" href="give.html?org=rescue"><img src="photos/dog-smile.jpg" alt="A smiling shelter dog"><div class="body"><span class="pill">Animal rescue</span><h3>Sponsor an animal</h3><p>Supporters follow one dog or cat until the day it's adopted.</p><span class="more">See the demo page →</span></div></a>
+    </div>
+    <p class="also">Also a fit for shelters, libraries, clinics, arts groups, community gardens and more.</p>
+  </div>
+</section>
+
+<section class="section" id="how" style="padding-top:0">
+  <div class="container">
+    <div class="row">
+      <div class="media"><div class="back"></div><div class="shot shadow"><img src="photos/screens/youth-desktop.jpg" alt="A Cover sponsor page for a youth club"></div></div>
+      <div>
+        <div class="eyebrow">Your sponsor page</div>
+        <h2>Give people something real to sponsor.</h2>
+        <p>A homework room, a pantry night, a dog waiting for a home. You choose what supporters follow, and every gift still goes into your general fund.</p>
+        <ul>
+          <li><span class="check" data-check></span>Live in an afternoon, on your own link</li>
+          <li><span class="check" data-check></span>Shows who's waiting longest first, so attention spreads out</li>
+          <li><span class="check" data-check></span>Donors pay you directly through the donation page you already use</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="row flip" id="donors">
+      <div class="media"><div class="back dark"></div>
+        <div class="shot shadow email">
+          <div class="meta"><b>Art Studio at Northside Youth Club</b> · to Dana · Monthly update</div>
+          <img src="photos/youth-drawing.jpg" alt="Kids drawing with a mentor">
+          <h4>42 paintings, one gallery wall.</h4>
+          <p>Thanks for sponsoring the Art Studio, Dana. This month the kids finished their first group show, and your gift kept every room at the club open.</p>
+        </div>
+      </div>
+      <div>
+        <div class="eyebrow">Updates that write themselves</div>
+        <h2>Keep sponsors close without adding work.</h2>
+        <p>Post a photo or a one-line note. Cover turns it into a personal monthly update for everyone following, signed by the program or animal they picked.</p>
+        <ul>
+          <li><span class="check" data-check></span>One click from your team, no newsletters to write</li>
+          <li><span class="check" data-check></span>Milestones become celebrations: an adoption, a graduation, a full shelf</li>
+          <li><span class="check" data-check></span>When something wraps up, sponsors get a new one to follow, so the gift keeps going</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="row" id="businesses">
+      <div class="media"><div class="back"></div>
+        <div class="shot shadow dash">
+          <div class="tiles">
+            <div class="tile"><span>This month</span><b>$1,600</b></div>
+            <div class="tile"><span>Sponsors</span><b>64</b></div>
+            <div class="tile"><span>Businesses</span><b>3</b></div>
+          </div>
+          <table>
+            <tr><th>Sponsor</th><th>Following</th><th>Monthly</th><th>Status</th></tr>
+            <tr><td>Bay Street Hardware</td><td>Family Night</td><td>$100</td><td class="ok">Confirmed</td></tr>
+            <tr><td>Marcus T.</td><td>Family Night</td><td>$25</td><td class="wait">New, confirm</td></tr>
+            <tr><td>Jon P.</td><td>Produce Table</td><td>$25</td><td class="ok">Confirmed</td></tr>
+            <tr><td>Corner Cafe</td><td>Kitchen</td><td>$50</td><td class="ok">Confirmed</td></tr>
+          </table>
+        </div>
+      </div>
+      <div>
+        <div class="eyebrow">Local businesses</div>
+        <h2>Let your neighbors' businesses show up for you.</h2>
+        <p>Businesses sponsor too, and get thanked where their customers can see it. You see every sponsor, person or business, in one simple list.</p>
+        <ul>
+          <li><span class="check" data-check></span>Business names shown on your page and in updates</li>
+          <li><span class="check" data-check></span>Confirm new sponsors with one click</li>
+          <li><span class="check" data-check></span>Know exactly what's coming in each month</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section quote">
+  <div class="container">
+    <blockquote class="serif">"We ask nonprofits to take on the world's hardest problems, then leave them wondering how they'll pay <em>next month's rent.</em>"</blockquote>
+    <cite>Tanner Wendle, founder of Cover</cite>
+  </div>
+</section>
+
+<section class="section cta" id="pilot">
+  <div class="container">
+    <div>
+      <div class="eyebrow">Pilot</div>
+      <h2 style="margin-top:12px">Be one of our first nonprofits.</h2>
+      <p class="lead" style="margin-top:16px">We're setting up a small group of nonprofits by hand this winter. It's free, and we'll build your page with you.</p>
+    </div>
+    <div class="form">
+      <p class="full" style="color:var(--body)">Sign in with your work email and set up your sponsor page in a few minutes. Free during the pilot.</p>
+      <a class="btn btn-primary btn-lg full" href="signin.html">Create your page</a>
+      <p class="full" style="font-size:13px;color:var(--muted)">Questions? Email <a href="mailto:wendle36508@gmail.com">wendle36508@gmail.com</a></p>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <div class="container">
+    <img src="brand/logo.svg" alt="Cover" style="height:22px">
+    <div><a href="privacy.html">Privacy</a> · <a href="terms.html">Terms</a> · Demo pages use made-up nonprofits and stock photos</div>
+  </div>
+</footer>
+
+<script>
+  const CHECK = '<svg viewBox="0 0 24 24"><polyline points="5,12.5 10,17 19,7" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/></svg>';
+  document.querySelectorAll("[data-check]").forEach((el) => (el.innerHTML = CHECK));
+</script>
+</body>
+</html>

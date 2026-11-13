@@ -1,0 +1,12 @@
+{
+  "name": "cover",
+  "private": true,
+  "type": "module",
+  "description": "Cover: monthly sponsor pages for nonprofits",
+  "scripts": {
+    "test": "node --test tests/"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.3.16"
+  }
+}

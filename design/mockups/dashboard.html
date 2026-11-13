@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard | Cover</title>
+<link rel="stylesheet" href="v2.css">
+<style>
+  body { background: var(--soft); }
+  .app { display: grid; grid-template-columns: 248px 1fr; min-height: 100vh; }
+  .side { background: #fff; border-right: 1px solid var(--line); padding: 22px 16px; display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; height: 100vh; }
+  .side .org { display: flex; gap: 10px; align-items: center; padding: 6px 10px 22px; font-weight: 700; font-size: 15px; letter-spacing: -.01em; }
+  .side a { display: flex; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 10px; font-size: 15px; font-weight: 550; color: var(--body); }
+  .side a.on { background: var(--mint); color: var(--green-dark); }
+  .side a svg { width: 18px; height: 18px; flex: none; }
+  .side .bottom { margin-top: auto; padding: 14px 12px 0; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); display: flex; justify-content: space-between; align-items: center; }
+  .side .bottom img { height: 16px; }
+  main { padding: 34px 44px 60px; max-width: 1180px; width: 100%; }
+  .top { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 26px; gap: 20px; }
+  .top h1 { font-size: 32px; letter-spacing: -.03em; }
+  .top p { color: var(--muted); margin-top: 4px; }
+  .linkbox { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 6px 6px 6px 14px; font-size: 14px; color: var(--body); }
+  .linkbox .btn { padding: 9px 14px; font-size: 14px; }
+  .grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 22px; }
+  .panel { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; }
+  .panel h2 { font-size: 17px; letter-spacing: -.01em; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+  .panel h2 a { font-size: 14px; color: var(--green-dark); font-weight: 600; }
+  .month .big { font-size: 52px; font-weight: 750; letter-spacing: -.04em; line-height: 1; }
+  .month .big small { font-size: 18px; color: var(--muted); font-weight: 500; letter-spacing: 0; }
+  .month .bar { height: 14px; margin: 18px 0 10px; }
+  .month .meta { display: flex; justify-content: space-between; font-size: 14px; color: var(--muted); }
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 22px; }
+  .tile { background: var(--soft); border-radius: 12px; padding: 14px 16px; }
+  .tile span { font-size: 13px; color: var(--muted); }
+  .tile b { display: block; font-size: 26px; letter-spacing: -.02em; margin-top: 2px; }
+  .tile em { font-style: normal; font-size: 13px; color: var(--green-dark); font-weight: 600; }
+  .todo { list-style: none; display: grid; gap: 4px; }
+  .todo li { display: flex; gap: 12px; align-items: center; padding: 11px 4px; border-bottom: 1px solid var(--line); font-size: 15px; }
+  .todo li:last-child { border-bottom: 0; }
+  .todo .ring { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--line); flex: none; }
+  .todo .done-text { color: var(--muted); text-decoration: line-through; }
+  .todo .go { margin-left: auto; font-size: 13px; font-weight: 650; color: var(--green-dark); }
+  .progress-note { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; font-size: 12px; font-weight: 600; color: var(--muted); padding: 0 0 10px; border-bottom: 1px solid var(--line); }
+  td { padding: 13px 0; border-bottom: 1px solid var(--line); }
+  tr:last-child td { border-bottom: 0; }
+  .who { display: flex; gap: 10px; align-items: center; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 13px; color: #fff; flex: none; }
+  .who small { display: block; color: var(--muted); font-size: 12px; }
+  .status { font-size: 12px; font-weight: 650; padding: 4px 9px; border-radius: 999px; }
+  .s-active { background: var(--mint); color: var(--green-dark); }
+  .s-late { background: #FFF1DC; color: #8A5A0F; }
+  .s-new { background: #EAF0FF; color: #2D4BB8; }
+  .alert { display: flex; gap: 12px; align-items: flex-start; background: #FFF8EC; border: 1px solid #F3DDB3; border-radius: 12px; padding: 14px; font-size: 14px; color: #6E5214; margin-top: 14px; }
+  .alert b { color: #4E3A0D; }
+  .items { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .item-card { background: #fff; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+  .item-card img { width: 100%; aspect-ratio: 4/3; object-fit: cover; }
+  .item-card .b { padding: 14px 16px 16px; }
+  .item-card .row { display: flex; justify-content: space-between; align-items: center; }
+  .item-card h3 { font-size: 17px; }
+  .item-card p { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .item-card .actions { display: flex; gap: 8px; margin-top: 14px; }
+  .item-card .actions .btn { padding: 9px 12px; font-size: 13px; }
+  .add-card { border: 2px dashed #CBD3D0; border-radius: 14px; display: grid; place-items: center; text-align: center; color: var(--muted); font-weight: 600; min-height: 300px; background: #fff; }
+  .add-card .plus { width: 44px; height: 44px; border-radius: 12px; background: var(--mint); color: var(--green-dark); display: grid; place-items: center; font-size: 26px; margin: 0 auto 10px; }
+  .finished { opacity: .75; }
+  .view[hidden] { display: none; }
+  @media (max-width: 860px) {
+    .app { grid-template-columns: 1fr; }
+    .side { position: static; height: auto; flex-direction: row; overflow-x: auto; padding: 10px; border-right: 0; border-bottom: 1px solid var(--line); }
+    .side .org, .side .bottom { display: none; }
+    .side a { white-space: nowrap; }
+    main { padding: 22px 16px 40px; }
+    .top { flex-direction: column; align-items: flex-start; }
+    .grid, .items, .tiles { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="org"><span class="brand-mark" style="background:var(--deep);color:var(--green)">HP</span>Harbor Paws Rescue</div>
+    <a href="?view=overview" data-nav="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-8 9 8M5 10v10h14V10"/></svg>Overview</a>
+    <a href="?view=sponsors" data-nav="sponsors"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5M16 4.8a3.5 3.5 0 010 6.4M18 14.8c1.9.6 3.1 2.3 3.5 5.2"/></svg>Sponsors</a>
+    <a href="?view=items" data-nav="items"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg>Dogs to follow</a>
+    <a href="?view=page" data-nav="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4zM4 9h16M9 9v11"/></svg>Your page</a>
+    <a href="?view=payments" data-nav="payments"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 10h19M6.5 15h4"/></svg>Payments &amp; payouts</a>
+    <a href="?view=settings" data-nav="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg>Settings</a>
+    <div class="bottom"><span>Maria R.</span><img src="../../assets/brand/logo.svg" alt="Cover"></div>
+  </aside>
+
+  <main>
+    <!-- Overview -->
+    <section class="view" data-view="overview">
+      <div class="top">
+        <div><h1>Good afternoon, Harbor Paws</h1><p>Here's how this month is going.</p></div>
+        <div class="linkbox">cover.org/harbor-paws <a class="btn btn-dark" href="#">Copy link</a> <a class="btn btn-ghost" href="#">View page</a></div>
+      </div>
+      <div class="grid">
+        <div>
+          <div class="panel month">
+            <h2>This month</h2>
+            <div class="big">$950 <small>of $2,000 goal</small></div>
+            <div class="bar"><i style="width:47.5%"></i></div>
+            <div class="meta"><span>48% covered</span><span>42 more sponsors reaches your goal</span></div>
+            <div class="tiles">
+              <div class="tile"><span>Active sponsors</span><b>38</b><em>+5 this month</em></div>
+              <div class="tile"><span>Businesses</span><b>3</b><em>+1 this month</em></div>
+              <div class="tile"><span>Next payout</span><b>$412</b><span>Nov 18 to your bank</span></div>
+            </div>
+          </div>
+          <div class="panel" style="margin-top:22px">
+            <h2>Newest sponsors <a href="?view=sponsors">See all</a></h2>
+            <table>
+              <tr><th>Sponsor</th><th>Following</th><th>Monthly</th><th>Status</th></tr>
+              <tr><td><div class="who"><span class="avatar" style="background:#C98B5E">S</span><div>Sarah M.<small>2 hours ago</small></div></div></td><td>Bella</td><td>$25</td><td><span class="status s-new">New</span></td></tr>
+              <tr><td><div class="who"><span class="avatar" style="background:#5B8F7E">B</span><div>Bay Street Hardware<small>Yesterday · business</small></div></div></td><td>Moose</td><td>$25</td><td><span class="status s-active">Active</span></td></tr>
+              <tr><td><div class="who"><span class="avatar" style="background:#7B7FB8">J</span><div>Jon P.<small>3 days ago</small></div></div></td><td>Pepper</td><td>$25</td><td><span class="status s-active">Active</span></td></tr>
+              <tr><td><div class="who"><span class="avatar" style="background:#B86E7B">A</span><div>Ana L.<small>Last week</small></div></div></td><td>Juno</td><td>$25</td><td><span class="status s-late">Card failed</span></td></tr>
+            </table>
+            <div class="alert"><span class="check" style="background:#E2B04A"><svg viewBox="0 0 24 24"><path d="M12 7v6M12 17h.01" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg></span><div><b>Ana's card was declined.</b> Stripe will retry it automatically and email her to update it. Nothing you need to do.</div></div>
+          </div>
+        </div>
+        <div>
+          <div class="panel">
+            <h2>Get your page ready</h2>
+            <p class="progress-note">3 of 5 done</p>
+            <ul class="todo">
+              <li><span class="check" data-check></span><span class="done-text">Create your Cover account</span></li>
+              <li><span class="check" data-check></span><span class="done-text">Connect Stripe to get paid</span></li>
+              <li><span class="check" data-check></span><span class="done-text">Add dogs people can follow</span></li>
+              <li><span class="ring"></span>Upload real photos<a class="go" href="?view=items">Add photos</a></li>
+              <li><span class="ring"></span>Share your page link<a class="go" href="#">Copy link</a></li>
+            </ul>
+          </div>
+          <div class="panel" style="margin-top:22px">
+            <h2>Followed most</h2>
+            <table>
+              <tr><td>Tilly</td><td style="text-align:right">6 sponsors</td></tr>
+              <tr><td>Rocket</td><td style="text-align:right">5 sponsors</td></tr>
+              <tr><td>Juno</td><td style="text-align:right">4 sponsors</td></tr>
+              <tr><td>Moose</td><td style="text-align:right;color:var(--green-dark);font-weight:650">1 sponsor · needs some love</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Things to follow -->
+    <section class="view" data-view="items" hidden>
+      <div class="top">
+        <div><h1>Dogs to follow</h1><p>What sponsors pick to follow. Every gift still goes to your general fund.</p></div>
+        <a class="btn btn-primary btn-lg" href="#">+ Add a dog</a>
+      </div>
+      <div class="items">
+        <div class="item-card"><img src="../photos/dog-smile.jpg" alt=""><div class="b"><div class="row"><h3>Bella</h3><span class="status s-active">2 sponsors</span></div><p>Waiting 94 days · Steals tennis balls, gives them back.</p><div class="actions"><a class="btn btn-ghost" href="#">Edit</a><a class="btn btn-ghost" href="#">Post update</a><a class="btn btn-dark" href="#">Mark adopted</a></div></div></div>
+        <div class="item-card"><img src="../photos/dog-brindle.jpg" alt=""><div class="b"><div class="row"><h3>Moose</h3><span class="status s-active">1 sponsor</span></div><p>Waiting 71 days · Ninety pounds of gentle.</p><div class="actions"><a class="btn btn-ghost" href="#">Edit</a><a class="btn btn-ghost" href="#">Post update</a><a class="btn btn-dark" href="#">Mark adopted</a></div></div></div>
+        <div class="item-card"><img src="../photos/dog-puppy.jpg" alt=""><div class="b"><div class="row"><h3>Pepper</h3><span class="status s-active">3 sponsors</span></div><p>Waiting 58 days · Shy for a day, silly forever.</p><div class="actions"><a class="btn btn-ghost" href="#">Edit</a><a class="btn btn-ghost" href="#">Post update</a><a class="btn btn-dark" href="#">Mark adopted</a></div></div></div>
+        <div class="item-card finished"><img src="../photos/dog-white.jpg" alt=""><div class="b"><div class="row"><h3>Tilly</h3><span class="status s-new">Adopted Nov 10</span></div><p>Her 6 sponsors got a note and a new buddy.</p><div class="actions"><a class="btn btn-ghost" href="#">View</a></div></div></div>
+        <div class="add-card"><div><div class="plus">+</div>Add a dog<br><span style="font-weight:400;font-size:13px">Photo, name and one line about them</span></div></div>
+      </div>
+    </section>
+  </main>
+</div>
+<script>
+  const CHECK = '<svg viewBox="0 0 24 24"><polyline points="5,12.5 10,17 19,7" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/></svg>';
+  document.querySelectorAll("[data-check]").forEach((el) => (el.innerHTML = CHECK));
+  const view = new URLSearchParams(location.search).get("view") || "overview";
+  const shown = document.querySelector(`[data-view="${view}"]`) ? view : "overview";
+  document.querySelectorAll("[data-view]").forEach((s) => (s.hidden = s.dataset.view !== shown));
+  document.querySelectorAll("[data-nav]").forEach((a) => a.classList.toggle("on", a.dataset.nav === shown));
+</script>
+</body>
+</html>

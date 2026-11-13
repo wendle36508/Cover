@@ -1,0 +1,41 @@
+# Never upload these to GitHub (the repo is public).
+
+# The database: real claims, names and emails live here.
+*.db
+*.sqlite
+*.sqlite3
+data/
+
+# Passwords and connection info (Streamlit keeps them here).
+.streamlit/secrets.toml
+.env
+*.env
+
+# Python clutter
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Private business files (research, pitch, interview notes, card statement numbers).
+# They live here so everything for Cover is in one folder, but never go on GitHub.
+company/
+
+# Claude Code settings and skills for this folder
+.claude/
+
+# Node packages (dev tools)
+node_modules/
+
+# Supabase local temp files
+supabase/.temp/
+supabase/.branches/
+
+# Generated test data (Stripe test account ids)
+supabase/seed-test.sql
+
+# Design screenshots (remake anytime with: python design/shoot.py)
+design/shots/
+design/round1/shots/

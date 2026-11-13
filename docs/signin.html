@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in | Cover</title>
+<link rel="icon" href="brand/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/cover.css">
+<style>
+  body { background: var(--soft); }
+  .wrap { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
+  .box { background: #fff; border: 1px solid var(--line); border-radius: 20px; padding: 40px 36px; width: min(440px, 100%); }
+  .box img.logo { height: 28px; margin-bottom: 28px; }
+  .box h1 { font-size: 30px; letter-spacing: -.03em; }
+  .box p { color: var(--body); margin-top: 8px; }
+  form { margin-top: 26px; }
+  .sent { text-align: center; }
+  .sent .check { width: 56px; height: 56px; margin: 0 auto 18px; }
+  .sent .check svg { width: 30px; }
+  .error { color: #B2321F; font-size: 14px; margin-top: 10px; min-height: 1em; }
+  .small { font-size: 13px; color: var(--muted); margin-top: 18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="box">
+    <img class="logo" src="brand/logo.svg" alt="Cover">
+    <div id="ask">
+      <h1>Sign in to Cover</h1>
+      <p>New or returning, just enter your email. We'll send you a link to sign in. No password needed.</p>
+      <form id="signin-form" novalidate>
+        <div class="field-group">
+          <label for="email">Work email</label>
+          <input id="email" name="email" type="email" autocomplete="email" maxlength="254" required>
+        </div>
+        <button class="btn btn-primary btn-lg btn-block" type="submit" id="send">Email me a sign-in link</button>
+        <div class="error" id="error" role="alert"></div>
+      </form>
+      <p class="small">Running a nonprofit? After you sign in, you'll set up your sponsor page in a few minutes.</p>
+      <p class="small">By signing in, you agree to the <a href="terms.html" style="text-decoration:underline">terms</a> and <a href="privacy.html" style="text-decoration:underline">privacy policy</a>.</p>
+    </div>
+    <div class="sent" id="sent" hidden>
+      <div class="check" data-check></div>
+      <h1>Check your email</h1>
+      <p>We sent a sign-in link to <strong id="sent-to"></strong>. Open it on this device. The link works for one hour.</p>
+      <button class="link-btn" type="button" id="again">Use a different email</button>
+    </div>
+  </div>
+</div>
+<script type="module">
+  import { pageUrl, supabase } from "./js/supabase.js";
+
+  const CHECK = '<svg viewBox="0 0 24 24"><polyline points="5,12.5 10,17 19,7" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/></svg>';
+  document.querySelectorAll("[data-check]").forEach((el) => (el.innerHTML = CHECK));
+  const $ = (id) => document.getElementById(id);
+  const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+  // Already signed in? Go straight to the dashboard.
+  const { data } = await supabase.auth.getSession();
+  if (data.session) location.replace(pageUrl("dashboard.html"));
+
+  $("signin-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const email = $("email").value.trim().toLowerCase();
+    $("error").textContent = "";
+    if (!EMAIL.test(email)) {
+      $("error").textContent = "That email doesn't look right.";
+      $("email").focus();
+      return;
+    }
+    $("send").disabled = true;
+    $("send").textContent = "Sending…";
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: pageUrl("dashboard.html"), shouldCreateUser: true },
+    });
+    $("send").disabled = false;
+    $("send").textContent = "Email me a sign-in link";
+    if (error) {
+      $("error").textContent = error.status === 429
+        ? "Too many sign-in emails just now. Wait a minute and try again."
+        : "We couldn't send the email. Check the address and try again.";
+      return;
+    }
+    $("sent-to").textContent = email;
+    $("ask").hidden = true;
+    $("sent").hidden = false;
+  });
+
+  $("again").addEventListener("click", () => {
+    $("sent").hidden = true;
+    $("ask").hidden = false;
+    $("email").focus();
+  });
+</script>
+</body>
+</html>
