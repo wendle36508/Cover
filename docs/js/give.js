@@ -9,7 +9,7 @@ import { STRIPE_PUBLISHABLE_KEY } from "./config.js";
 import { loadLiveOrg, startSponsorship } from "./live.js";
 import { ORGS, SHARED_FAQ } from "./orgs.js";
 import {
-  buildRecord, money, percentCovered, publicName, sponsorLabel,
+  buildRecord, money, percentCovered, publicName,
   thankYou, timeAgo, validateSponsor, withNewSponsor,
 } from "./sponsor.js";
 import { clearSponsors, saveSponsor, sponsorsFor } from "./store.js";
@@ -107,11 +107,12 @@ function itemCard(item) {
   const top = el("div", "top");
   top.append(el("h3", "", item.name));
   const foot = el("div", "foot");
-  const button = el("button", "btn btn-dark", "Sponsor");
+  // No public sponsor counts: a dog showing "6 sponsors" can look "taken" and put people off.
+  // Nonprofits still see counts in their dashboard.
+  const button = el("button", "btn btn-dark btn-block", `Sponsor ${item.name}`);
   button.type = "button";
-  button.setAttribute("aria-label", `Sponsor ${item.name}`);
   button.addEventListener("click", () => openDialog(item.name));
-  foot.append(el("span", "sponsors", sponsorLabel(item.sponsors)), button);
+  foot.append(button);
   body.append(top);
   if (item.badge) {
     const badge = el("span", `pill ${item.hot ? "green" : ""}`, item.badge);

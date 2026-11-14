@@ -17,8 +17,8 @@
 <div class="wrap-create" id="create" hidden>
   <main style="max-width:640px;margin:0 auto;padding:48px 16px">
     <img src="brand/logo.svg" alt="Cover" style="height:26px;margin-bottom:28px">
-    <h1 style="font-size:34px;letter-spacing:-.03em">Set up your sponsor page</h1>
-    <p class="lead" style="margin:8px 0 26px">A few basics. You can change all of this later.</p>
+    <h1 style="font-size:34px;letter-spacing:-.03em" id="create-title">Set up your sponsor page</h1>
+    <p class="lead" style="margin:8px 0 26px" id="create-lead">A few basics. You can change all of this later.</p>
     <form class="panel" id="create-form" novalidate>
       <div class="form-grid">
         <div class="field-group full"><label for="c-name">Nonprofit's name</label><input id="c-name" name="name" maxlength="120" required><div class="field-error" id="ce-name"></div></div>
@@ -27,9 +27,11 @@
         <div class="field-group"><label for="c-label">What you call them</label><input id="c-label" name="followLabel" maxlength="30" value="Programs"><div class="hint">Like "Dogs", "Programs" or "Rooms"</div><div class="field-error" id="ce-followLabel"></div></div>
         <div class="field-group"><label for="c-price">Monthly gift ($)</label><input id="c-price" name="price" type="number" min="5" max="1000" step="1" value="25"><div class="field-error" id="ce-price"></div></div>
         <div class="field-group"><label for="c-goal">Monthly goal ($)</label><input id="c-goal" name="goal" type="number" min="1" step="1" value="2000"><div class="field-error" id="ce-goal"></div></div>
+        <div class="field-group full" id="c-owner-group" hidden><label for="c-owner">Owner's email (optional)</label><input id="c-owner" name="ownerEmail" type="email" maxlength="254"><div class="hint">They'll be invited to run the page. Their only job is setting up payouts.</div><div class="field-error" id="ce-ownerEmail"></div></div>
       </div>
       <button class="btn btn-primary btn-lg btn-block" type="submit" id="create-submit">Create my page</button>
       <div class="field-error" id="ce-form" role="alert"></div>
+      <button class="link-btn" type="button" id="create-cancel" hidden>Back to the dashboard</button>
     </form>
   </main>
 </div>
@@ -38,6 +40,11 @@
 <div class="app" id="app" hidden>
   <aside class="side">
     <div class="org"><span class="brand-mark" style="background:var(--deep);color:var(--green)" id="org-initials"></span><span id="org-name"></span></div>
+    <div class="admin-tools" id="admin-tools" hidden>
+      <label for="np-switch" class="admin-label">Nonprofit</label>
+      <select id="np-switch"></select>
+      <button class="btn btn-ghost btn-block" type="button" id="new-nonprofit">+ New nonprofit</button>
+    </div>
     <a data-nav="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-8 9 8M5 10v10h14V10"/></svg>Overview</a>
     <a data-nav="sponsors"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5M16 4.8a3.5 3.5 0 010 6.4M18 14.8c1.9.6 3.1 2.3 3.5 5.2"/></svg>Sponsors</a>
     <a data-nav="items"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg><span id="nav-items-label">Things to follow</span></a>
@@ -146,6 +153,19 @@
     <section class="view" data-view="settings" hidden>
       <div class="top"><div><h1>Settings</h1><p>Your bank account and business details.</p></div><button class="btn btn-ghost btn-lg" type="button" id="sign-out">Sign out</button></div>
       <div class="panel"><div class="stripe-mount" id="account-mount"></div></div>
+      <div class="panel" style="margin-top:22px">
+        <h2>People who run this page</h2>
+        <div class="table-wrap"><table id="team"></table></div>
+        <form id="invite-form" novalidate style="margin-top:16px">
+          <div class="field-group"><label for="inv-email">Invite someone by email</label><input id="inv-email" name="email" type="email" maxlength="254"><div class="hint">They sign in with this email and get access. Owners set up payouts.</div><div class="field-error" id="inv-error"></div></div>
+          <div class="field-group"><label for="inv-role">Role</label><select id="inv-role" name="role"><option value="owner">Owner</option><option value="admin">Helper</option></select></div>
+          <button class="btn btn-dark" type="submit">Send invite</button>
+        </form>
+        <div class="invite-message" id="invite-message" hidden>
+          <p><strong>Invite saved.</strong> Send them this message (copied for you):</p>
+          <textarea id="invite-text" readonly></textarea>
+        </div>
+      </div>
     </section>
   </main>
 </div>

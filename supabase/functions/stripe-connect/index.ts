@@ -8,7 +8,7 @@
 import { adminDatabase, json, requireSetting, STRIPE_API_VERSION, stripeClient } from "../_shared/clients.ts";
 import {
   accountRequest, cardPaymentsStatus, connectionMessage, DASHBOARD_FALLBACK, DASHBOARD_FIRST_CHOICE,
-  EMBEDDED_COMPONENTS, readAction, shouldTryFallback,
+  EMBEDDED_COMPONENTS, readAction, readNonprofitId, shouldTryFallback,
 } from "../_shared/connect.js";
 import { corsHeaders, parseList } from "../_shared/sponsorship.js";
 
@@ -52,7 +52,9 @@ Deno.serve(async (request) => {
   if (request.method !== "POST") return json({ error: "Use POST." }, 405, cors);
 
   try {
-    const action = readAction(await request.json().catch(() => ({})));
+    const body = await request.json().catch(() => ({}));
+    const action = readAction(body);
+    const wantedNonprofit = readNonprofitId(body);
     const db = adminDatabase();
 
     // Who is asking? Must be a signed-in person who runs a nonprofit.
@@ -60,13 +62,14 @@ Deno.serve(async (request) => {
     const { data: userData, error: userError } = await db.auth.getUser(token);
     if (userError || !userData?.user) throw new NotAllowed("Sign in again.");
     const user = userData.user;
-    const { data: staff, error: staffError } = await db
-      .from("staff")
-      .select("nonprofit_id")
-      .eq("user_id", user.id)
-      .maybeSingle();
+    // Which nonprofit: the one asked for (must be theirs), or their only one.
+    let staffQuery = db.from("staff").select("nonprofit_id").eq("user_id", user.id);
+    if (wantedNonprofit) staffQuery = staffQuery.eq("nonprofit_id", wantedNonprofit);
+    const { data: staffRows, error: staffError } = await staffQuery.limit(2);
     if (staffError) throw staffError;
-    if (!staff) throw new NotAllowed("Create your nonprofit first.");
+    if (!staffRows?.length) throw new NotAllowed("Create your nonprofit first.");
+    if (staffRows.length > 1) throw new NotAllowed("Pick which nonprofit first.");
+    const staff = staffRows[0];
     const { data: nonprofit, error: nonprofitError } = await db
       .from("nonprofits")
       .select("id, name, stripe_account_id, is_live")

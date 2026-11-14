@@ -16,7 +16,7 @@ const CHECK_SVG = '<svg viewBox="0 0 24 24"><polyline points="5,12.5 10,17 19,7"
 const AVATAR_COLORS = ["#C98B5E", "#5B8F7E", "#7B7FB8", "#B86E7B", "#6E9BB8", "#A08A4E"];
 const $ = (id) => document.getElementById(id);
 
-const state = { user: null, nonprofit: null, items: [], sponsors: [], connect: null, mounted: new Set(), editing: null, finishing: null, accountCreated: false };
+const state = { user: null, nonprofit: null, items: [], sponsors: [], connect: null, mounted: new Set(), editing: null, finishing: null, accountCreated: false, role: null, admin: false, memberships: [], creatingFor: null };
 
 /** True once the nonprofit has a Stripe account (saved earlier, or just created by Stripe's sign-up form). */
 const hasStripeAccount = () => Boolean(state.nonprofit?.stripe_account_id) || state.accountCreated;
@@ -84,7 +84,7 @@ async function loadNonprofit(nonprofitId) {
 async function refreshStripeStatus() {
   if (!hasStripeAccount()) return null;
   try {
-    const result = await callServer("stripe-connect", { action: "status" });
+    const result = await callServer("stripe-connect", { action: "status", nonprofitId: state.nonprofit.id });
     state.nonprofit.is_live = result.live;
     return result;
   } catch (error) {
@@ -112,7 +112,7 @@ async function stripeConnect() {
   state.connect = StripeConnect.init({
     publishableKey: STRIPE_PUBLISHABLE_KEY,
     fetchClientSecret: async () => {
-      const { clientSecret } = await callServer("stripe-connect", { action: "session" });
+      const { clientSecret } = await callServer("stripe-connect", { action: "session", nonprofitId: state.nonprofit.id });
       state.accountCreated = true; // the first session creates the Stripe account
       return clientSecret;
     },
@@ -430,6 +430,11 @@ async function drawConnect() {
     $("onboarding-mount").replaceChildren();
     return;
   }
+  if (state.role === "admin" && !$("helper-note")) {
+    const note = el("div", "helper-note", "You're helping run this page. Payouts are best set up by the nonprofit's owner, because Stripe checks the identity of whoever fills this in. Invite them from Settings.");
+    note.id = "helper-note";
+    $("onboarding-mount").before(note);
+  }
   mountStripe("account-onboarding", "onboarding-mount", (onboarding) => {
     onboarding.setOnExit(async () => {
       const result = await refreshStripeStatus();
@@ -505,8 +510,115 @@ function drawAll() {
   drawSponsors();
   drawItems();
   fillPageForm();
+  drawTeam();
+  drawAdminTools();
   if (hasStripeAccount()) mountStripe("notification-banner", "banner-mount");
 }
+
+// ---------- people who run this page ----------
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+async function drawTeam() {
+  const { data: invites } = await supabase.from("staff_invites").select("email, role").eq("nonprofit_id", state.nonprofit.id);
+  const rows = [{ email: state.user.email, role: state.role, you: true }, ...(invites ?? []).map((i) => ({ ...i, pending: true }))];
+  const head = el("tr");
+  ["Person", "Role", "Status", ""].forEach((h) => head.append(el("th", "", h)));
+  $("team").replaceChildren(head, ...rows.map((row) => {
+    const tr = el("tr");
+    tr.append(el("td", "", row.email), el("td", "", row.role === "owner" ? "Owner" : "Helper"),
+      el("td", "", row.you ? "You" : "Invited, hasn't signed in yet"));
+    const action = el("td");
+    if (row.pending) {
+      const cancel = el("button", "link-btn", "Cancel invite");
+      cancel.type = "button";
+      cancel.addEventListener("click", async () => {
+        await supabase.rpc("cancel_invite", { target: state.nonprofit.id, invite_email: row.email });
+        drawTeam();
+      });
+      action.append(cancel);
+    }
+    tr.append(action);
+    return tr;
+  }));
+}
+
+/** The message Tanner sends the owner (copied for him). */
+function inviteMessage(email) {
+  return `Hi! I set up a monthly sponsor page for ${state.nonprofit.name} on Cover. To finish, go to ${pageUrl("signin.html")} ` +
+    `and sign in with ${email}. You'll land on one short step: setting up payouts so donations go to your bank. ` +
+    `It takes about 10 minutes. Your page: ${publicUrl()}`;
+}
+
+async function sendInvite(email, role) {
+  const { error } = await supabase.rpc("invite_to_nonprofit", { target: state.nonprofit.id, invite_email: email, invite_role: role });
+  if (error) throw new Error(error.code === "P0001" ? error.message : "That invite didn't save. Please try again.");
+  const text = inviteMessage(email);
+  $("invite-text").value = text;
+  $("invite-message").hidden = false;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    // the message is still shown to copy by hand
+  }
+  drawTeam();
+}
+
+$("invite-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const email = event.target.elements.email.value.trim().toLowerCase();
+  $("inv-error").textContent = "";
+  if (!EMAIL_PATTERN.test(email)) {
+    $("inv-error").textContent = "That email doesn't look right.";
+    return;
+  }
+  try {
+    await sendInvite(email, event.target.elements.role.value);
+    event.target.reset();
+  } catch (error) {
+    $("inv-error").textContent = error.message;
+  }
+});
+
+// ---------- Cover admin tools ----------
+
+function drawAdminTools() {
+  $("admin-tools").hidden = !state.admin;
+  if (!state.admin) return;
+  $("np-switch").replaceChildren(...state.memberships.map((m) => {
+    const option = el("option", "", m.name);
+    option.value = m.nonprofit_id;
+    option.selected = m.nonprofit_id === state.nonprofit.id;
+    return option;
+  }));
+}
+
+function rememberNonprofit(id) {
+  try {
+    localStorage.setItem("cover.currentNonprofit", id);
+  } catch {
+    // remembering is optional
+  }
+}
+
+function rememberedNonprofit() {
+  try {
+    return localStorage.getItem("cover.currentNonprofit");
+  } catch {
+    return null;
+  }
+}
+
+$("np-switch").addEventListener("change", (event) => {
+  rememberNonprofit(event.target.value);
+  location.reload(); // payment screens belong to one nonprofit at a time
+});
+$("new-nonprofit").addEventListener("click", () => openCreate(true));
+$("create-cancel").addEventListener("click", () => {
+  $("create").hidden = true;
+  $("app").hidden = false;
+});
+
 
 async function reload() {
   await loadNonprofit(state.nonprofit.id);
@@ -529,14 +641,36 @@ $("c-kind").addEventListener("change", (event) => {
 });
 $("c-label").addEventListener("input", (event) => (event.target.dataset.edited = "yes"));
 
+/** Show the create form, for your own nonprofit or (Cover admins) for someone else's. */
+function openCreate(forSomeone) {
+  state.creatingFor = forSomeone ? "someone" : "self";
+  $("create-title").textContent = forSomeone ? "Set up a page for a nonprofit" : "Set up your sponsor page";
+  $("create-lead").textContent = forSomeone
+    ? "You'll add their dogs or programs and photos. Invite the owner and their only job is setting up payouts."
+    : "A few basics. You can change all of this later.";
+  $("create-submit").textContent = forSomeone ? "Create the page" : "Create my page";
+  $("c-owner-group").hidden = !forSomeone;
+  $("create-cancel").hidden = !forSomeone;
+  $("create-form").reset();
+  slugEdited = false;
+  $("c-slug-preview").textContent = `${pageUrl("give.html")}?org=your-link`;
+  $("app").hidden = true;
+  $("create").hidden = false;
+  $("c-name").focus();
+}
+
 $("create-form").addEventListener("submit", async (event) => {
   event.preventDefault();
-  const result = validateSignup(Object.fromEntries(new FormData(event.target)));
-  showErrors("ce-", result.errors);
-  if (!result.ok) return;
+  const form = Object.fromEntries(new FormData(event.target));
+  const result = validateSignup(form);
+  const ownerEmail = (form.ownerEmail ?? "").trim().toLowerCase();
+  const ownerError = ownerEmail && !EMAIL_PATTERN.test(ownerEmail) ? "That email doesn't look right." : "";
+  showErrors("ce-", { ...result.errors, ...(ownerError ? { ownerEmail: ownerError } : {}) });
+  if (!result.ok || ownerError) return;
   $("create-submit").disabled = true;
   const { values } = result;
-  const { error } = await supabase.rpc("create_my_nonprofit", {
+  const forSomeone = state.creatingFor === "someone";
+  const { data, error } = await supabase.rpc(forSomeone ? "admin_create_nonprofit" : "create_my_nonprofit", {
     nonprofit_name: values.name,
     page_slug: values.slug,
     page_kind: values.kind,
@@ -547,6 +681,13 @@ $("create-form").addEventListener("submit", async (event) => {
   $("create-submit").disabled = false;
   if (error) {
     $("ce-form").textContent = error.code === "P0001" ? error.message : "That didn't work. Please try again.";
+    return;
+  }
+  if (forSomeone) {
+    rememberNonprofit(data);
+    if (ownerEmail) await supabase.rpc("invite_to_nonprofit", { target: data, invite_email: ownerEmail, invite_role: "owner" });
+    location.hash = "items"; // next: add their dogs or programs
+    location.reload();
     return;
   }
   await start();
@@ -561,26 +702,38 @@ async function start() {
     return;
   }
   state.user = data.session.user;
-  const { data: staff, error } = await supabase.from("staff").select("nonprofit_id").maybeSingle();
+  // Turn any invites for this email into access first (an owner invited by Cover lands here).
+  const claimed = (await supabase.rpc("claim_my_invites")).data ?? 0;
+  const [memberships, admin] = await Promise.all([
+    supabase.from("staff").select("nonprofit_id, role, nonprofits(name)").order("created_at"),
+    supabase.rpc("am_i_cover_admin"),
+  ]);
   $("loading").hidden = true;
-  if (error) {
+  if (memberships.error) {
     $("loading").hidden = false;
     $("loading").textContent = "Couldn't load your dashboard. Refresh to try again.";
     return;
   }
-  if (!staff) {
-    $("create").hidden = false;
-    $("c-slug-preview").textContent = `${pageUrl("give.html")}?org=your-link`;
-    $("c-name").focus();
+  state.admin = admin.data === true;
+  state.memberships = memberships.data.map((m) => ({ nonprofit_id: m.nonprofit_id, role: m.role, name: m.nonprofits?.name ?? "Nonprofit" }));
+  if (!state.memberships.length) {
+    openCreate(state.admin);
+    $("create-cancel").hidden = true;
     return;
   }
+  const remembered = rememberedNonprofit();
+  const current = state.memberships.find((m) => m.nonprofit_id === remembered) ?? state.memberships[0];
+  state.role = current.role;
   $("create").hidden = true;
-  await loadNonprofit(staff.nonprofit_id);
-  if (state.nonprofit.stripe_account_id && !state.nonprofit.is_live) await refreshStripeStatus();
+  await loadNonprofit(current.nonprofit_id);
+  if (hasStripeAccount() && !state.nonprofit.is_live) await refreshStripeStatus();
   $("app").hidden = false;
   drawAll();
+  if (claimed) toast(`Welcome! You now run ${state.nonprofit.name} on Cover.`);
+  // An owner whose payouts aren't set up yet starts there: it's their one job.
+  const firstJob = state.role === "owner" && !state.nonprofit.is_live ? "connect" : "overview";
   const wanted = location.hash.replace("#", "");
-  show(document.querySelector(`[data-view="${wanted}"]`) ? wanted : "overview");
+  show(document.querySelector(`[data-view="${wanted}"]`) && wanted !== "overview" ? wanted : firstJob);
 }
 
 start().catch((error) => {

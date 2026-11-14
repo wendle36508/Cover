@@ -69,9 +69,19 @@ export const EMBEDDED_COMPONENTS = {
   payouts: { enabled: true },
 };
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /** Read { action } from the dashboard's request. */
 export function readAction(body) {
   const action = body?.action;
   if (action !== "session" && action !== "status") throw new Error("Unknown action.");
   return action;
+}
+
+/** Which nonprofit the request is about (people who help run several send its id), or null. */
+export function readNonprofitId(body) {
+  const id = body?.nonprofitId;
+  if (id === undefined || id === null || id === "") return null;
+  if (typeof id !== "string" || !UUID_PATTERN.test(id)) throw new Error("Unknown action.");
+  return id;
 }

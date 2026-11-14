@@ -95,3 +95,12 @@ body { background: var(--soft); }
 .table-wrap { overflow-x: auto; }
 .side a { cursor: pointer; }
 @media (max-width: 860px) { .form-grid { grid-template-columns: 1fr; } }
+
+/* Admin tools (Cover admins only) */
+.admin-tools { display: grid; gap: 8px; padding: 0 6px 18px; }
+.admin-label { font-size: 12px; font-weight: 650; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.admin-tools select { font: inherit; font-size: 14px; padding: 9px 10px; border: 1.5px solid var(--line); border-radius: 10px; background: #fff; }
+.admin-tools .btn { padding: 9px 12px; font-size: 14px; }
+.invite-message { margin-top: 16px; background: var(--mint); border-radius: 12px; padding: 14px; }
+.invite-message textarea { width: 100%; min-height: 110px; margin-top: 8px; font: inherit; font-size: 14px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; }
+.helper-note { background: #FFF8EC; border: 1px solid #F3DDB3; border-radius: 12px; padding: 14px; font-size: 14px; color: #6E5214; margin-bottom: 16px; }

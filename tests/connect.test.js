@@ -4,7 +4,7 @@ import { test } from "node:test";
 
 import {
   DASHBOARD_FALLBACK, DASHBOARD_FIRST_CHOICE, EMBEDDED_COMPONENTS, accountRequest, cardPaymentsStatus,
-  connectionMessage, readAction, shouldTryFallback,
+  connectionMessage, readAction, readNonprofitId, shouldTryFallback,
 } from "../supabase/functions/_shared/connect.js";
 
 const nonprofit = { id: "np1", name: "Harbor Paws Rescue" };
@@ -59,4 +59,11 @@ test("only the two known actions are accepted", () => {
   assert.equal(readAction({ action: "session" }), "session");
   assert.equal(readAction({ action: "status" }), "status");
   for (const bad of [{}, null, { action: "delete_everything" }]) assert.throws(() => readAction(bad), /Unknown action/);
+});
+
+test("the nonprofit id is optional, but must be a real id when sent", () => {
+  assert.equal(readNonprofitId({}), null);
+  assert.equal(readNonprofitId({ nonprofitId: "" }), null);
+  assert.equal(readNonprofitId({ nonprofitId: "3f2b9c1e-4d5a-4b6c-8d7e-9f0a1b2c3d4e" }), "3f2b9c1e-4d5a-4b6c-8d7e-9f0a1b2c3d4e");
+  for (const bad of [{ nonprofitId: "1 or 1=1" }, { nonprofitId: 42 }]) assert.throws(() => readNonprofitId(bad), /Unknown action/);
 });
