@@ -99,6 +99,18 @@ export function countsByItem(sponsors) {
   return counts;
 }
 
+/** The toast after "Mark adopted": how many sponsors were told. */
+export function finishSummary(name, result) {
+  const moved = result?.moved ?? 0;
+  if (!moved) return `${name} marked finished.`;
+  const people = (n) => `${n} sponsor${n === 1 ? "" : "s"}`;
+  let text = `${name} marked finished.`;
+  if (result.emailsOn === false) text += ` Emails aren't switched on yet, so ${people(moved)} weren't told.`;
+  else if (result.emailed) text += ` ${people(result.emailed)} got the news and can pick a new buddy.`;
+  if (result.failed) text += ` ${result.failed} email${result.failed === 1 ? "" : "s"} didn't send.`;
+  return text;
+}
+
 /** The "Get your page ready" list. linkShared is remembered in this browser. */
 export function checklist({ nonprofit, items, linkShared }) {
   const activeItems = items.filter((item) => item.status === "active");

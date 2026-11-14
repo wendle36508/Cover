@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Your sponsorship | Cover</title>
+<link rel="icon" href="brand/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/cover.css">
+<style>
+  body { background: var(--soft); }
+  .wrap { min-height: 100vh; display: grid; place-items: center; padding: 32px 16px; }
+  .box { background: #fff; border: 1px solid var(--line); border-radius: 20px; padding: 36px 32px; width: min(640px, 100%); }
+  .org { display: flex; align-items: center; gap: 10px; font-weight: 750; font-size: 17px; margin-bottom: 26px; }
+  .box h1 { font-size: 30px; letter-spacing: -.03em; line-height: 1.15; }
+  .box p { color: var(--body); margin-top: 10px; }
+  .choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; margin-top: 24px; }
+  .choice { border: 1.5px solid var(--line); border-radius: 14px; overflow: hidden; background: #fff; text-align: left; font: inherit; cursor: pointer; padding: 0; }
+  .choice img { width: 100%; aspect-ratio: 4 / 3.2; object-fit: cover; }
+  .choice .noimg { aspect-ratio: 4 / 3.2; background: var(--mint); }
+  .choice b { display: block; padding: 10px 12px 2px; font-size: 16px; }
+  .choice span { display: block; padding: 0 12px 12px; font-size: 13px; color: var(--muted); }
+  .choice.current { border-color: var(--green); box-shadow: 0 0 0 2px var(--green); }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 24px; }
+  .small { font-size: 13px; color: var(--muted); margin-top: 22px; }
+  .small button { font: inherit; background: none; border: 0; color: var(--muted); text-decoration: underline; cursor: pointer; padding: 0; }
+  .error { color: #B2321F; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <main class="box">
+    <div class="org" id="org" hidden><span class="brand-mark" id="org-initials"></span><img class="brand-logo" id="org-logo" alt="" hidden><span id="org-name"></span></div>
+    <div id="content" role="status" aria-live="polite"><p>Loading…</p></div>
+    <p class="small"><span class="powered-by">Powered by<img src="brand/logo.svg" alt="Cover"></span></p>
+  </main>
+</div>
+<script type="module" src="js/updates.js"></script>
+</body>
+</html>

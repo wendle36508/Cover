@@ -161,3 +161,11 @@ test("when-text for the tables", () => {
   assert.equal(whenText("2026-11-19T10:00:00", NOW), "Yesterday");
   assert.equal(whenText("2026-11-02T10:00:00", NOW), "Nov 2");
 });
+
+test("the Mark adopted message says what happened", async () => {
+  const { finishSummary } = await import("../docs/js/dashboard-logic.js");
+  assert.equal(finishSummary("Bella", { moved: 0 }), "Bella marked finished.");
+  assert.equal(finishSummary("Bella", { moved: 3, emailed: 2, muted: 1, failed: 0, emailsOn: true }), "Bella marked finished. 2 sponsors got the news and can pick a new buddy.");
+  assert.match(finishSummary("Bella", { moved: 1, emailed: 0, emailsOn: false }), /Emails aren't switched on yet/);
+  assert.match(finishSummary("Bella", { moved: 2, emailed: 1, failed: 1, emailsOn: true }), /1 email didn't send/);
+});

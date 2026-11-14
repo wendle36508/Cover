@@ -246,8 +246,10 @@
 <dialog class="sponsor-dialog" id="finish-dialog" aria-labelledby="finish-title">
   <div class="dialog-head"><div><h2 id="finish-title"></h2><p>Sponsors keep giving to your general fund.</p></div><button class="dialog-close" type="button" id="finish-close" aria-label="Close">×</button></div>
   <form class="dialog-body" id="finish-form" novalidate>
-    <div class="field-group"><label for="f-note">A note for their sponsors</label><textarea id="f-note" name="note" maxlength="300"></textarea><div class="hint">Like "Bella went home with the Garcia family on Saturday!"</div></div>
+    <p class="hint" id="finish-explain" style="margin-bottom:14px"></p>
+    <div class="field-group"><label for="f-note">A note for their sponsors</label><textarea id="f-note" name="note" maxlength="300"></textarea><div class="hint">Like "Bella went home with the Garcia family on Saturday!" It goes in the email.</div></div>
     <button class="btn btn-dark btn-lg btn-block" type="submit" id="finish-save"></button>
+    <div class="field-error" id="finish-error" role="alert"></div>
   </form>
 </dialog>
 

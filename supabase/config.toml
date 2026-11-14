@@ -435,3 +435,6 @@ verify_jwt = false
 
 [functions.stripe-connect]
 verify_jwt = false  # checks the signed-in user itself (supports Supabase's newer login keys)
+
+[functions.sponsor-email]
+verify_jwt = false  # sponsors use it from email links (signed tokens); the team's "finish" checks the user itself

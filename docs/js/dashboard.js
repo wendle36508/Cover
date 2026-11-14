@@ -7,7 +7,7 @@
 import { STRIPE_PUBLISHABLE_KEY } from "./config.js";
 import {
   DEFAULT_FOCUS, PHOTO_MAX_BYTES, checklist, clampFocus, countsByItem, fitWithin, focusFromClick, followedMost,
-  greeting, monthStats, nameFromFile, newestSponsors, objectPosition, photoPath, photoProblem, slugify,
+  finishSummary, greeting, monthStats, nameFromFile, newestSponsors, objectPosition, photoPath, photoProblem, slugify,
   sponsorName, statusLabel, validateItem, validatePage, validateSignup, whenText,
 } from "./dashboard-logic.js";
 import { finishSignInFromLink } from "./auth-link.js";
@@ -489,6 +489,10 @@ function openFinish(item) {
   const adopted = state.nonprofit.kind === "animal";
   $("finish-title").textContent = adopted ? `Did ${item.name} go home?` : `Wrap up ${item.name}?`;
   $("finish-save").textContent = adopted ? `Yes, ${item.name} was adopted` : "Mark finished";
+  $("finish-save").disabled = false;
+  $("finish-error").textContent = "";
+  // Sponsors are never moved automatically: they're emailed the news and asked if they'd like a new buddy.
+  $("finish-explain").textContent = `We'll email ${item.name}'s sponsors the news and ask if they'd like to follow someone new. Until they pick, they follow your whole page.`;
   $("finish-dialog").showModal();
 }
 
@@ -502,11 +506,25 @@ async function setItemStatus(item, status, note) {
   await reload();
 }
 
+// "Mark adopted / Mark finished" runs on Cover's server: it moves the sponsors and emails them.
 $("finish-form").addEventListener("submit", async (event) => {
   event.preventDefault();
-  const note = event.target.elements.note.value.trim().slice(0, 300) || null;
-  $("finish-dialog").close();
-  await setItemStatus(state.finishing, "finished", note);
+  const item = state.finishing;
+  const note = event.target.elements.note.value.trim().slice(0, 300);
+  $("finish-save").disabled = true;
+  $("finish-save").textContent = "Saving…";
+  try {
+    const result = await callServer("sponsor-email", {
+      action: "finish", itemId: item.id, note,
+    });
+    $("finish-dialog").close();
+    toast(finishSummary(item.name, result));
+    await reload();
+  } catch (error) {
+    $("finish-save").disabled = false;
+    $("finish-save").textContent = state.nonprofit.kind === "animal" ? `Yes, ${item.name} was adopted` : "Mark finished";
+    $("finish-error").textContent = error.message;
+  }
 });
 
 // ---------- your page ----------
