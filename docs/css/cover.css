@@ -1,8 +1,9 @@
-/* cover.css - the locked Cover look (see design/README.md): real-product style, Bricolage with
-   one serif quote per page, bright green accent. Used by index.html and give.html. */
+/* cover.css - the locked Cover look (see design/README.md): real-product style, Plus Jakarta Sans
+   with one serif quote per page, bright green accent. Used by every page on the site. */
 
+/* Main font: Plus Jakarta Sans from Google Fonts (chosen by Tanner, Nov 2026). */
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@200..800&display=swap");
 @font-face { font-family: "Instrument Serif"; src: url("../fonts/InstrumentSerif-Regular.ttf"); }
-@font-face { font-family: "Bricolage"; src: url("../fonts/BricolageGrotesque%5Bopsz,wdth,wght%5D.ttf"); font-weight: 200 800; }
 
 :root {
   --ink: #14181C;
@@ -21,7 +22,7 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 [hidden] { display: none !important; } /* hidden always wins over a layout style */
 html { -webkit-font-smoothing: antialiased; }
-body { font-family: "Bricolage", system-ui, sans-serif; color: var(--ink); background: var(--bg); font-size: 17px; line-height: 1.55; }
+body { font-family: "Plus Jakarta Sans", system-ui, sans-serif; color: var(--ink); background: var(--bg); font-size: 17px; line-height: 1.55; }
 img { display: block; max-width: 100%; }
 a { color: inherit; text-decoration: none; }
 .container { max-width: 1200px; margin: 0 auto; padding: 0 32px; }

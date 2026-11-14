@@ -118,7 +118,9 @@ async function stripeConnect() {
       state.accountCreated = true; // the first session creates the Stripe account
       return clientSecret;
     },
-    appearance: { variables: { colorPrimary: "#0B6B47", fontFamily: "Bricolage, system-ui, sans-serif", borderRadius: "10px" } },
+    // Stripe's screens load the same font so they match the rest of the dashboard.
+    fonts: [{ cssSrc: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" }],
+    appearance: { variables: { colorPrimary: "#0B6B47", fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", borderRadius: "10px" } },
   });
   return state.connect;
 }
