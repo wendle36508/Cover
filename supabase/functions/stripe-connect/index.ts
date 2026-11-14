@@ -55,7 +55,9 @@ async function accountIsGone(accountId: string, found: { status: number; body: u
     await stripeClient().accounts.retrieve(accountId);
     return false;
   } catch (error) {
-    return (error as { code?: string })?.code === "resource_missing";
+    const stripeError = error as { code?: string; type?: string; message?: string };
+    console.warn("Older account lookup also failed:", stripeError?.type, stripeError?.code, stripeError?.message);
+    return isMissingAccount(0, { error: { code: stripeError?.code, message: stripeError?.message } });
   }
 }
 

@@ -72,6 +72,8 @@ test("a leftover test-mode or deleted account is spotted, other errors are not",
   assert.equal(isMissingAccount(404, {}), true);
   assert.equal(isMissingAccount(400, { error: { code: "resource_missing" } }), true);
   assert.equal(isMissingAccount(400, { error: { message: "No such account: 'acct_1'; a similar object exists in test mode, but a live mode key was used" } }), true);
+  assert.equal(isMissingAccount(403, { error: { message: "Permission denied. API Key does not have permission to access account acct_1U**sioh. To make an authorized request..." } }), true);
+  assert.equal(isMissingAccount(403, { error: { message: "The provided key 'rk_live_x' does not have the required permissions for this endpoint" } }), false);
   assert.equal(isMissingAccount(401, { error: { code: "authentication_required", message: "Invalid API key" } }), false);
   assert.equal(isMissingAccount(500, undefined), false);
 });

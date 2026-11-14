@@ -47,7 +47,14 @@ export function shouldTryFallback(errorBody) {
 export function isMissingAccount(httpStatus, errorBody) {
   const code = errorBody?.error?.code ?? "";
   const message = errorBody?.error?.message ?? "";
-  return httpStatus === 404 || code === "resource_missing" || /no such account|exists in test mode/i.test(message);
+  // "...does not have permission to access account acct_..." means the account isn't connected to
+  // Cover in this mode. (A key that's missing a permission says "...required permissions for this
+  // endpoint" instead, and must NOT count, or real accounts could be dropped.)
+  return (
+    httpStatus === 404 ||
+    code === "resource_missing" ||
+    /no such account|exists in test mode|(permission|access) to access account|access to account/i.test(message)
+  );
 }
 
 /** Where the nonprofit is with Stripe: "active" means they can take payments. */
