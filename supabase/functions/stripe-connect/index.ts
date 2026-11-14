@@ -46,6 +46,19 @@ async function createAccount(nonprofit: { id: string; name: string }, email: str
   throw new Error("Stripe couldn't create the account.");
 }
 
+// True only when Stripe confirms the saved account doesn't exist for Cover's key (for example, it
+// was made in test mode before Cover went live). The newer lookup can answer "permission denied"
+// for those, so ask the older one, which plainly says "resource_missing". Any other answer keeps it.
+async function accountIsGone(accountId: string, found: { status: number; body: unknown }): Promise<boolean> {
+  if (isMissingAccount(found.status, found.body)) return true;
+  try {
+    await stripeClient().accounts.retrieve(accountId);
+    return false;
+  } catch (error) {
+    return (error as { code?: string })?.code === "resource_missing";
+  }
+}
+
 Deno.serve(async (request) => {
   const cors = corsHeaders(request.headers.get("Origin") ?? "", parseList(Deno.env.get("ALLOWED_ORIGINS")));
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
@@ -85,7 +98,7 @@ Deno.serve(async (request) => {
       const found = await stripeV2(`/v2/core/accounts/${accountId}?include=configuration.merchant`, { method: "GET" });
       if (found.ok) {
         account = found.body;
-      } else if (isMissingAccount(found.status, found.body)) {
+      } else if (await accountIsGone(accountId, found)) {
         console.warn("Saved Stripe account no longer exists; replacing it.", accountId);
         const { error } = await db.from("nonprofits").update({ stripe_account_id: null, is_live: false }).eq("id", nonprofit.id);
         if (error) throw error;
