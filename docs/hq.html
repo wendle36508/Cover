@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Cover HQ</title>
+<link rel="icon" href="brand/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/cover.css">
+<link rel="stylesheet" href="css/dashboard.css">
+<style>
+  .hq { max-width: 1240px; margin: 0 auto; padding: 28px 24px 60px; }
+  .hq-top { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 26px; flex-wrap: wrap; }
+  .hq-top h1 { font-size: 30px; letter-spacing: -.03em; display: flex; align-items: center; gap: 12px; }
+  .hq-top h1 img { height: 26px; }
+  .hq-top .meta { color: var(--muted); font-size: 14px; display: flex; gap: 10px; align-items: center; }
+  .hq-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
+  .hq-tile { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+  .hq-tile span { font-size: 13px; color: var(--muted); }
+  .hq-tile b { display: block; font-size: 30px; letter-spacing: -.03em; margin-top: 2px; }
+  .hq-tile.warn b { color: #9A6B12; }
+  .hq-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 22px; }
+  .alerts { list-style: none; display: grid; gap: 8px; }
+  .alerts li { padding: 12px 14px; border-radius: 10px; font-size: 14px; }
+  .alerts .bad { background: #FFF1EE; color: #8A2A18; }
+  .alerts .warn { background: #FFF8EC; color: #6E5214; }
+  .alerts .ok { background: var(--mint); color: var(--green-dark); }
+  .yes { color: var(--green-dark); font-weight: 650; }
+  .no { color: var(--muted); }
+  .denied { max-width: 480px; margin: 120px auto; text-align: center; }
+  @media (max-width: 900px) { .hq-tiles { grid-template-columns: repeat(2, 1fr); } .hq-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body style="background:var(--soft)">
+<div class="loading" id="loading">Loading Cover HQ…</div>
+<div class="denied" id="denied" hidden><h1>Cover HQ is for Cover admins</h1><p class="lead" style="margin-top:10px" id="denied-text"></p><a class="btn btn-primary" href="signin.html" style="margin-top:18px">Sign in</a></div>
+
+<main class="hq" id="hq" hidden>
+  <div class="hq-top">
+    <h1><img src="brand/logo.svg" alt="Cover">HQ</h1>
+    <div class="meta"><span id="updated"></span><button class="btn btn-ghost" type="button" id="refresh">Refresh</button><a class="btn btn-dark" href="dashboard.html">Dashboard</a></div>
+  </div>
+
+  <div class="hq-tiles" id="tiles"></div>
+
+  <div class="hq-grid">
+    <div>
+      <div class="panel"><h2>Nonprofits</h2><div class="table-wrap"><table id="nonprofits"></table></div></div>
+      <div class="panel" style="margin-top:22px"><h2>Newest sponsors</h2><div class="table-wrap"><table id="sponsors"></table></div></div>
+    </div>
+    <div>
+      <div class="panel"><h2>Needs your attention</h2><ul class="alerts" id="alerts"></ul></div>
+      <div class="panel" style="margin-top:22px"><h2>Stripe events to review</h2><table id="events"></table></div>
+    </div>
+  </div>
+</main>
+
+<script type="module" src="js/hq.js"></script>
+</body>
+</html>

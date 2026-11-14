@@ -80,6 +80,26 @@ test("an owner who joined by invite can't also self-create another nonprofit", a
   await assert.rejects(as(MARIA, "select public.create_my_nonprofit('Second', 'second-one')"), /already run a nonprofit/);
 });
 
+test("HQ numbers: admins only, counts and names, no emails", async () => {
+  await db.query(`insert into public.sponsors (nonprofit_id, item_id, first_name, email, monthly_cents, status)
+    select $1, id, 'Sam', 'sam@example.com', 2500, 'active' from public.follow_items where name = 'Bella'`, [rescueId]);
+  await db.query("insert into public.stripe_events (id, type, needs_review) values ('evt_dispute', 'charge.dispute.created', true)");
+  const hq = (await as(TANNER, "select public.admin_overview() as hq")).rows[0].hq;
+  assert.equal(hq.totals.nonprofits, 2);
+  assert.equal(hq.totals.active_sponsors, 1);
+  assert.equal(Number(hq.totals.monthly_cents), 2500);
+  assert.equal(hq.totals.needs_review, 1);
+  const rescue = hq.nonprofits.find((n) => n.slug === "harbor-paws");
+  assert.equal(rescue.owner_joined, true);
+  assert.equal(rescue.things_to_follow, 1);
+  assert.equal(rescue.active_sponsors, 1);
+  assert.equal(hq.recent_sponsors[0].name, "Sam");
+  assert.equal(hq.review_events[0].type, "charge.dispute.created");
+  assert.ok(!JSON.stringify(hq).includes("sam@example.com"), "HQ never includes sponsor emails");
+  await assert.rejects(as(MARIA, "select public.admin_overview()"), /Only Cover admins/);
+  await assert.rejects(runAs(db, "anon", null, "select public.admin_overview()"), /permission denied/);
+});
+
 test("staff can cancel an invite; others can't", async () => {
   await as(TANNER, "select public.invite_to_nonprofit($1, 'helper@rescue.org', 'admin')", [rescueId]);
   await assert.rejects(as(MALLORY, "select public.cancel_invite($1, 'helper@rescue.org')", [rescueId]), /your own nonprofit/);
