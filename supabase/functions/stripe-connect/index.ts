@@ -8,7 +8,7 @@
 import { adminDatabase, json, requireSetting, STRIPE_API_VERSION, stripeClient } from "../_shared/clients.ts";
 import {
   accountRequest, cardPaymentsStatus, connectionMessage, DASHBOARD_FALLBACK, DASHBOARD_FIRST_CHOICE,
-  EMBEDDED_COMPONENTS, readAction, readNonprofitId, shouldTryFallback,
+  EMBEDDED_COMPONENTS, isMissingAccount, readAction, readNonprofitId, shouldTryFallback,
 } from "../_shared/connect.js";
 import { corsHeaders, parseList } from "../_shared/sponsorship.js";
 
@@ -27,7 +27,7 @@ async function stripeV2(path: string, init: { method: string; body?: unknown; id
     body: init.body ? JSON.stringify(init.body) : undefined,
   });
   const body = await response.json().catch(() => ({}));
-  return { ok: response.ok, body };
+  return { ok: response.ok, status: response.status, body };
 }
 
 async function createAccount(nonprofit: { id: string; name: string }, email: string): Promise<string> {
@@ -77,7 +77,24 @@ Deno.serve(async (request) => {
       .single();
     if (nonprofitError) throw nonprofitError;
 
+    // Look up the saved account. If Stripe says it doesn't exist (made in test mode before Cover went
+    // live, or deleted), forget it so a fresh one is made below.
     let accountId = nonprofit.stripe_account_id;
+    let account = null;
+    if (accountId) {
+      const found = await stripeV2(`/v2/core/accounts/${accountId}?include=configuration.merchant`, { method: "GET" });
+      if (found.ok) {
+        account = found.body;
+      } else if (isMissingAccount(found.status, found.body)) {
+        console.warn("Saved Stripe account no longer exists; replacing it.", accountId);
+        const { error } = await db.from("nonprofits").update({ stripe_account_id: null, is_live: false }).eq("id", nonprofit.id);
+        if (error) throw error;
+        accountId = null;
+        nonprofit.is_live = false;
+      } else {
+        throw new Error(`Stripe couldn't look up the account: ${found.body?.error?.message ?? "unknown error"}`);
+      }
+    }
     if (!accountId) {
       if (action === "status") return json({ status: "not_started", live: false, message: connectionMessage("not_started") }, 200, cors);
       accountId = await createAccount(nonprofit, user.email ?? "");
@@ -90,9 +107,7 @@ Deno.serve(async (request) => {
       return json({ clientSecret: session.client_secret }, 200, cors);
     }
 
-    const result = await stripeV2(`/v2/core/accounts/${accountId}?include=configuration.merchant`, { method: "GET" });
-    if (!result.ok) throw new Error(`Stripe couldn't look up the account: ${result.body?.error?.message ?? "unknown error"}`);
-    const status = cardPaymentsStatus(result.body);
+    const status = cardPaymentsStatus(account);
     const live = status === "active";
     if (live !== nonprofit.is_live) {
       const { error } = await db.from("nonprofits").update({ is_live: live }).eq("id", nonprofit.id);

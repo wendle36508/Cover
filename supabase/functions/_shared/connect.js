@@ -39,6 +39,17 @@ export function shouldTryFallback(errorBody) {
   );
 }
 
+/**
+ * True when Stripe says the saved account doesn't exist for this key. That happens when an account
+ * was made in test mode and Cover has since switched to live mode (or the account was deleted).
+ * Such an account can never be used, so Cover replaces it with a new one.
+ */
+export function isMissingAccount(httpStatus, errorBody) {
+  const code = errorBody?.error?.code ?? "";
+  const message = errorBody?.error?.message ?? "";
+  return httpStatus === 404 || code === "resource_missing" || /no such account|exists in test mode/i.test(message);
+}
+
 /** Where the nonprofit is with Stripe: "active" means they can take payments. */
 export function cardPaymentsStatus(account) {
   return account?.configuration?.merchant?.capabilities?.card_payments?.status ?? "not_started";
