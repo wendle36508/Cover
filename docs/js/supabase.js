@@ -6,8 +6,11 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "./config.js";
 
+// "implicit" sign-in: the email link carries the sign-in itself, so it works even when someone
+// asks for the link on a laptop and opens the email on their phone (the stricter "pkce" mode
+// only works in the same browser that asked).
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "pkce" },
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "implicit" },
 });
 
 /** The address of a page next to this one (works locally and once the site is online). */

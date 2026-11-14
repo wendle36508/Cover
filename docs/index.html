@@ -263,5 +263,11 @@
   const CHECK = '<svg viewBox="0 0 24 24"><polyline points="5,12.5 10,17 19,7" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/></svg>';
   document.querySelectorAll("[data-check]").forEach((el) => (el.innerHTML = CHECK));
 </script>
+<script>
+  // If a sign-in link lands on the homepage instead of the dashboard, finish signing in there.
+  if (/access_token=|error_description=/.test(location.hash) || /[?&]code=/.test(location.search)) {
+    location.replace("dashboard.html" + location.search + location.hash);
+  }
+</script>
 </body>
 </html>
