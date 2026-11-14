@@ -6,5 +6,5 @@ export const SUPABASE_URL = "https://qclasffvdviuugczaway.supabase.co";
 export const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_R7OCbhFtdS0-xOAnazuvSw_FdNpYq5r";
 
 // Stripe's publishable key for Cover's platform account (public by design, starts with pk_).
-// This is the test-mode key (pk_test_): it only works with Stripe's fake test cards.
-export const STRIPE_PUBLISHABLE_KEY = "pk_test_51UbNUDRrexQ0ub4i5S1YrRb0arnzHdY5HoD0Hgpe8XvK2OtWDH7wICjPxoeiWrl7tW8K5eAl1KNZPIrHit3OQdki00O7U46srN";
+// Live key (pk_live_): real cards, real money. Public by design.
+export const STRIPE_PUBLISHABLE_KEY = "pk_live_51UbSDHRvu4bccotRTb9scZjiBnowDMpJJf4dUrl0EQBgdG0Q0Sd4ZhvKJM21lQDCcQQkqC3XOcMyceI4UdjZw0oU007hEUMNrI";
