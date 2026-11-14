@@ -81,3 +81,20 @@ test("anything a nonprofit or sponsor typed can't inject HTML into the email", (
   assert.ok(!email.html.includes("<script>") && !email.html.includes("<img"));
   assert.equal(escapeHtml(`<a href="x">'&`), "&lt;a href=&quot;x&quot;&gt;&#39;&amp;");
 });
+
+test("owner update email: photo, the line, and the stop link", async () => {
+  const { updateEmail } = await import("../supabase/functions/_shared/email.js");
+  const details = { nonprofitName: "Harbor Paws", kind: "animal", firstName: "Sarah", itemName: "Bella", body: "Bella learned to sit today!",
+    photoUrl: "https://x.supabase.co/storage/v1/object/public/photos/a.jpg", stopUrl: "https://covergiving.com/updates.html?a=stop&t=s" };
+  const email = updateEmail(details);
+  assert.equal(email.subject, "News about Bella");
+  for (const part of ["Hi Sarah,", "Bella learned to sit today!", "every animal at Harbor Paws", "reply to this email", "Stop updates about Bella"]) {
+    assert.ok(email.text.includes(part) && email.html.includes(part), part);
+  }
+  assert.ok(email.html.includes('<img src="https://x.supabase.co/storage/v1/object/public/photos/a.jpg"'));
+  assert.ok(!updateEmail({ ...details, photoUrl: "" }).html.includes("<img"));
+  assert.ok(!updateEmail({ ...details, photoUrl: 'javascript:alert(1)' }).html.includes("<img"));
+  const sneaky = updateEmail({ ...details, body: "<b>hi</b>", itemName: '"><script>' });
+  assert.ok(!sneaky.html.includes("<script>") && !sneaky.html.includes("<b>hi"));
+  assert.match(updateEmail({ ...details, kind: "program" }).text, /helps everything at Harbor Paws/);
+});

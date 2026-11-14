@@ -7,8 +7,8 @@
 import { STRIPE_PUBLISHABLE_KEY } from "./config.js";
 import {
   DEFAULT_FOCUS, PHOTO_MAX_BYTES, checklist, clampFocus, countsByItem, fitWithin, focusFromClick, followedMost,
-  finishSummary, greeting, monthStats, nameFromFile, newestSponsors, objectPosition, photoPath, photoProblem, slugify,
-  sponsorName, statusLabel, validateItem, validatePage, validateSignup, whenText,
+  finishSummary, greeting, monthStats, nameFromFile, newestSponsors, objectPosition, photoPath, photoProblem, postSummary, slugify,
+  sponsorName, statusLabel, updateAudience, validateItem, validatePage, validateSignup, whenText,
 } from "./dashboard-logic.js";
 import { finishSignInFromLink } from "./auth-link.js";
 import { applyBrand, BRAND_SWATCHES, normalizeHex, safeImageUrl, validateLook } from "./brand.js";
@@ -75,7 +75,7 @@ async function loadNonprofit(nonprofitId) {
     supabase.from("nonprofits").select("*").eq("id", nonprofitId).single(),
     supabase.from("follow_items").select("*").eq("nonprofit_id", nonprofitId).order("sort_order").order("created_at"),
     supabase.from("sponsors")
-      .select("id, item_id, first_name, email, business_name, monthly_cents, status, created_at")
+      .select("id, item_id, first_name, email, business_name, monthly_cents, status, updates_off, created_at")
       .eq("nonprofit_id", nonprofitId)
       .order("created_at", { ascending: false }),
   ]);
@@ -276,6 +276,10 @@ function drawItems() {
     edit.addEventListener("click", () => openItem(item));
     actions.append(edit);
     if (item.status === "active") {
+      const update = el("button", "btn btn-primary", "Post update");
+      update.type = "button";
+      update.addEventListener("click", () => openPostUpdate(item));
+      actions.append(update);
       const finish = el("button", "btn btn-dark", state.nonprofit.kind === "animal" ? "Mark adopted" : "Mark finished");
       finish.type = "button";
       finish.addEventListener("click", () => openFinish(item));
@@ -527,6 +531,78 @@ $("finish-form").addEventListener("submit", async (event) => {
   }
 });
 
+// ---------- post an update (photo + one line, emailed to that one's sponsors) ----------
+
+function drawUpdatePhoto() {
+  const src = state.updatePhoto;
+  $("u-photo-preview").hidden = !src;
+  if (src) $("u-photo-preview").src = src;
+  $("u-photo-empty").hidden = Boolean(src);
+  $("u-photo-remove").hidden = !src;
+  $("u-photo-pick").textContent = src ? "Change photo" : "Add photo";
+}
+
+function openPostUpdate(item) {
+  state.updating = item;
+  state.updatePhoto = "";
+  $("update-form").reset();
+  $("u-count").textContent = "0";
+  ["u-text-error", "u-photo-error", "update-error"].forEach((id) => ($(id).textContent = ""));
+  const reach = updateAudience(state.sponsors, item.id);
+  $("update-title").textContent = `Post an update about ${item.name}`;
+  $("update-sub").textContent = reach
+    ? `It goes to ${item.name}'s ${reach} sponsor${reach === 1 ? "" : "s"} by email.`
+    : `${item.name} has no sponsors with updates on yet. It'll be saved for later.`;
+  $("update-send").disabled = false;
+  $("update-send").textContent = "Send update";
+  drawUpdatePhoto();
+  $("update-dialog").showModal();
+  $("u-text").focus();
+}
+
+$("u-text").addEventListener("input", () => ($("u-count").textContent = String($("u-text").value.length)));
+
+$("u-photo-file").addEventListener("change", async (event) => {
+  const file = event.target.files?.[0];
+  event.target.value = "";
+  if (!file) return;
+  $("u-photo-error").textContent = photoProblem(file) ?? "";
+  if ($("u-photo-error").textContent) return;
+  $("u-photo-pick").textContent = "Uploading…";
+  $("update-send").disabled = true;
+  try {
+    state.updatePhoto = await uploadPhoto(file);
+  } catch (error) {
+    $("u-photo-error").textContent = error.message;
+  }
+  $("update-send").disabled = false;
+  drawUpdatePhoto();
+});
+
+$("u-photo-remove").addEventListener("click", () => {
+  state.updatePhoto = "";
+  drawUpdatePhoto();
+});
+
+$("update-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const item = state.updating;
+  const text = $("u-text").value.trim();
+  $("u-text-error").textContent = text ? "" : "Write one line about them first.";
+  if (!text) return;
+  $("update-send").disabled = true;
+  $("update-send").textContent = "Sending…";
+  try {
+    const result = await callServer("sponsor-email", { action: "post", itemId: item.id, text, photoUrl: state.updatePhoto || null });
+    $("update-dialog").close();
+    toast(postSummary(item.name, result));
+  } catch (error) {
+    $("update-send").disabled = false;
+    $("update-send").textContent = "Send update";
+    $("update-error").textContent = error.message;
+  }
+});
+
 // ---------- your page ----------
 
 function fillPageForm() {
@@ -719,6 +795,7 @@ document.querySelectorAll("[data-copy-link]").forEach((button) => button.addEven
 $("add-item").addEventListener("click", () => openItem(null));
 $("item-close").addEventListener("click", () => $("item-dialog").close());
 $("finish-close").addEventListener("click", () => $("finish-dialog").close());
+$("update-close").addEventListener("click", () => $("update-dialog").close());
 $("sign-out").addEventListener("click", async () => {
   await supabase.auth.signOut();
   location.replace(pageUrl("signin.html"));

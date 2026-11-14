@@ -13,12 +13,18 @@
 //   { action: "move", token, itemId }      follow a new buddy at the same nonprofit
 // Email apps' one-click unsubscribe also POSTs here with ?a=stop&t=TOKEN.
 //
+// Owner updates (photo + one line about a dog or program):
+//   { action: "post", itemId, text, photoUrl }   (signed-in team) sends now, or schedules it for
+//     the next free morning (max one update email per dog per day, Eastern time)
+//   { action: "send_due" }   (the database's 15-minute job, with the x-cron-secret header)
+//     sends every scheduled update whose time has come
+//
 // Money never moves: every gift goes to the nonprofit's general fund. Only the follow changes.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 import { adminDatabase, json, requireSetting } from "../_shared/clients.ts";
-import { adoptionEmail, fromLine, linkUrl, makeToken, readToken, REPLY_TO } from "../_shared/email.js";
+import { adoptionEmail, fromLine, linkUrl, makeToken, readToken, REPLY_TO, updateEmail } from "../_shared/email.js";
 import { corsHeaders, parseList } from "../_shared/sponsorship.js";
 
 class Problem extends Error {
@@ -79,27 +85,37 @@ function oneClickUrl(stopUrl: string): string {
   return `${requireSetting("SUPABASE_URL")}/functions/v1/sponsor-email?a=stop&t=${encodeURIComponent(token)}`;
 }
 
+/** A database client acting as the signed-in person, so the database itself checks they run this nonprofit. */
+function asSignedInUser(request: Request) {
+  const jwt = (request.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
+  if (!jwt) throw new Problem("Sign in again.", 401);
+  return createClient(requireSetting("SUPABASE_URL"), requireSetting("SUPABASE_ANON_KEY"), {
+    global: { headers: { Authorization: `Bearer ${jwt}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
+/** Turn the database's friendly refusals (not allowed, bad input, gone) into a message for the owner. */
+function friendly(error: { code?: string; message: string }): never {
+  if (!["P0002", "42501", "22023"].includes(error.code ?? "")) throw error;
+  throw new Problem(error.message, error.code === "42501" ? 403 : 400);
+}
+
+async function logEmails(rows: Record<string, unknown>[]) {
+  if (!rows.length) return;
+  const { error } = await adminDatabase().from("sponsor_emails").insert(rows);
+  if (error) console.error("Couldn't log sponsor emails", error.message);
+}
+
 // ---------- "Mark adopted / Mark finished" (the nonprofit's team) ----------
 
 async function finish(request: Request, body: Record<string, unknown>) {
   const itemId = readId(body.itemId, "item");
   const note = typeof body.note === "string" ? body.note.trim().slice(0, 300) : "";
-  const jwt = (request.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "");
-  if (!jwt) throw new Problem("Sign in again.", 401);
-
-  // Run the move as the signed-in person, so the database itself checks they run this nonprofit.
-  const asUser = createClient(requireSetting("SUPABASE_URL"), requireSetting("SUPABASE_ANON_KEY"), {
-    global: { headers: { Authorization: `Bearer ${jwt}` } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data: moved, error: moveError } = await asUser.rpc("finish_item", {
+  const { data: moved, error: moveError } = await asSignedInUser(request).rpc("finish_item", {
     target_item: itemId, next_item: null, finish_note: note || null,
   });
-  if (moveError) {
-    const known = ["P0002", "42501", "22023"].includes(moveError.code ?? "");
-    if (!known) throw moveError;
-    throw new Problem(moveError.message, moveError.code === "42501" ? 403 : 400);
-  }
+  if (moveError) friendly(moveError);
 
   const db = adminDatabase();
   const { data: item, error: itemError } = await db.from("follow_items").select("id, name, nonprofit_id").eq("id", itemId).single();
@@ -131,10 +147,7 @@ async function finish(request: Request, body: Record<string, unknown>) {
     ...sponsors.filter((s) => s.updates_off).map((s) => ({ sponsor_id: s.sponsor_id, status: "skipped", provider_id: null })),
     ...outgoing.map((email, i) => ({ sponsor_id: email.sponsorId, status: ids[i] ? "sent" : emailsOn ? "failed" : "skipped", provider_id: ids[i] })),
   ].map((row) => ({ ...row, nonprofit_id: nonprofit.id, item_id: itemId, kind: "adopted" }));
-  if (log.length) {
-    const { error } = await db.from("sponsor_emails").insert(log);
-    if (error) console.error("Couldn't log sponsor emails", error.message);
-  }
+  await logEmails(log);
 
   return {
     moved: sponsors.length,
@@ -143,6 +156,83 @@ async function finish(request: Request, body: Record<string, unknown>) {
     failed: emailsOn ? ids.filter((id) => !id).length : 0,
     emailsOn,
   };
+}
+
+// ---------- Owner updates ----------
+
+async function post(request: Request, body: Record<string, unknown>) {
+  const itemId = readId(body.itemId, "item");
+  const text = typeof body.text === "string" ? body.text : "";
+  const photoUrl = typeof body.photoUrl === "string" && body.photoUrl ? body.photoUrl : null;
+  const { data, error } = await asSignedInUser(request).rpc("post_update", {
+    target_item: itemId, update_text: text, update_photo: photoUrl,
+  });
+  if (error) friendly(error);
+  const saved = (data ?? [])[0] as { update_id: string; send_after: string; send_now: boolean };
+  if (!saved.send_now) return { sent: false, scheduledFor: saved.send_after, emailed: 0 };
+  const result = await sendUpdate(saved.update_id);
+  return { sent: true, scheduledFor: null, ...result };
+}
+
+/** Send one queued update to its sponsors. Claims it first, so the morning job and a post never both send it. */
+async function sendUpdate(updateId: string) {
+  const db = adminDatabase();
+  const { data: claimed, error: claimError } = await db.from("item_updates")
+    .update({ status: "sending" }).eq("id", updateId).eq("status", "queued")
+    .select("id, nonprofit_id, item_id, body, photo_url").maybeSingle();
+  if (claimError) throw claimError;
+  if (!claimed) return { emailed: 0, sponsors: 0, emailsOn: true }; // someone else already sent it
+
+  const [{ data: item }, { data: nonprofit }, { data: sponsors, error: sponsorError }] = await Promise.all([
+    db.from("follow_items").select("name").eq("id", claimed.item_id).single(),
+    db.from("nonprofits").select("name, kind").eq("id", claimed.nonprofit_id).single(),
+    db.from("sponsors").select("id, first_name, email").eq("item_id", claimed.item_id)
+      .in("status", ["active", "past_due"]).eq("updates_off", false),
+  ]);
+  if (sponsorError) throw sponsorError;
+
+  const secret = requireSetting("EMAIL_LINK_SECRET");
+  const outgoing: Outgoing[] = await Promise.all((sponsors ?? []).map(async (s) => {
+    const stopUrl = linkUrl("stop", await makeToken(secret, s.id, "stop"));
+    const email = updateEmail({
+      nonprofitName: nonprofit?.name ?? "", kind: nonprofit?.kind ?? "program", firstName: s.first_name,
+      itemName: item?.name ?? "", body: claimed.body, photoUrl: claimed.photo_url, stopUrl,
+    });
+    return { sponsorId: s.id, to: s.email, from: fromLine(nonprofit?.name ?? ""), stopUrl, ...email };
+  }));
+  const ids = await sendAll(outgoing);
+  const emailsOn = Boolean(Deno.env.get("RESEND_API_KEY"));
+  const emailed = ids.filter(Boolean).length;
+  const allFailed = outgoing.length > 0 && emailed === 0;
+
+  await db.from("item_updates").update({
+    status: allFailed ? "failed" : "sent", sent_at: new Date().toISOString(), emailed,
+  }).eq("id", claimed.id);
+  await logEmails(outgoing.map((email, i) => ({
+    sponsor_id: email.sponsorId, nonprofit_id: claimed.nonprofit_id, item_id: claimed.item_id, kind: "update",
+    status: ids[i] ? "sent" : emailsOn ? "failed" : "skipped", provider_id: ids[i],
+  })));
+  return { emailed, sponsors: outgoing.length, emailsOn };
+}
+
+/** The database's 15-minute job: send every scheduled update whose time has come. */
+async function sendDue(request: Request) {
+  const expected = Deno.env.get("CRON_SECRET") ?? "";
+  const given = request.headers.get("x-cron-secret") ?? "";
+  if (expected.length < 32 || given !== expected) throw new Problem("Not allowed.", 403);
+  const { data: due, error } = await adminDatabase().from("item_updates")
+    .select("id").eq("status", "queued").lte("send_after", new Date().toISOString()).order("send_after").limit(50);
+  if (error) throw error;
+  let sent = 0;
+  for (const row of due ?? []) {
+    try {
+      await sendUpdate(row.id);
+      sent += 1;
+    } catch (failure) {
+      console.error("Couldn't send update", row.id, failure);
+    }
+  }
+  return { sent };
 }
 
 // ---------- Links in sponsors' emails ----------
@@ -217,6 +307,8 @@ Deno.serve(async (request) => {
     const body = await request.json().catch(() => ({})) as Record<string, unknown>;
     switch (body.action) {
       case "finish": return json(await finish(request, body), 200, cors);
+      case "post": return json(await post(request, body), 200, cors);
+      case "send_due": return json(await sendDue(request), 200, cors);
       case "lookup": return json(await lookup(body), 200, cors);
       case "stop": return json(await setUpdates(body.token, true), 200, cors);
       case "resume": return json(await setUpdates(body.token, false), 200, cors);

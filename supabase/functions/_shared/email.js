@@ -138,3 +138,50 @@ export function adoptionEmail(details) {
 
   return { subject, text, html };
 }
+
+/**
+ * An owner's update about one dog or program, sent to its sponsors.
+ * details: { nonprofitName, kind, firstName, itemName, body, photoUrl, stopUrl }
+ * photoUrl is optional and must be an https address (checked by the database too).
+ */
+export function updateEmail(details) {
+  const { nonprofitName, kind, firstName, itemName, body, photoUrl, stopUrl } = details;
+  const animal = kind === "animal";
+  const subject = `News about ${itemName}`;
+  const photo = /^https:\/\/[^\s"'<>]+$/.test(String(photoUrl ?? "")) ? photoUrl : "";
+  const thanks = `Thanks for sponsoring ${itemName}. Your monthly gift helps ${animal ? "every animal" : "everything"} at ${nonprofitName}.`;
+  const footer = "To change or cancel your monthly gift, just reply to this email.";
+
+  const text = [
+    `Hi ${firstName},`,
+    "",
+    `An update on ${itemName} from ${nonprofitName}:`,
+    "",
+    `"${body}"`,
+    "",
+    photo ? `Photo: ${photo}\n` : "",
+    thanks,
+    "",
+    "---",
+    footer,
+    `Stop updates about ${itemName}: ${stopUrl}`,
+  ].filter((line, i, all) => line !== "" || all[i - 1] !== "").join("\n");
+
+  const e = escapeHtml;
+  const html = `<div style="background:#F5F7F6;padding:32px 16px;font-family:Helvetica,Arial,sans-serif">
+  <div style="max-width:520px;margin:0 auto;background:#FFFFFF;border:1px solid #E6E9EC;border-radius:16px;overflow:hidden">
+    ${photo ? `<img src="${e(photo)}" alt="${e(itemName)}" width="520" style="display:block;width:100%;height:auto;max-height:420px;object-fit:cover">` : ""}
+    <div style="padding:28px 32px 32px">
+      <p style="font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#0B6B47;margin:0 0 12px">${e(nonprofitName)}</p>
+      <h1 style="font-size:26px;line-height:1.2;color:#14181C;margin:0 0 18px">${e(subject)}</h1>
+      <p style="font-size:16px;line-height:1.55;color:#4A525A;margin:0 0 14px">Hi ${e(firstName)},</p>
+      <p style="font-size:18px;line-height:1.5;color:#14181C;margin:0 0 18px">${e(body)}</p>
+      <p style="font-size:16px;line-height:1.55;color:#4A525A;margin:0">${e(thanks)}<br>${e(nonprofitName)}</p>
+    </div>
+  </div>
+  <p style="max-width:520px;margin:16px auto 0;font-size:12px;line-height:1.5;color:#6B747C;text-align:center">${e(footer)}<br>
+    <a href="${e(stopUrl)}" style="color:#6B747C">Stop updates about ${e(itemName)}</a> · Sent by Cover for ${e(nonprofitName)}</p>
+</div>`;
+
+  return { subject, text, html };
+}

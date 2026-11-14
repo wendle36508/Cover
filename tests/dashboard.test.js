@@ -169,3 +169,19 @@ test("the Mark adopted message says what happened", async () => {
   assert.match(finishSummary("Bella", { moved: 1, emailed: 0, emailsOn: false }), /Emails aren't switched on yet/);
   assert.match(finishSummary("Bella", { moved: 2, emailed: 1, failed: 1, emailsOn: true }), /1 email didn't send/);
 });
+
+test("who an update reaches, and what the owner is told", async () => {
+  const { updateAudience, postSummary } = await import("../docs/js/dashboard-logic.js");
+  const sponsors = [
+    { item_id: "bella", status: "active", updates_off: false },
+    { item_id: "bella", status: "past_due", updates_off: false },
+    { item_id: "bella", status: "active", updates_off: true },
+    { item_id: "bella", status: "canceled", updates_off: false },
+    { item_id: "max", status: "active", updates_off: false },
+  ];
+  assert.equal(updateAudience(sponsors, "bella"), 2);
+  assert.equal(updateAudience([], "bella"), 0);
+  assert.equal(postSummary("Bella", { sent: true, emailed: 2, sponsors: 2, emailsOn: true }), "Update sent to 2 sponsors.");
+  assert.match(postSummary("Bella", { sent: true, emailed: 0, sponsors: 0, emailsOn: true }), /no sponsors with updates on yet/);
+  assert.equal(postSummary("Bella", { sent: false, scheduledFor: "2026-11-16T14:00:00Z" }), "You already sent an update about Bella today, so this one goes out Monday at 9am.");
+});

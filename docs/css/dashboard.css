@@ -133,3 +133,4 @@ body { background: var(--soft); }
 @media (max-width: 860px) { .look { grid-template-columns: 1fr; } }
 .side .bottom .powered-by img { height: 10px; }
 .side .bottom { flex-wrap: wrap; gap: 6px; }
+.item-card .actions { flex-wrap: wrap; }

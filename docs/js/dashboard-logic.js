@@ -238,3 +238,20 @@ export function whenText(isoTime, now = new Date()) {
   if (seconds < 172800) return "Yesterday";
   return new Date(isoTime).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
+
+/** How many sponsors an update about this one would reach: paying, following it, updates on. */
+export function updateAudience(sponsors, itemId) {
+  return sponsors.filter((s) => s.item_id === itemId && ["active", "past_due"].includes(s.status) && !s.updates_off).length;
+}
+
+/** The toast after "Send update": sent now (to how many), or scheduled for which morning. */
+export function postSummary(name, result, now = new Date()) {
+  if (!result?.sent) {
+    const when = new Date(result?.scheduledFor ?? now);
+    const day = when.toLocaleDateString("en-US", { weekday: "long", timeZone: "America/New_York" });
+    return `You already sent an update about ${name} today, so this one goes out ${day} at 9am.`;
+  }
+  if (result.emailsOn === false) return `Update saved. Emails aren't switched on yet, so no one was emailed.`;
+  if (!result.sponsors) return `Update saved. ${name} has no sponsors with updates on yet, so no one was emailed.`;
+  return `Update sent to ${result.emailed} sponsor${result.emailed === 1 ? "" : "s"}.`;
+}

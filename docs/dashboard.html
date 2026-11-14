@@ -242,6 +242,28 @@
   </form>
 </dialog>
 
+<!-- Post an update about one dog or program: photo + one line, emailed to its sponsors -->
+<dialog class="sponsor-dialog" id="update-dialog" aria-labelledby="update-title">
+  <div class="dialog-head"><div><h2 id="update-title"></h2><p id="update-sub"></p></div><button class="dialog-close" type="button" id="update-close" aria-label="Close">×</button></div>
+  <form class="dialog-body" id="update-form" novalidate>
+    <div class="field-group">
+      <label for="u-text">What's new?</label>
+      <textarea id="u-text" name="text" maxlength="200" placeholder="Bella learned to sit today!"></textarea>
+      <div class="hint"><span id="u-count">0</span> / 200</div>
+      <div class="field-error" id="u-text-error"></div>
+    </div>
+    <div class="field-group">
+      <label>Photo (optional)</label>
+      <div class="cover-box" id="u-photo-box"><img id="u-photo-preview" alt="" hidden><span id="u-photo-empty">No photo yet</span></div>
+      <div class="btns" style="margin-top:10px"><label class="btn btn-ghost" for="u-photo-file" id="u-photo-pick">Add photo</label><button class="btn btn-ghost" type="button" id="u-photo-remove" hidden>Remove</button></div>
+      <input type="file" id="u-photo-file" accept="image/*" hidden>
+      <div class="field-error" id="u-photo-error"></div>
+    </div>
+    <button class="btn btn-primary btn-lg btn-block" type="submit" id="update-send">Send update</button>
+    <div class="field-error" id="update-error" role="alert"></div>
+  </form>
+</dialog>
+
 <!-- Mark a thing to follow as finished (adopted, wrapped up) -->
 <dialog class="sponsor-dialog" id="finish-dialog" aria-labelledby="finish-title">
   <div class="dialog-head"><div><h2 id="finish-title"></h2><p>Sponsors keep giving to your general fund.</p></div><button class="dialog-close" type="button" id="finish-close" aria-label="Close">×</button></div>
