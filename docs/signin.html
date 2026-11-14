@@ -22,6 +22,8 @@
   .notice { background: #FFF6E5; border: 1px solid #F0D9A8; color: #6B4A10; border-radius: 12px; padding: 12px 14px; font-size: 14px; margin-bottom: 22px; }
   .small { font-size: 13px; color: var(--muted); margin-top: 18px; }
   #code { font-size: 22px; letter-spacing: .3em; text-align: center; }
+  .agree { font-size: 14px; margin: 4px 0 14px; }
+  .agree a { color: var(--green-dark); text-decoration: underline; }
 </style>
 </head>
 <body>
@@ -37,11 +39,11 @@
           <label for="email">Work email</label>
           <input id="email" name="email" type="email" autocomplete="email" maxlength="254" required>
         </div>
+        <label class="toggle agree"><input type="checkbox" id="agree" name="agree"> <span>I agree to Cover's <a href="terms.html" target="_blank" rel="noopener">Terms of Service</a> and <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
         <button class="btn btn-primary btn-lg btn-block" type="submit" id="send">Email me a sign-in link</button>
         <div class="error" id="error" role="alert"></div>
       </form>
       <p class="small">Running a nonprofit? After you sign in, you'll set up your sponsor page in a few minutes.</p>
-      <p class="small">By signing in, you agree to the <a href="terms.html" style="text-decoration:underline">terms</a> and <a href="privacy.html" style="text-decoration:underline">privacy policy</a>.</p>
     </div>
     <div class="sent" id="sent" hidden>
       <div class="check" data-check></div>
@@ -61,6 +63,7 @@
 </div>
 <script type="module">
   import { problemMessage } from "./js/auth-link.js";
+  import { rememberTermsAgreement, TERMS_VERSION } from "./js/terms.js";
   import { pageUrl, supabase } from "./js/supabase.js";
 
   const CHECK = '<svg viewBox="0 0 24 24"><polyline points="5,12.5 10,17 19,7" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/></svg>';
@@ -91,11 +94,22 @@
       $("email").focus();
       return;
     }
+    if (!$("agree").checked) {
+      $("error").textContent = "Check the box to agree to the Terms of Service first.";
+      $("agree").focus();
+      return;
+    }
+    // Remember the agreement: saved on the account for new people, and recorded once signed in.
+    rememberTermsAgreement();
     $("send").disabled = true;
     $("send").textContent = "Sending…";
     const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: pageUrl("dashboard.html"), shouldCreateUser: true },
+      options: {
+        emailRedirectTo: pageUrl("dashboard.html"),
+        shouldCreateUser: true,
+        data: { terms_version: TERMS_VERSION, terms_accepted_at: new Date().toISOString() },
+      },
     });
     $("send").disabled = false;
     $("send").textContent = "Email me a sign-in link";

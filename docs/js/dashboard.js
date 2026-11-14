@@ -11,6 +11,7 @@ import {
   sponsorName, statusLabel, updateAudience, validateItem, validatePage, validateSignup, whenText,
 } from "./dashboard-logic.js";
 import { finishSignInFromLink } from "./auth-link.js";
+import { recordTermsAgreement } from "./terms.js";
 import { applyBrand, BRAND_SWATCHES, normalizeHex, safeImageUrl, validateLook } from "./brand.js";
 import { money } from "./sponsor.js";
 import { callServer, pageUrl, supabase } from "./supabase.js";
@@ -1016,6 +1017,8 @@ async function start() {
     return;
   }
   state.user = data.session.user;
+  // Save their "I agree to the Terms" from the sign-in page on Cover's records (doesn't block loading).
+  recordTermsAgreement(supabase, state.user).catch(() => {});
   // Turn any invites for this email into access first (an owner invited by Cover lands here).
   const claimed = (await supabase.rpc("claim_my_invites")).data ?? 0;
   const [memberships, admin] = await Promise.all([
