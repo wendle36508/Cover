@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup: nonprofits personalize their page | Cover</title>
+<!-- Mockup only (not the live site). Uses the real site styles so it looks like the product.
+     Example nonprofit: Harbor Paws (made up). Example brand color: warm orange. -->
+<link rel="stylesheet" href="../../docs/css/cover.css">
+<link rel="stylesheet" href="../../docs/css/dashboard.css">
+<style>
+  /* The nonprofit's brand color replaces Cover green everywhere on THEIR screens. */
+  .brand { --green: #E8743B; --green-dark: #A84A17; --mint: #FDEFE7; }
+  .frame { border: 1px solid var(--line); border-radius: 18px; overflow: hidden; margin: 0 auto 56px; max-width: 1280px; background: #fff; }
+  .label { max-width: 1280px; margin: 40px auto 12px; font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+  .app { min-height: auto; }
+  .side { height: auto; position: static; }
+  .logo-mark { width: 34px; height: 34px; border-radius: 9px; overflow: hidden; flex: none; }
+  .look { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-bottom: 22px; }
+  .row-upload { display: flex; gap: 16px; align-items: center; }
+  .logo-box { width: 72px; height: 72px; border-radius: 14px; border: 1px solid var(--line); overflow: hidden; flex: none; }
+  .row-upload p { font-size: 13px; color: var(--muted); margin-top: 6px; }
+  .row-upload .btns { display: flex; gap: 8px; }
+  .row-upload .btn { padding: 9px 14px; font-size: 14px; }
+  .swatches { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .sw { width: 36px; height: 36px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 1px var(--line); }
+  .sw.on { box-shadow: 0 0 0 2px var(--ink); }
+  .hex { font: inherit; font-size: 14px; width: 110px; padding: 9px 12px; border: 1.5px solid var(--line); border-radius: 10px; }
+  .cover-box { border-radius: 12px; overflow: hidden; position: relative; }
+  .cover-box img { width: 100%; aspect-ratio: 16/7; object-fit: cover; }
+  .cover-box .btn { position: absolute; right: 10px; bottom: 10px; padding: 9px 14px; font-size: 14px; }
+  .sub { font-size: 14px; color: var(--muted); margin: -8px 0 14px; }
+  .field-group { display: grid; gap: 6px; margin-bottom: 14px; }
+  .field-group label { font-size: 14px; font-weight: 650; }
+  .field-group input { font: inherit; font-size: 15px; padding: 11px 13px; border: 1.5px solid var(--line); border-radius: 10px; }
+  .contrast { font-size: 13px; color: var(--muted); margin-top: 10px; }
+  /* Donor page preview */
+  .d-hero { display: grid; grid-template-columns: 1.05fr 1fr; gap: 48px; align-items: center; padding: 56px 48px; }
+  .d-hero h1 { font-size: 54px; }
+  .d-hero img { border-radius: 22px; width: 100%; aspect-ratio: 5/4; object-fit: cover; }
+  .d-actions { display: flex; gap: 12px; margin-top: 28px; }
+  .thanks { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; padding: 0 48px 48px; }
+  .card { border: 1px solid var(--line); border-radius: 16px; padding: 24px; }
+  .card h3 { margin-bottom: 8px; }
+  .card p { color: var(--body); font-size: 16px; }
+  .links { display: flex; gap: 10px; margin-top: 16px; }
+  .links a { border: 1.5px solid var(--line); border-radius: 999px; padding: 8px 14px; font-size: 14px; font-weight: 600; }
+  .powered { font-size: 13px; color: var(--muted); margin-top: 14px; }
+</style>
+</head>
+<body style="background:var(--soft);padding:0 24px 40px">
+
+<!-- Reusable example logo -->
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="paw" viewBox="0 0 64 64">
+    <rect width="64" height="64" fill="#E8743B"/>
+    <g fill="#fff"><ellipse cx="32" cy="40" rx="11" ry="9"/><circle cx="19" cy="27" r="5"/><circle cx="27" cy="20" r="5"/><circle cx="37" cy="20" r="5"/><circle cx="45" cy="27" r="5"/></g>
+  </symbol>
+</svg>
+
+<div class="label">1 · Dashboard → Your page → new "Look and feel" section</div>
+<div class="frame brand">
+  <div class="app">
+    <aside class="side">
+      <div class="org"><svg class="logo-mark"><use href="#paw"/></svg><span>Harbor Paws Rescue</span></div>
+      <a>Overview</a><a>Sponsors</a><a>Dogs</a><a class="on">Your page</a><a>Payments &amp; payouts</a><a>Settings</a>
+      <div class="bottom"><span>Powered by</span><img src="../../docs/brand/logo.svg" alt="Cover"></div>
+    </aside>
+    <main>
+      <div class="top"><div><h1>Your page</h1><p>Make it look like you. Changes show on your sponsor page and here.</p></div><a class="btn btn-ghost btn-lg">View page</a></div>
+
+      <div class="look">
+        <div class="panel">
+          <h2>Logo</h2>
+          <div class="row-upload">
+            <svg class="logo-box"><use href="#paw"/></svg>
+            <div><div class="btns"><a class="btn btn-ghost">Change logo</a><a class="btn btn-ghost">Remove</a></div><p>Square works best. PNG, JPG or SVG.</p></div>
+          </div>
+        </div>
+        <div class="panel">
+          <h2>Brand color</h2>
+          <div class="swatches">
+            <span class="sw on" style="background:#E8743B"></span><span class="sw" style="background:#22C67A"></span><span class="sw" style="background:#2F6FDB"></span><span class="sw" style="background:#7B4FC9"></span><span class="sw" style="background:#D6406B"></span><span class="sw" style="background:#14181C"></span>
+            <input class="hex" value="#E8743B" aria-label="Custom color">
+          </div>
+          <p class="contrast">Used for your buttons, progress bar and highlights. Text color adjusts so it's always readable.</p>
+        </div>
+      </div>
+
+      <div class="look">
+        <div class="panel">
+          <h2>Cover photo</h2>
+          <p class="sub">The big photo at the top of your page. Leave empty to use your first dog's photo.</p>
+          <div class="cover-box"><img src="../../docs/photos/carry-dog.jpg" alt=""><a class="btn btn-ghost">Change photo</a></div>
+        </div>
+        <div class="panel">
+          <h2>After someone sponsors</h2>
+          <div class="field-group"><label>Thank-you message</label><textarea style="font:inherit;font-size:15px;padding:11px 13px;border:1.5px solid var(--line);border-radius:10px;min-height:84px">Thank you! You just gave a dog a warm bed this month. We'll send updates and photos.</textarea></div>
+          <div class="field-group"><label>Website</label><input value="harborpaws.org"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="field-group"><label>Instagram</label><input value="@harborpaws"></div>
+            <div class="field-group"><label>Facebook</label><input value="facebook.com/harborpaws"></div>
+          </div>
+        </div>
+      </div>
+      <a class="btn btn-primary btn-lg">Save changes</a>
+    </main>
+  </div>
+</div>
+
+<div class="label">2 · What donors see on Harbor Paws' sponsor page</div>
+<div class="frame brand">
+  <nav class="nav" style="position:static">
+    <div class="container">
+      <div class="brand-text"><svg class="logo-mark"><use href="#paw"/></svg><span>Harbor Paws Rescue</span></div>
+      <div class="nav-links"><a>Dogs</a><a>How it works</a><a>For businesses</a><a>Questions</a></div>
+      <a class="btn btn-primary">Sponsor a dog</a>
+    </div>
+  </nav>
+  <div class="d-hero">
+    <div>
+      <div class="eyebrow">Monthly dog sponsorship</div>
+      <h1 style="margin-top:14px">Sponsor a dog for $25 a month.</h1>
+      <p class="lead" style="margin-top:18px">Your gift feeds, walks and doctors every dog at Harbor Paws.</p>
+      <div class="d-actions"><a class="btn btn-primary btn-lg">Meet the dogs</a><a class="btn btn-ghost btn-lg">How it works</a></div>
+      <div class="bar" style="margin-top:28px;max-width:360px"><i style="width:49%"></i></div>
+      <p style="font-size:14px;color:var(--muted);margin-top:8px">$975 of $2,000 this month</p>
+    </div>
+    <img src="../../docs/photos/carry-dog.jpg" alt="">
+  </div>
+  <div class="thanks">
+    <div class="card">
+      <h3>Pop-up after sponsoring</h3>
+      <p>Thank you! You just gave a dog a warm bed this month. We'll send updates and photos.</p>
+      <div class="links"><a>harborpaws.org</a><a>Instagram</a><a>Facebook</a></div>
+    </div>
+    <div class="card">
+      <h3>Page footer</h3>
+      <p>Harbor Paws Rescue · harborpaws.org</p>
+      <div class="links"><a>Instagram</a><a>Facebook</a></div>
+      <p class="powered">Monthly sponsorships powered by Cover</p>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

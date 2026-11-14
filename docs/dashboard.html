@@ -39,7 +39,7 @@
 <!-- The dashboard -->
 <div class="app" id="app" hidden>
   <aside class="side">
-    <div class="org"><span class="brand-mark" style="background:var(--deep);color:var(--green)" id="org-initials"></span><span id="org-name"></span></div>
+    <div class="org"><span class="brand-mark" style="background:var(--deep);color:var(--green)" id="org-initials"></span><img class="brand-logo" id="org-logo" alt="" hidden><span id="org-name"></span></div>
     <div class="admin-tools" id="admin-tools" hidden>
       <label for="np-switch" class="admin-label">Nonprofit</label>
       <select id="np-switch"></select>
@@ -51,7 +51,7 @@
     <a data-nav="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4zM4 9h16M9 9v11"/></svg>Your page</a>
     <a data-nav="payments"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 10h19M6.5 15h4"/></svg>Payments &amp; payouts</a>
     <a data-nav="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>Settings</a>
-    <div class="bottom"><span id="me"></span><img src="brand/logo.svg" alt="Cover"></div>
+    <div class="bottom"><span id="me"></span><span class="powered-by">Powered by<img src="brand/logo.svg" alt="Cover"></span></div>
   </aside>
 
   <main>
@@ -129,10 +129,53 @@
     <!-- Your page -->
     <section class="view" data-view="page" hidden>
       <div class="top">
-        <div><h1>Your page</h1><p>What donors see. Leave a box empty to use Cover's wording.</p></div>
+        <div><h1>Your page</h1><p>Make it look like you. Changes show on your sponsor page and here.</p></div>
         <a class="btn btn-ghost btn-lg" id="view-page-2" target="_blank" rel="noopener">View page</a>
       </div>
-      <form class="panel" id="page-form" novalidate>
+      <form id="page-form" novalidate>
+        <div class="look">
+          <div class="panel">
+            <h2>Logo</h2>
+            <div class="row-upload">
+              <div class="logo-box" id="logo-box"><img id="logo-preview" alt="" hidden><span id="logo-empty">No logo</span></div>
+              <div>
+                <div class="btns"><label class="btn btn-ghost" for="logo-file" id="logo-pick">Upload logo</label><button class="btn btn-ghost" type="button" id="logo-remove" hidden>Remove</button></div>
+                <p>Square works best. PNG or JPG.</p>
+                <input type="file" id="logo-file" accept="image/png,image/jpeg,image/webp" hidden>
+                <div class="field-error" id="pe-logo"></div>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <h2>Brand color</h2>
+            <div class="swatches" id="swatches"></div>
+            <input class="hex" id="p-color" name="brandColor" maxlength="7" placeholder="#22C67A" aria-label="Color code">
+            <p class="look-hint">Used for your buttons, progress bar and highlights. Text color adjusts so it's always readable.</p>
+            <div class="field-error" id="pe-brandColor"></div>
+          </div>
+        </div>
+        <div class="look">
+          <div class="panel">
+            <h2>Cover photo</h2>
+            <p class="look-hint" style="margin:-8px 0 14px">The big photo at the top of your page. Leave it empty to use your first photo.</p>
+            <div class="cover-box" id="cover-box"><img id="cover-preview" alt="" hidden><span id="cover-empty">Using your first photo</span></div>
+            <div class="btns" style="margin-top:12px"><label class="btn btn-ghost" for="cover-file" id="cover-pick">Upload photo</label><button class="btn btn-ghost" type="button" id="cover-remove" hidden>Remove</button></div>
+            <input type="file" id="cover-file" accept="image/*" hidden>
+            <div class="field-error" id="pe-cover"></div>
+          </div>
+          <div class="panel">
+            <h2>After someone sponsors</h2>
+            <div class="field-group"><label for="p-thanks">Thank-you message</label><textarea id="p-thanks" name="thanks" maxlength="300" placeholder="Thank you! Your gift helps every dog here this month."></textarea><div class="field-error" id="pe-thanks"></div></div>
+            <div class="field-group"><label for="p-website">Website</label><input id="p-website" name="website" maxlength="200" placeholder="yourrescue.org"><div class="field-error" id="pe-website"></div></div>
+            <div class="form-grid">
+              <div class="field-group"><label for="p-instagram">Instagram</label><input id="p-instagram" name="instagram" maxlength="200" placeholder="@yourrescue"><div class="field-error" id="pe-instagram"></div></div>
+              <div class="field-group"><label for="p-facebook">Facebook</label><input id="p-facebook" name="facebook" maxlength="200" placeholder="facebook.com/yourrescue"><div class="field-error" id="pe-facebook"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="panel" style="margin-bottom:22px">
+        <h2>Words on your page</h2>
+        <p class="look-hint" style="margin:-8px 0 14px">Leave a box empty to use Cover's wording.</p>
         <div class="form-grid">
           <div class="field-group full"><label for="p-name">Nonprofit's name</label><input id="p-name" name="name" maxlength="120"><div class="field-error" id="pe-name"></div></div>
           <div class="field-group full"><label for="p-headline">Headline</label><input id="p-headline" name="headline" maxlength="90"><div class="hint">Example: "Sponsor a dog for $25 a month."</div><div class="field-error" id="pe-headline"></div></div>
@@ -142,7 +185,8 @@
           <div class="field-group"><label for="p-price">Monthly gift ($)</label><input id="p-price" name="price" type="number" min="5" max="1000" step="1"><div class="hint">New sponsors only. Existing sponsors keep their amount.</div><div class="field-error" id="pe-price"></div></div>
           <div class="field-group"><label for="p-goal">Monthly goal ($)</label><input id="p-goal" name="goal" type="number" min="1" step="1"><div class="field-error" id="pe-goal"></div></div>
         </div>
-        <button class="btn btn-primary btn-lg" type="submit">Save changes</button><span class="saved-note" id="page-saved" hidden>Saved</span>
+        </div>
+        <button class="btn btn-primary btn-lg" type="submit" id="page-save">Save changes</button><span class="saved-note" id="page-saved" hidden>Saved</span>
         <div class="field-error" id="pe-form" role="alert"></div>
       </form>
     </section>

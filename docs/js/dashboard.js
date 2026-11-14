@@ -11,14 +11,16 @@ import {
   sponsorName, statusLabel, validateItem, validatePage, validateSignup, whenText,
 } from "./dashboard-logic.js";
 import { finishSignInFromLink } from "./auth-link.js";
+import { applyBrand, BRAND_SWATCHES, normalizeHex, safeImageUrl, validateLook } from "./brand.js";
 import { money } from "./sponsor.js";
 import { callServer, pageUrl, supabase } from "./supabase.js";
 
+const LOGO_LONG_SIDE = 512; // logos are small on screen; this keeps them sharp on phones
 const CHECK_SVG = '<svg viewBox="0 0 24 24"><polyline points="5,12.5 10,17 19,7" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/></svg>';
 const AVATAR_COLORS = ["#C98B5E", "#5B8F7E", "#7B7FB8", "#B86E7B", "#6E9BB8", "#A08A4E"];
 const $ = (id) => document.getElementById(id);
 
-const state = { user: null, nonprofit: null, items: [], sponsors: [], connect: null, mounted: new Set(), editing: null, finishing: null, accountCreated: false, role: null, admin: false, memberships: [], creatingFor: null, focus: { x: 50, y: 38 } };
+const state = { user: null, nonprofit: null, items: [], sponsors: [], connect: null, mounted: new Set(), editing: null, finishing: null, accountCreated: false, role: null, admin: false, memberships: [], creatingFor: null, focus: { x: 50, y: 38 }, look: { logo: "", coverPhoto: "" } };
 
 /** True once the nonprofit has a Stripe account (saved earlier, or just created by Stripe's sign-up form). */
 const hasStripeAccount = () => Boolean(state.nonprofit?.stripe_account_id) || state.accountCreated;
@@ -338,10 +340,29 @@ async function shrinkPhoto(file) {
   throw new Error("That photo is too big even after shrinking. Try another one.");
 }
 
-async function uploadPhoto(file) {
-  const small = await shrinkPhoto(file);
+/** Shrink a logo to at most 512px as a PNG, so a see-through background stays see-through. */
+async function shrinkLogo(file) {
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+  } catch {
+    throw new Error("That logo couldn't be opened. Try a PNG or JPG.");
+  }
+  const size = fitWithin(bitmap.width, bitmap.height, LOGO_LONG_SIDE);
+  const canvas = document.createElement("canvas");
+  canvas.width = size.width;
+  canvas.height = size.height;
+  canvas.getContext("2d").drawImage(bitmap, 0, 0, size.width, size.height);
+  bitmap.close?.();
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+  if (!blob || blob.size > PHOTO_MAX_BYTES) throw new Error("That logo is too big. Try a smaller file.");
+  return new File([blob], "logo.png", { type: "image/png" });
+}
+
+async function uploadPhoto(file, { logo = false } = {}) {
+  const small = logo ? await shrinkLogo(file) : await shrinkPhoto(file);
   const path = photoPath(state.nonprofit.id, small, crypto.randomUUID());
-  const { error } = await supabase.storage.from("photos").upload(path, small, { contentType: "image/jpeg", upsert: false });
+  const { error } = await supabase.storage.from("photos").upload(path, small, { contentType: small.type, upsert: false });
   if (error) throw new Error("The photo didn't upload. Check your connection and try again.");
   return supabase.storage.from("photos").getPublicUrl(path).data.publicUrl;
 }
@@ -500,18 +521,97 @@ function fillPageForm() {
   form.elements.everyone.value = np.page?.everyone ?? "";
   form.elements.price.value = np.monthly_price_cents / 100;
   form.elements.goal.value = np.monthly_goal_cents / 100;
+  // Look and feel
+  form.elements.brandColor.value = np.page?.brandColor ?? "";
+  form.elements.thanks.value = np.page?.thanks ?? "";
+  form.elements.website.value = np.page?.website ?? "";
+  form.elements.instagram.value = np.page?.instagram ?? "";
+  form.elements.facebook.value = np.page?.facebook ?? "";
+  state.look = { logo: safeImageUrl(np.page?.logo), coverPhoto: safeImageUrl(np.page?.coverPhoto) };
+  drawLookPreviews();
+  drawSwatches();
 }
+
+/** Show the chosen logo and cover photo (or the empty boxes). */
+function drawLookPreviews() {
+  for (const [key, prefix] of [["logo", "logo"], ["coverPhoto", "cover"]]) {
+    const src = state.look[key];
+    $(`${prefix}-preview`).hidden = !src;
+    if (src) $(`${prefix}-preview`).src = src;
+    $(`${prefix}-empty`).hidden = Boolean(src);
+    $(`${prefix}-remove`).hidden = !src;
+    $(`${prefix}-pick`).textContent = src ? (key === "logo" ? "Change logo" : "Change photo") : (key === "logo" ? "Upload logo" : "Upload photo");
+  }
+}
+
+/** The color circles; the one matching the color box is marked. Picking one previews it right away. */
+function drawSwatches() {
+  const current = normalizeHex($("p-color").value) ?? "#22C67A";
+  $("swatches").replaceChildren(...BRAND_SWATCHES.map((color) => {
+    const button = el("button", "swatch");
+    button.type = "button";
+    button.style.background = color;
+    button.setAttribute("aria-label", `Use ${color}`);
+    button.setAttribute("aria-pressed", String(color === current));
+    button.addEventListener("click", () => {
+      $("p-color").value = color;
+      previewColor();
+    });
+    return button;
+  }));
+}
+
+function previewColor() {
+  applyBrand(document.body, $("p-color").value);
+  drawSwatches();
+}
+
+$("p-color").addEventListener("input", () => {
+  if (normalizeHex($("p-color").value) || !$("p-color").value.trim()) previewColor();
+});
+
+/** Upload a picked logo or cover photo; it's saved to the page with "Save changes". */
+function wireLookUpload(key, prefix) {
+  $(`${prefix}-file`).addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    const errorBox = $(`pe-${prefix}`);
+    errorBox.textContent = photoProblem(file) ?? "";
+    if (errorBox.textContent) return;
+    $(`${prefix}-pick`).textContent = "Uploading…";
+    try {
+      state.look[key] = await uploadPhoto(file, { logo: key === "logo" });
+      toast(key === "logo" ? "Logo added. Click Save changes to keep it." : "Photo added. Click Save changes to keep it.");
+    } catch (error) {
+      errorBox.textContent = error.message;
+    }
+    drawLookPreviews();
+  });
+  $(`${prefix}-remove`).addEventListener("click", () => {
+    state.look[key] = "";
+    drawLookPreviews();
+  });
+}
+wireLookUpload("logo", "logo");
+wireLookUpload("coverPhoto", "cover");
 
 $("page-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.target;
-  const result = validatePage(Object.fromEntries(new FormData(form)));
-  showErrors("pe-", result.errors);
-  if (!result.ok) return;
+  const fields = Object.fromEntries(new FormData(form));
+  const result = validatePage(fields);
+  const look = validateLook(fields);
+  showErrors("pe-", { ...result.errors, ...look.errors });
+  if (!result.ok || !look.ok) {
+    form.querySelector(".field-error:not(:empty)")?.scrollIntoView({ block: "center", behavior: "smooth" });
+    return;
+  }
   const { values } = result;
   const page = { ...(state.nonprofit.page ?? {}) };
-  for (const key of ["headline", "lead", "navLabel", "everyone"]) {
-    if (values[key]) page[key] = values[key];
+  const chosen = { ...values, ...look.values, logo: state.look.logo, coverPhoto: state.look.coverPhoto };
+  for (const key of ["headline", "lead", "navLabel", "everyone", "brandColor", "thanks", "website", "instagram", "facebook", "logo", "coverPhoto"]) {
+    if (chosen[key]) page[key] = chosen[key];
     else delete page[key];
   }
   const { error } = await supabase.from("nonprofits")
@@ -611,6 +711,12 @@ function drawAll() {
   document.title = `${np.name} | Cover`;
   $("org-name").textContent = np.name;
   $("org-initials").textContent = np.name.split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() ?? "").join("");
+  // Their own logo and color, if they've set them.
+  const logo = safeImageUrl(np.page?.logo);
+  $("org-logo").hidden = !logo;
+  $("org-initials").hidden = Boolean(logo);
+  if (logo) $("org-logo").src = logo;
+  applyBrand(document.body, np.page?.brandColor);
   $("me").textContent = state.user.email;
   drawOverview();
   drawSponsors();

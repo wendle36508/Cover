@@ -2,6 +2,7 @@
 // Only reads what the database's safety rules allow visitors to read (live pages, counts,
 // display names). If the page isn't in the database, give.js falls back to the demo pages.
 
+import { safeImageUrl } from "./brand.js";
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "./config.js";
 
 const HEADERS = { apikey: SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}` };
@@ -68,6 +69,8 @@ export function orgFromRows(nonprofit, items, counts = [], coveredCents = 0, rec
     lead: page.lead ?? `Your monthly gift keeps ${nonprofit.name} running.`,
     trust: page.trust ?? "Cancel anytime.",
     recent,
+    // The nonprofit's own cover photo, if they uploaded one (otherwise the first photo is used).
+    heroPhotoWide: safeImageUrl(page.coverPhoto) || undefined,
     items: items.map((item) => ({
       id: item.id,
       name: item.name,

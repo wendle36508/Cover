@@ -5,6 +5,7 @@
 // The made-up demo nonprofits (orgs.js) run the same flow with no payment, saving to this browser only.
 // Anything a visitor types is shown with textContent (never as HTML), so it can't inject code.
 
+import { applyBrand, pageLinks, safeImageUrl } from "./brand.js";
 import { STRIPE_PUBLISHABLE_KEY } from "./config.js";
 import { loadLiveOrg, startSponsorship } from "./live.js";
 import { ORGS, SHARED_FAQ } from "./orgs.js";
@@ -68,6 +69,33 @@ function drawText() {
     return details;
   }));
   $("foot").textContent = org.live ? `${org.name}${org.place ? ` · ${org.place}` : ""}` : `${org.name} · ${org.place} · Demo page with made-up content`;
+  drawBrand();
+}
+
+/** The nonprofit's own look: brand color, logo (top bar and browser tab) and links. */
+function drawBrand() {
+  applyBrand(document.body, org.brandColor);
+  const logo = safeImageUrl(org.logo);
+  const mark = document.querySelector('.nav [data-f="initials"]');
+  if (logo && mark) {
+    const img = el("img", "brand-logo");
+    img.src = logo;
+    img.alt = "";
+    mark.replaceWith(img);
+    document.querySelector('link[rel="icon"]')?.setAttribute("href", logo);
+    document.querySelector('link[rel="icon"]')?.removeAttribute("type");
+  }
+  const links = pageLinks(org);
+  for (const id of ["foot-links", "thanks-links"]) {
+    $(id).hidden = links.length === 0;
+    $(id).replaceChildren(...links.map((link) => {
+      const a = el("a", "", link.label);
+      a.href = link.href;
+      a.target = "_blank";
+      a.rel = "noopener nofollow";
+      return a;
+    }));
+  }
 }
 
 function drawTotals() {
@@ -242,7 +270,8 @@ function showDemoStep() {
 function showThankYou(record) {
   const note = thankYou(record, org, currentItem);
   $("thanks-title").textContent = note.title;
-  $("thanks-body").textContent = note.body;
+  // The nonprofit's own thank-you message, if they wrote one.
+  $("thanks-body").textContent = org.thanks ? String(org.thanks) : note.body;
   $("thanks-sig").textContent = `— ${note.signedBy}`;
   $("done-fine").textContent = org.live
     ? `${org.name} will email your receipt to ${record.email}. You can cancel anytime from that email.`
