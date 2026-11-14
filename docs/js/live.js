@@ -72,6 +72,7 @@ export function orgFromRows(nonprofit, items, counts = [], coveredCents = 0, rec
       id: item.id,
       name: item.name,
       photo: item.photo_url ?? "",
+      focus: `${item.photo_focus_x ?? 50}% ${item.photo_focus_y ?? 38}%`,
       badge: item.badge ?? "",
       note: item.note ?? "",
       hot: false,
@@ -88,7 +89,7 @@ export async function loadLiveOrg(slug) {
   );
   if (!nonprofit) return null;
   const [items, counts, covered, recent] = await Promise.all([
-    get(`follow_items?nonprofit_id=eq.${nonprofit.id}&status=eq.active&select=id,name,photo_url,badge,note&order=sort_order,created_at`),
+    get(`follow_items?nonprofit_id=eq.${nonprofit.id}&status=eq.active&select=id,name,photo_url,photo_focus_x,photo_focus_y,badge,note&order=sort_order,created_at`),
     rpc("page_item_counts", { target: nonprofit.id }),
     rpc("page_monthly_covered", { target: nonprofit.id }),
     rpc("page_recent_sponsors", { target: nonprofit.id, how_many: 1 }),

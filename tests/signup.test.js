@@ -105,3 +105,11 @@ test("other people can't delete a nonprofit's photos", async () => {
   const own = await runAs(db, "authenticated", MARIA, "delete from storage.objects where bucket_id = 'photos' returning name");
   assert.equal(own.rows.length, 1);
 });
+
+test("each photo remembers where to crop, within 0-100", async () => {
+  const id = (await runAs(db, "authenticated", MARIA, "insert into public.follow_items (nonprofit_id, name) values ($1, 'Crop Test') returning id, photo_focus_x, photo_focus_y", [mariaNonprofit])).rows[0];
+  assert.deepEqual([id.photo_focus_x, id.photo_focus_y], [50, 38]);
+  const moved = await runAs(db, "authenticated", MARIA, "update public.follow_items set photo_focus_x = 20, photo_focus_y = 10 where id = $1 returning photo_focus_x", [id.id]);
+  assert.equal(moved.rows[0].photo_focus_x, 20);
+  await assert.rejects(runAs(db, "authenticated", MARIA, "update public.follow_items set photo_focus_y = 150 where id = $1", [id.id]), /check constraint/);
+});

@@ -6,8 +6,9 @@
 
 import { STRIPE_PUBLISHABLE_KEY } from "./config.js";
 import {
-  checklist, followedMost, greeting, monthStats, newestSponsors, photoPath, photoProblem, slugify,
-  sponsorName, statusLabel, validateItem, validatePage, validateSignup, whenText, countsByItem,
+  DEFAULT_FOCUS, PHOTO_MAX_BYTES, checklist, clampFocus, countsByItem, fitWithin, focusFromClick, followedMost,
+  greeting, monthStats, nameFromFile, newestSponsors, objectPosition, photoPath, photoProblem, slugify,
+  sponsorName, statusLabel, validateItem, validatePage, validateSignup, whenText,
 } from "./dashboard-logic.js";
 import { money } from "./sponsor.js";
 import { callServer, pageUrl, supabase } from "./supabase.js";
@@ -16,7 +17,7 @@ const CHECK_SVG = '<svg viewBox="0 0 24 24"><polyline points="5,12.5 10,17 19,7"
 const AVATAR_COLORS = ["#C98B5E", "#5B8F7E", "#7B7FB8", "#B86E7B", "#6E9BB8", "#A08A4E"];
 const $ = (id) => document.getElementById(id);
 
-const state = { user: null, nonprofit: null, items: [], sponsors: [], connect: null, mounted: new Set(), editing: null, finishing: null, accountCreated: false, role: null, admin: false, memberships: [], creatingFor: null };
+const state = { user: null, nonprofit: null, items: [], sponsors: [], connect: null, mounted: new Set(), editing: null, finishing: null, accountCreated: false, role: null, admin: false, memberships: [], creatingFor: null, focus: { x: 50, y: 38 } };
 
 /** True once the nonprofit has a Stripe account (saved earlier, or just created by Stripe's sign-up form). */
 const hasStripeAccount = () => Boolean(state.nonprofit?.stripe_account_id) || state.accountCreated;
@@ -253,6 +254,7 @@ function drawItems() {
       const img = el("img");
       img.src = item.photo_url;
       img.alt = item.name;
+      img.style.objectPosition = objectPosition(item);
       card.append(img);
     } else {
       card.append(el("div", "no-photo", "No photo yet"));
@@ -295,6 +297,7 @@ function drawItems() {
 
 function openItem(item) {
   state.editing = item;
+  state.focus = clampFocus(item?.photo_focus_x, item?.photo_focus_y);
   const form = $("item-form");
   form.reset();
   showErrors("ie-", {});
@@ -303,29 +306,75 @@ function openItem(item) {
   form.elements.name.value = item?.name ?? "";
   form.elements.badge.value = item?.badge ?? "";
   form.elements.note.value = item?.note ?? "";
-  $("i-photo-preview").src = item?.photo_url ?? "";
-  $("i-photo-preview").hidden = !item?.photo_url;
+  showCropEditor(item?.photo_url ?? "");
   $("item-save").disabled = false;
   $("item-dialog").showModal();
   form.elements.name.focus();
 }
+
+// ---------- photos: shrink, turn upright, and choose the crop ----------
+
+/** Shrink a phone photo to at most 1600px on its longest side, turned upright, as a JPG. */
+async function shrinkPhoto(file) {
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+  } catch {
+    throw new Error(`${file.name || "That photo"} couldn't be opened. If it's an iPhone HEIC photo, share it as a JPG (or screenshot it) and try again.`);
+  }
+  const size = fitWithin(bitmap.width, bitmap.height);
+  const canvas = document.createElement("canvas");
+  canvas.width = size.width;
+  canvas.height = size.height;
+  canvas.getContext("2d").drawImage(bitmap, 0, 0, size.width, size.height);
+  bitmap.close?.();
+  for (const quality of [0.86, 0.72, 0.6]) {
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", quality));
+    if (blob && blob.size <= PHOTO_MAX_BYTES) return new File([blob], "photo.jpg", { type: "image/jpeg" });
+  }
+  throw new Error("That photo is too big even after shrinking. Try another one.");
+}
+
+async function uploadPhoto(file) {
+  const small = await shrinkPhoto(file);
+  const path = photoPath(state.nonprofit.id, small, crypto.randomUUID());
+  const { error } = await supabase.storage.from("photos").upload(path, small, { contentType: "image/jpeg", upsert: false });
+  if (error) throw new Error("The photo didn't upload. Check your connection and try again.");
+  return supabase.storage.from("photos").getPublicUrl(path).data.publicUrl;
+}
+
+/** Show the whole photo (click to pick the face) and the card preview, at the current crop point. */
+function showCropEditor(src) {
+  $("crop-wrap").hidden = !src;
+  $("crop-hint").hidden = !src;
+  if (!src) return;
+  $("crop-full-img").src = src;
+  $("i-photo-preview").src = src;
+  drawCropPoint();
+}
+
+function drawCropPoint() {
+  const { x, y } = state.focus;
+  $("crop-dot").style.left = `${x}%`;
+  $("crop-dot").style.top = `${y}%`;
+  $("i-photo-preview").style.objectPosition = `${x}% ${y}%`;
+}
+
+$("crop-full-img").addEventListener("click", (event) => {
+  const box = event.target.getBoundingClientRect();
+  state.focus = focusFromClick(event.clientX - box.left, event.clientY - box.top, box.width, box.height);
+  drawCropPoint();
+});
 
 $("i-photo").addEventListener("change", (event) => {
   const file = event.target.files?.[0];
   const problem = photoProblem(file);
   $("ie-photo").textContent = problem;
   if (file && !problem) {
-    $("i-photo-preview").src = URL.createObjectURL(file);
-    $("i-photo-preview").hidden = false;
+    state.focus = { ...DEFAULT_FOCUS };
+    showCropEditor(URL.createObjectURL(file));
   }
 });
-
-async function uploadPhoto(file) {
-  const path = photoPath(state.nonprofit.id, file, crypto.randomUUID());
-  const { error } = await supabase.storage.from("photos").upload(path, file, { contentType: file.type, upsert: false });
-  if (error) throw new Error("The photo didn't upload. Try a smaller JPG or PNG.");
-  return supabase.storage.from("photos").getPublicUrl(path).data.publicUrl;
-}
 
 $("item-form").addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -336,9 +385,15 @@ $("item-form").addEventListener("submit", async (event) => {
   showErrors("ie-", { ...result.errors, ...(photoError ? { photo: photoError } : {}) });
   if (!result.ok || photoError) return;
   $("item-save").disabled = true;
-  $("item-save").textContent = "Saving…";
+  $("item-save").textContent = file ? "Shrinking and uploading…" : "Saving…";
   try {
-    const row = { name: result.values.name, badge: result.values.badge || null, note: result.values.note || null };
+    const row = {
+      name: result.values.name,
+      badge: result.values.badge || null,
+      note: result.values.note || null,
+      photo_focus_x: state.focus.x,
+      photo_focus_y: state.focus.y,
+    };
     if (file) row.photo_url = await uploadPhoto(file);
     const query = state.editing
       ? supabase.from("follow_items").update(row).eq("id", state.editing.id)
@@ -354,6 +409,54 @@ $("item-form").addEventListener("submit", async (event) => {
     $("item-save").disabled = false;
     $("item-save").textContent = "Save";
   }
+});
+
+// ---------- add many photos at once ----------
+
+/** A name nobody else on this page has yet: "Bella", or "Bella 2" if taken. */
+function freeName(wanted, taken) {
+  const base = wanted || `${singular()} ${taken.size + 1}`;
+  let name = base;
+  for (let n = 2; taken.has(name.toLowerCase()); n += 1) name = `${base} ${n}`;
+  taken.add(name.toLowerCase());
+  return name;
+}
+
+$("bulk-photos").addEventListener("change", async (event) => {
+  const files = [...(event.target.files ?? [])];
+  event.target.value = "";
+  if (!files.length) return;
+  const status = $("bulk-status");
+  status.hidden = false;
+  const taken = new Set(state.items.map((item) => item.name.toLowerCase()));
+  const failed = [];
+  let added = 0;
+  for (const [index, file] of files.entries()) {
+    status.textContent = `Adding photo ${index + 1} of ${files.length}…`;
+    const problem = photoProblem(file);
+    if (problem) {
+      failed.push(`${file.name}: ${problem}`);
+      continue;
+    }
+    try {
+      const photoUrl = await uploadPhoto(file);
+      const { error } = await supabase.from("follow_items").insert({
+        nonprofit_id: state.nonprofit.id,
+        name: freeName(nameFromFile(file.name), taken),
+        photo_url: photoUrl,
+        photo_focus_x: DEFAULT_FOCUS.x,
+        photo_focus_y: DEFAULT_FOCUS.y,
+        sort_order: state.items.length + index,
+      });
+      if (error) throw new Error("couldn't save");
+      added += 1;
+    } catch (error) {
+      failed.push(`${file.name}: ${error.message}`);
+    }
+  }
+  await reload();
+  status.textContent = `${added} added. Click Edit on each to fix the name, add a line about them, and check the crop.` +
+    (failed.length ? ` ${failed.length} didn't work: ${failed.join(" · ")}` : "");
 });
 
 function openFinish(item) {

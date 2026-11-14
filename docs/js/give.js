@@ -49,6 +49,7 @@ function drawText() {
   document.title = `${org.cta} | ${org.name}`;
   document.querySelectorAll("[data-f]").forEach((node) => (node.textContent = org[node.dataset.f] ?? ""));
   $("hero-photo").src = photoSrc(org.heroPhotoWide ?? org.items[0]?.photo);
+  if (!org.heroPhotoWide && org.items[0]?.focus) $("hero-photo").style.objectPosition = org.items[0].focus;
   $("hero-photo").alt = org.heroAlt ?? "";
   $("filters").replaceChildren(...(org.filters ?? []).map((name, i) => el("span", i === 0 ? "on" : "", name)));
   $("steps").replaceChildren(...org.steps.map(([title, text], i) => {
@@ -103,6 +104,7 @@ function itemCard(item) {
   const img = el("img");
   img.src = photoSrc(item.photo);
   img.alt = item.name;
+  if (item.focus) img.style.objectPosition = item.focus; // the nonprofit's chosen crop
   const body = el("div", "body");
   const top = el("div", "top");
   top.append(el("h3", "", item.name));
@@ -169,6 +171,7 @@ function openDialog(itemName) {
   $("business-group").hidden = true;
   $("dialog-photo").src = photoSrc(currentItem.photo);
   $("dialog-photo").alt = currentItem.name;
+  $("dialog-photo").style.objectPosition = currentItem.focus ?? "";
   $("dialog-title").textContent = `Sponsor ${currentItem.name}`;
   $("dialog-sub").textContent = `${money(org.price)} a month · ${org.name}`;
   $("form-submit").textContent = `Continue to ${money(org.price)} a month`;

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
-  PHOTO_MAX_BYTES, checklist, countsByItem, followedMost, greeting, monthStats, newestSponsors, photoPath,
+  RAW_PHOTO_MAX_BYTES, checklist, clampFocus, fitWithin, focusFromClick, nameFromFile, objectPosition, countsByItem, followedMost, greeting, monthStats, newestSponsors, photoPath,
   photoProblem, slugify, sponsorName, statusLabel, validateItem, validatePage, validateSignup, whenText,
 } from "../docs/js/dashboard-logic.js";
 
@@ -100,13 +100,40 @@ test("thing-to-follow form checks", () => {
   assert.match(validateItem({ name: "ok", note: "x".repeat(201) }).errors.note, /200/);
 });
 
-test("photo checks: type and size", () => {
+test("photo checks: any image type, up to 40 MB before shrinking", () => {
   assert.equal(photoProblem({ type: "image/jpeg", size: 1000 }), "");
-  assert.match(photoProblem({ type: "image/gif", size: 1000 }), /JPG/);
-  assert.match(photoProblem({ type: "application/pdf", size: 10 }), /JPG/);
-  assert.match(photoProblem({ type: "image/png", size: PHOTO_MAX_BYTES + 1 }), /5 MB/);
+  assert.equal(photoProblem({ type: "image/heic", size: 8_000_000 }), "");
+  assert.match(photoProblem({ type: "application/pdf", size: 10 }), /isn't a photo/);
+  assert.match(photoProblem({ type: "image/png", size: RAW_PHOTO_MAX_BYTES + 1 }), /40 MB/);
   assert.equal(photoProblem(null), "");
-  assert.equal(photoPath("np1", { type: "image/png" }, "abc"), "np1/abc.png");
+  assert.equal(photoPath("np1", { type: "image/jpeg" }, "abc"), "np1/abc.jpg");
+});
+
+test("photos shrink so the longest side is 1600, never enlarging", () => {
+  assert.deepEqual(fitWithin(4032, 3024), { width: 1600, height: 1200 });
+  assert.deepEqual(fitWithin(3024, 4032), { width: 1200, height: 1600 });
+  assert.deepEqual(fitWithin(800, 600), { width: 800, height: 600 });
+  assert.deepEqual(fitWithin(10000, 1), { width: 1600, height: 1 });
+  assert.throws(() => fitWithin(0, 100), /width and height/);
+});
+
+test("names come from file names, ignoring camera names", () => {
+  assert.equal(nameFromFile("bella.jpg"), "Bella");
+  assert.equal(nameFromFile("big_moose-2.JPEG"), "Big Moose");
+  assert.equal(nameFromFile("IMG_4821.HEIC"), "");
+  assert.equal(nameFromFile("PXL_20261113_101500.jpg"), "");
+  assert.equal(nameFromFile("Screenshot 2026-11-13 at 9.41.12 AM.png"), "At Am");
+  assert.equal(nameFromFile(undefined), "");
+});
+
+test("crop points stay inside the photo", () => {
+  assert.deepEqual(clampFocus(20.4, 77.6), { x: 20, y: 78 });
+  assert.deepEqual(clampFocus(-5, 140), { x: 0, y: 100 });
+  assert.deepEqual(clampFocus("bad", null), { x: 50, y: 0 });
+  assert.deepEqual(focusFromClick(100, 50, 400, 200), { x: 25, y: 25 });
+  assert.deepEqual(focusFromClick(5, 5, 0, 0), { x: 50, y: 38 });
+  assert.equal(objectPosition({ photo_focus_x: 10, photo_focus_y: 90 }), "10% 90%");
+  assert.equal(objectPosition({}), "50% 38%");
 });
 
 test("your-page form checks, with money typed in dollars", () => {

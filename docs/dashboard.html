@@ -116,8 +116,13 @@
     <section class="view" data-view="items" hidden>
       <div class="top">
         <div><h1 id="items-title"></h1><p>What sponsors pick to follow. Every gift still goes to your general fund.</p></div>
-        <button class="btn btn-primary btn-lg" type="button" id="add-item"></button>
+        <div class="top-actions">
+          <label class="btn btn-ghost btn-lg" for="bulk-photos">Add many photos</label>
+          <input id="bulk-photos" type="file" accept="image/*" multiple hidden>
+          <button class="btn btn-primary btn-lg" type="button" id="add-item"></button>
+        </div>
       </div>
+      <p class="bulk-status" id="bulk-status" role="status" hidden></p>
       <div class="items" id="item-grid"></div>
     </section>
 
@@ -175,7 +180,17 @@
   <div class="dialog-head"><div><h2 id="item-dialog-title"></h2><p id="item-dialog-sub"></p></div><button class="dialog-close" type="button" id="item-close" aria-label="Close">×</button></div>
   <form class="dialog-body" id="item-form" novalidate>
     <div class="field-group"><label for="i-name">Name</label><input id="i-name" name="name" maxlength="80"><div class="field-error" id="ie-name"></div></div>
-    <div class="field-group"><label>Photo</label><div class="photo-pick"><img id="i-photo-preview" alt=""><input id="i-photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp"></div><div class="hint">JPG, PNG or WebP, up to 5 MB</div><div class="field-error" id="ie-photo"></div></div>
+    <div class="field-group">
+      <label for="i-photo">Photo</label>
+      <div class="crop-wrap" id="crop-wrap" hidden>
+        <div class="crop-full"><img id="crop-full-img" alt="The whole photo. Click the face to center the card on it."><span class="crop-dot" id="crop-dot"></span></div>
+        <div class="crop-card"><img id="i-photo-preview" alt=""><span>Card preview</span></div>
+      </div>
+      <div class="hint" id="crop-hint" hidden>Click the face in the photo. The card on the right shows how it will look.</div>
+      <input id="i-photo" name="photo" type="file" accept="image/*">
+      <div class="hint">Any photo from your phone. Cover shrinks it and turns it upright.</div>
+      <div class="field-error" id="ie-photo"></div>
+    </div>
     <div class="field-group"><label for="i-badge">Short tag (optional)</label><input id="i-badge" name="badge" maxlength="40"><div class="hint">Like "Waiting 94 days" or "Ages 5-8"</div><div class="field-error" id="ie-badge"></div></div>
     <div class="field-group"><label for="i-note">One line about them</label><textarea id="i-note" name="note" maxlength="200"></textarea><div class="field-error" id="ie-note"></div></div>
     <button class="btn btn-primary btn-lg btn-block" type="submit" id="item-save">Save</button>

@@ -9,7 +9,7 @@ const nonprofit = {
   monthly_price_cents: 2500, monthly_goal_cents: 200000, page: { headline: "Sponsor a dog for $25 a month.", everyone: "every dog here" },
 };
 const items = [
-  { id: "i1", name: "Bella", photo_url: "photos/dog-smile.jpg", badge: "Waiting 94 days", note: "Steals tennis balls." },
+  { id: "i1", name: "Bella", photo_url: "photos/dog-smile.jpg", photo_focus_x: 30, photo_focus_y: 20, badge: "Waiting 94 days", note: "Steals tennis balls." },
   { id: "i2", name: "Moose", photo_url: null, badge: null, note: null },
 ];
 
@@ -24,6 +24,8 @@ test("database rows become the page the sponsor page draws", () => {
   assert.equal(org.everyone, "every dog here");
   assert.deepEqual(org.items.map((i) => [i.name, i.sponsors]), [["Bella", 3], ["Moose", 0]]);
   assert.equal(org.items[1].photo, "");
+  assert.equal(org.items[0].focus, "30% 20%");
+  assert.equal(org.items[1].focus, "50% 38%");
   assert.equal(org.recent[0].display_name, "Sarah");
 });
 

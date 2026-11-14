@@ -2,7 +2,10 @@
 // Pure functions only (no page, database or Stripe code), so each one is tested on its own.
 
 export const PHOTO_TYPES = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
-export const PHOTO_MAX_BYTES = 5 * 1024 * 1024;
+export const PHOTO_MAX_BYTES = 5 * 1024 * 1024; // what the storage bucket accepts
+export const RAW_PHOTO_MAX_BYTES = 40 * 1024 * 1024; // what a phone photo can be before Cover shrinks it
+export const PHOTO_LONG_SIDE = 1600; // photos are shrunk so their longest side is at most this
+export const DEFAULT_FOCUS = { x: 50, y: 38 }; // a bit above center, where faces usually are
 
 const cleanText = (value) => (typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "");
 
@@ -11,7 +14,7 @@ export function slugify(name) {
   return cleanText(name)
     .toLowerCase()
     .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
+    .replace(/[\u0300-\u036f]/g, "") // drop accents: cafe with an accent -> cafe
     .replace(/&/g, " and ")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
@@ -120,12 +123,50 @@ export function validateItem(form) {
   return { ok: Object.keys(errors).length === 0, errors, values };
 }
 
-/** Check a photo before uploading. Returns an error message, or "" if it's fine. */
+/** Check a photo before Cover shrinks and uploads it. Returns an error message, or "" if it's fine. */
 export function photoProblem(file) {
   if (!file) return "";
-  if (!PHOTO_TYPES[file.type]) return "Use a JPG, PNG or WebP photo.";
-  if (file.size > PHOTO_MAX_BYTES) return "That photo is over 5 MB. Try a smaller one.";
+  if (typeof file.type !== "string" || !file.type.startsWith("image/")) return "That file isn't a photo.";
+  if (file.size > RAW_PHOTO_MAX_BYTES) return "That photo is over 40 MB. Try a smaller one.";
   return "";
+}
+
+/** The size to shrink a photo to so its longest side fits, never enlarging. */
+export function fitWithin(width, height, longSide = PHOTO_LONG_SIDE) {
+  if (!(width > 0) || !(height > 0)) throw new Error("A photo needs a width and height.");
+  const scale = Math.min(1, longSide / Math.max(width, height));
+  return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) };
+}
+
+/** A starting name from a file name: "bella_2.jpg" -> "Bella", camera names like IMG_1234 -> "". */
+export function nameFromFile(fileName) {
+  const base = String(fileName ?? "").replace(/\.[a-z0-9]+$/i, "");
+  const words = base
+    .replace(/[_\-.]+/g, " ")
+    .replace(/\b(img|dsc|dscn|pxl|photo|image|screenshot|copy|edited|final)\b/gi, " ")
+    .replace(/\d+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  return words.map((w) => w[0].toUpperCase() + w.slice(1).toLowerCase()).join(" ").slice(0, 80);
+}
+
+/** Keep a crop point inside the photo (whole percents, 0 to 100). */
+export function clampFocus(x, y) {
+  const clean = (value, fallback) => (Number.isFinite(Number(value)) ? Math.min(100, Math.max(0, Math.round(Number(value)))) : fallback);
+  return { x: clean(x, DEFAULT_FOCUS.x), y: clean(y, DEFAULT_FOCUS.y) };
+}
+
+/** The crop point for a click on a photo shown at width x height. */
+export function focusFromClick(offsetX, offsetY, width, height) {
+  if (!(width > 0) || !(height > 0)) return { ...DEFAULT_FOCUS };
+  return clampFocus((offsetX / width) * 100, (offsetY / height) * 100);
+}
+
+/** CSS position that keeps the crop point in view, like "50% 38%". */
+export function objectPosition(item) {
+  const { x, y } = clampFocus(item?.photo_focus_x, item?.photo_focus_y);
+  return `${x}% ${y}%`;
 }
 
 /** Where a photo is stored: the nonprofit's own folder plus a random name. */
