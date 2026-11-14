@@ -10,6 +10,7 @@ import {
   greeting, monthStats, nameFromFile, newestSponsors, objectPosition, photoPath, photoProblem, slugify,
   sponsorName, statusLabel, validateItem, validatePage, validateSignup, whenText,
 } from "./dashboard-logic.js";
+import { finishSignInFromLink } from "./auth-link.js";
 import { money } from "./sponsor.js";
 import { callServer, pageUrl, supabase } from "./supabase.js";
 
@@ -799,6 +800,13 @@ $("create-form").addEventListener("submit", async (event) => {
 // ---------- start ----------
 
 async function start() {
+  // Arriving from the sign-in email: check its one-time token first. A bad or used link goes back to
+  // the sign-in page with a clear message, instead of silently asking to sign in again.
+  const linkResult = await finishSignInFromLink(supabase);
+  if (linkResult === "expired" || linkResult === "failed") {
+    location.replace(`${pageUrl("signin.html")}?problem=${linkResult}`);
+    return;
+  }
   const { data } = await supabase.auth.getSession();
   if (!data.session) {
     location.replace(pageUrl("signin.html"));

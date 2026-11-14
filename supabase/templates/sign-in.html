@@ -1,14 +1,17 @@
 <!-- Cover sign-in email. Paste into Supabase: Authentication > Emails > Templates,
      for "Magic Link" AND "Confirm signup" (new people get "Confirm signup" the first time).
      Subject for both: Your Cover sign-in link
-     {{ .ConfirmationURL }} is filled in by Supabase. -->
+     {{ .TokenHash }} and {{ .Token }} are filled in by Supabase. The link goes straight to the
+     dashboard, which checks the one-time token itself, so it works on any device or browser. -->
 <div style="background:#F5F7F6;padding:32px 16px;font-family:Helvetica,Arial,sans-serif">
   <div style="max-width:480px;margin:0 auto;background:#FFFFFF;border:1px solid #E6E9EC;border-radius:16px;padding:32px">
     <div style="font-size:22px;font-weight:800;color:#14181C;letter-spacing:-0.5px">co<span style="color:#22C67A">&#10003;</span>er</div>
     <h1 style="font-size:24px;color:#14181C;margin:24px 0 8px">Your sign-in link</h1>
-    <p style="font-size:16px;line-height:1.5;color:#4A525A;margin:0 0 24px">Click below to sign in to Cover. The link works once and expires in one hour.</p>
-    <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#22C67A;color:#14181C;font-weight:700;font-size:16px;text-decoration:none;padding:14px 24px;border-radius:10px">Sign in to Cover</a>
-    <p style="font-size:13px;line-height:1.5;color:#6B747C;margin:24px 0 0">Didn't ask for this? You can ignore this email. Nobody can sign in without clicking the link.</p>
+    <p style="font-size:16px;line-height:1.5;color:#4A525A;margin:0 0 24px">Tap below to sign in to Cover. It works once, on any device, for one hour.</p>
+    <a href="https://covergiving.com/dashboard.html?token_hash={{ .TokenHash }}&amp;type=email" style="display:inline-block;background:#22C67A;color:#14181C;font-weight:700;font-size:16px;text-decoration:none;padding:14px 24px;border-radius:10px">Sign in to Cover</a>
+    <p style="font-size:16px;line-height:1.5;color:#4A525A;margin:28px 0 4px">Or type this code on the sign-in page:</p>
+    <p style="font-size:28px;font-weight:800;letter-spacing:6px;color:#14181C;margin:0">{{ .Token }}</p>
+    <p style="font-size:13px;line-height:1.5;color:#6B747C;margin:24px 0 0">Didn't ask for this? You can ignore this email. Nobody can sign in without this link or code.</p>
   </div>
   <p style="max-width:480px;margin:16px auto 0;font-size:12px;color:#6B747C;text-align:center">Cover · Monthly sponsors for nonprofits</p>
 </div>

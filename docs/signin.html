@@ -17,14 +17,18 @@
   .sent { text-align: center; }
   .sent .check { width: 56px; height: 56px; margin: 0 auto 18px; }
   .sent .check svg { width: 30px; }
+  .sent form { text-align: left; }
   .error { color: #B2321F; font-size: 14px; margin-top: 10px; min-height: 1em; }
+  .notice { background: #FFF6E5; border: 1px solid #F0D9A8; color: #6B4A10; border-radius: 12px; padding: 12px 14px; font-size: 14px; margin-bottom: 22px; }
   .small { font-size: 13px; color: var(--muted); margin-top: 18px; }
+  #code { font-size: 22px; letter-spacing: .3em; text-align: center; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="box">
     <img class="logo" src="brand/logo.svg" alt="Cover">
+    <div class="notice" id="problem" role="alert" hidden></div>
     <div id="ask">
       <h1>Sign in to Cover</h1>
       <p>New or returning, just enter your email. We'll send you a link to sign in. No password needed.</p>
@@ -42,18 +46,37 @@
     <div class="sent" id="sent" hidden>
       <div class="check" data-check></div>
       <h1>Check your email</h1>
-      <p>We sent a sign-in link to <strong id="sent-to"></strong>. Open it on this device. The link works for one hour.</p>
+      <p>We sent a sign-in link to <strong id="sent-to"></strong>. Tap it on any device. It works for one hour.</p>
+      <form id="code-form" novalidate>
+        <div class="field-group">
+          <label for="code">Or type the code from the email</label>
+          <input id="code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="123456">
+        </div>
+        <button class="btn btn-primary btn-lg btn-block" type="submit" id="verify">Sign in with code</button>
+        <div class="error" id="code-error" role="alert"></div>
+      </form>
       <button class="link-btn" type="button" id="again">Use a different email</button>
     </div>
   </div>
 </div>
 <script type="module">
+  import { problemMessage } from "./js/auth-link.js";
   import { pageUrl, supabase } from "./js/supabase.js";
 
   const CHECK = '<svg viewBox="0 0 24 24"><polyline points="5,12.5 10,17 19,7" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/></svg>';
   document.querySelectorAll("[data-check]").forEach((el) => (el.innerHTML = CHECK));
   const $ = (id) => document.getElementById(id);
   const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  const CODE = /^\d{6,10}$/;
+  let sentTo = "";
+
+  // Sent back here because a sign-in link didn't work? Say why, plainly.
+  const problem = problemMessage(new URLSearchParams(location.search).get("problem"));
+  if (problem) {
+    $("problem").textContent = problem;
+    $("problem").hidden = false;
+    history.replaceState(null, "", location.pathname);
+  }
 
   // Already signed in? Go straight to the dashboard.
   const { data } = await supabase.auth.getSession();
@@ -82,14 +105,39 @@
         : "We couldn't send the email. Check the address and try again.";
       return;
     }
+    sentTo = email;
     $("sent-to").textContent = email;
+    $("problem").hidden = true;
     $("ask").hidden = true;
     $("sent").hidden = false;
+  });
+
+  // Backup: type the code from the email instead of tapping the link.
+  $("code-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const token = $("code").value.replace(/\s/g, "");
+    $("code-error").textContent = "";
+    if (!CODE.test(token)) {
+      $("code-error").textContent = "Type the number code from the email.";
+      $("code").focus();
+      return;
+    }
+    $("verify").disabled = true;
+    $("verify").textContent = "Checking…";
+    const { error } = await supabase.auth.verifyOtp({ email: sentTo, token, type: "email" });
+    if (!error) {
+      location.replace(pageUrl("dashboard.html"));
+      return;
+    }
+    $("verify").disabled = false;
+    $("verify").textContent = "Sign in with code";
+    $("code-error").textContent = "That code didn't work. It may have expired, or a newer email replaced it.";
   });
 
   $("again").addEventListener("click", () => {
     $("sent").hidden = true;
     $("ask").hidden = false;
+    $("code").value = "";
     $("email").focus();
   });
 </script>
