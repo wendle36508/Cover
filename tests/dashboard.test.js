@@ -4,7 +4,8 @@ import { test } from "node:test";
 
 import {
   RAW_PHOTO_MAX_BYTES, checklist, clampFocus, fitWithin, focusFromClick, nameFromFile, objectPosition, countsByItem, followedMost, greeting, monthStats, newestSponsors, photoPath,
-  photoProblem, slugify, sponsorName, statusLabel, validateItem, validatePage, validateSignup, wallName, wallStatus, whenText,
+  photoProblem, slugify, sponsorName, statusLabel, validateItem, validatePage, validateSignup, wallName, wallStatus, welcomeCandidates,
+  welcomeCaption, welcomeFileName, welcomeHeadline, whenText, wrapLines,
 } from "../docs/js/dashboard-logic.js";
 
 const NOW = new Date("2026-11-20T15:00:00");
@@ -198,4 +199,51 @@ test("wall name matches what the page shows", () => {
   assert.equal(wallName({ first_name: "Sarah", last_initial: null }), "Sarah");
   assert.equal(wallName({ first_name: "Jo", business_name: "Corner Cafe", last_initial: "K" }), "Corner Cafe");
   assert.equal(wallName(null), "");
+});
+
+// ---------- welcome post ----------
+
+test("welcome post: only recent, active, opted-in, not-hidden sponsors who follow something, newest first", () => {
+  const now = new Date("2026-11-20T12:00:00Z");
+  const day = (n) => new Date(now.getTime() - n * 86400000).toISOString();
+  const things = [{ id: "i1", name: "Bella" }, { id: "i2", name: "Max" }];
+  const base = { status: "active", show_name: true, wall_hidden: false, item_id: "i1" };
+  const sponsors = [
+    { ...base, id: "a", first_name: "Old", created_at: day(20) },
+    { ...base, id: "b", first_name: "Sarah", created_at: day(1) },
+    { ...base, id: "c", first_name: "Quiet", show_name: false, created_at: day(0) },
+    { ...base, id: "d", first_name: "Hid", wall_hidden: true, created_at: day(0) },
+    { ...base, id: "e", first_name: "Late", status: "past_due", created_at: day(0) },
+    { ...base, id: "f", first_name: "Jo", business_name: "Corner Cafe", item_id: "i2", created_at: day(0.5) },
+    { ...base, id: "g", first_name: "Nobody", item_id: null, created_at: day(0) },
+  ];
+  const picks = welcomeCandidates(sponsors, things, now);
+  assert.deepEqual(picks.map((p) => [p.greet, p.item.name]), [["Corner Cafe", "Max"], ["Sarah", "Bella"]]);
+  assert.deepEqual(welcomeCandidates([], things, now), []);
+  assert.deepEqual(welcomeCandidates(undefined, undefined, now), []);
+  const many = Array.from({ length: 9 }, (_, i) => ({ ...base, id: `m${i}`, first_name: `P${i}`, created_at: day(i / 10) }));
+  assert.equal(welcomeCandidates(many, things, now).length, 5);
+});
+
+test("welcome post words fit animals and programs and end with the page link", () => {
+  assert.equal(welcomeHeadline("Sarah", "Bella"), "Welcome Sarah, Bella's newest sponsor!");
+  const dog = welcomeCaption({ greet: "Sarah", itemName: "Bella", nonprofitName: "Harbor Paws", kind: "animal", link: "https://covergiving.com/give.html?org=harbor-paws" });
+  assert.match(dog, /^Welcome Sarah, Bella's newest sponsor! Thank you for helping Bella \(and every animal at Harbor Paws\)/);
+  assert.ok(dog.endsWith("Want to sponsor a buddy too? https://covergiving.com/give.html?org=harbor-paws"));
+  const program = welcomeCaption({ greet: "Dana", itemName: "Art Studio", nonprofitName: "Eastside Youth", kind: "program", link: "L" });
+  assert.match(program, /keep Art Studio \(and everything at Eastside Youth\) going/);
+  assert.ok(program.endsWith("Want to sponsor too? L"));
+});
+
+test("headline wraps to fit the image width", () => {
+  const measure = (text) => text.length * 10;
+  assert.deepEqual(wrapLines("Welcome Sarah, Bella's newest sponsor!", 160, measure), ["Welcome Sarah,", "Bella's newest", "sponsor!"]);
+  assert.deepEqual(wrapLines("Supercalifragilistic hi", 50, measure), ["Supercalifragilistic", "hi"]);
+  assert.deepEqual(wrapLines("", 100, measure), []);
+});
+
+test("download file names are safe", () => {
+  assert.equal(welcomeFileName("Sarah", "Bella"), "welcome-sarah-bella.png");
+  assert.equal(welcomeFileName("Corner Café!", "Art Studio"), "welcome-corner-cafe-art-studio.png");
+  assert.equal(welcomeFileName("../..", ""), "welcome-sponsor.png");
 });

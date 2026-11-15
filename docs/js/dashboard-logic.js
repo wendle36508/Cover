@@ -66,6 +66,64 @@ export function wallName(sponsor) {
   return sponsor?.last_initial ? `${sponsor.first_name} ${sponsor.last_initial}.` : sponsor?.first_name ?? "";
 }
 
+export const WELCOME_DAYS = 14; // how long a new sponsor shows in "Share a welcome"
+export const WELCOME_MAX = 5;
+
+/**
+ * New sponsors the owner can post a welcome for: active, said yes to being thanked in public,
+ * not hidden by the owner, following something, and joined in the last two weeks. Newest first.
+ */
+export function welcomeCandidates(sponsors, items, now = new Date()) {
+  const names = new Map((items ?? []).map((item) => [item.id, item]));
+  const cutoff = now.getTime() - WELCOME_DAYS * 86400000;
+  return (sponsors ?? [])
+    .filter((s) => s.status === "active" && s.show_name && !s.wall_hidden && names.has(s.item_id)
+      && new Date(s.created_at).getTime() >= cutoff)
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    .slice(0, WELCOME_MAX)
+    .map((s) => ({ sponsor: s, item: names.get(s.item_id), greet: s.business_name || s.first_name }));
+}
+
+/** The big line on the welcome image: "Welcome Sarah, Bella's newest sponsor!" */
+export function welcomeHeadline(greet, itemName) {
+  return `Welcome ${greet}, ${itemName}'s newest sponsor!`;
+}
+
+/** The caption the owner copies to Instagram or Facebook, ending with their page link. */
+export function welcomeCaption({ greet, itemName, nonprofitName, kind, link }) {
+  const thanks = kind === "animal"
+    ? `Thank you for helping ${itemName} (and every animal at ${nonprofitName}) get fed, walked and cared for each month.`
+    : `Thank you for helping keep ${itemName} (and everything at ${nonprofitName}) going every month.`;
+  const invite = kind === "animal" ? "Want to sponsor a buddy too?" : "Want to sponsor too?";
+  return `${welcomeHeadline(greet, itemName)} ${thanks} ${invite} ${link}`;
+}
+
+/**
+ * Break the headline into lines that fit the image. measure(text) returns a width; lines longer
+ * than maxWidth wrap at spaces. Returns the lines (a single over-long word stays on its own line).
+ */
+export function wrapLines(text, maxWidth, measure) {
+  const lines = [];
+  let line = "";
+  for (const word of String(text).split(/\s+/).filter(Boolean)) {
+    const next = line ? `${line} ${word}` : word;
+    if (line && measure(next) > maxWidth) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = next;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+/** A safe file name for the downloaded image: "welcome-sarah-bella.png". */
+export function welcomeFileName(greet, itemName) {
+  const part = (text) => String(text ?? "").toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  return `welcome-${[part(greet), part(itemName)].filter(Boolean).join("-") || "sponsor"}.png`;
+}
+
 /** This month's numbers from the sponsor list. Money in whole dollars. */
 export function monthStats(sponsors, goalCents, now = new Date()) {
   const active = sponsors.filter((s) => s.status === "active");

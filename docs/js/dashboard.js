@@ -8,10 +8,12 @@ import { STRIPE_PUBLISHABLE_KEY } from "./config.js";
 import {
   DEFAULT_FOCUS, PHOTO_MAX_BYTES, checklist, clampFocus, countsByItem, fitWithin, focusFromClick, followedMost,
   finishSummary, greeting, monthStats, nameFromFile, newestSponsors, objectPosition, photoPath, photoProblem, postSummary, slugify,
-  sponsorName, statusLabel, updateAudience, validateItem, validatePage, validateSignup, wallName, wallStatus, whenText,
+  sponsorName, statusLabel, updateAudience, validateItem, validatePage, validateSignup, wallName, wallStatus, welcomeCandidates,
+  welcomeCaption, welcomeFileName, welcomeHeadline, whenText,
 } from "./dashboard-logic.js";
 import { finishSignInFromLink } from "./auth-link.js";
 import { recordTermsAgreement } from "./terms.js";
+import { canvasToPng, drawWelcome } from "./welcome-image.js";
 import { applyBrand, BRAND_SWATCHES, normalizeHex, safeImageUrl, validateLook } from "./brand.js";
 import { money } from "./sponsor.js";
 import { callServer, pageUrl, supabase } from "./supabase.js";
@@ -264,7 +266,79 @@ async function setWallHidden(row, hide, button) {
   toast(hide ? `${wallName(row)} is hidden from your thank-you wall` : `${wallName(row)} is back on your thank-you wall`);
 }
 
+// ---------- share a welcome ----------
+
+let welcomeFile = "welcome.png";
+
+/** New opted-in sponsors, each with a "Make welcome post" button. Hidden when there's no one. */
+function drawWelcomeList() {
+  const picks = welcomeCandidates(state.sponsors, state.items);
+  $("welcome-panel").hidden = picks.length === 0;
+  $("welcome-list").replaceChildren(...picks.map((pick) => {
+    const row = el("div", "welcome-row");
+    const who = el("div", "who", wallName(pick.sponsor));
+    who.append(el("small", "", `Follows ${pick.item.name} · joined ${whenText(pick.sponsor.created_at)}`));
+    const button = el("button", "btn btn-ghost", "Make welcome post");
+    button.type = "button";
+    button.addEventListener("click", () => openWelcome(pick));
+    row.append(who, button);
+    return row;
+  }));
+}
+
+async function openWelcome(pick) {
+  const np = state.nonprofit;
+  const headline = welcomeHeadline(pick.greet, pick.item.name);
+  welcomeFile = welcomeFileName(pick.greet, pick.item.name);
+  $("welcome-sub").textContent = `${wallName(pick.sponsor)} just started sponsoring ${pick.item.name}.`;
+  $("welcome-caption").value = welcomeCaption({ greet: pick.greet, itemName: pick.item.name, nonprofitName: np.name, kind: np.kind, link: publicUrl() });
+  $("welcome-error").textContent = "";
+  $("welcome-download").disabled = true;
+  $("welcome-dialog").showModal();
+  try {
+    const hasPhoto = await drawWelcome($("welcome-canvas"), {
+      photoUrl: safeImageUrl(pick.item.photo_url),
+      focus: clampFocus(pick.item.photo_focus_x, pick.item.photo_focus_y),
+      brandColor: np.page?.brandColor ?? null,
+      nonprofitName: np.name,
+      headline,
+    });
+    $("welcome-photo-note").hidden = hasPhoto;
+    $("welcome-download").disabled = false;
+  } catch (error) {
+    console.error(error);
+    $("welcome-error").textContent = "We couldn't make the picture. Try again in a moment.";
+  }
+}
+
+async function downloadWelcome() {
+  try {
+    const blob = await canvasToPng($("welcome-canvas"));
+    const link = el("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = welcomeFile;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 10000);
+  } catch {
+    $("welcome-error").textContent = "We couldn't save the picture. Try again, or take a screenshot of it.";
+  }
+}
+
+async function copyWelcomeCaption() {
+  const box = $("welcome-caption");
+  try {
+    await navigator.clipboard.writeText(box.value);
+  } catch {
+    box.select(); // older browsers: select it so they can copy by hand
+    document.execCommand?.("copy");
+  }
+  toast("Caption copied");
+}
+
 function drawSponsors() {
+  drawWelcomeList();
   const names = new Map(state.items.map((item) => [item.id, item.name]));
   const rows = state.sponsors.map((s) => ({ ...s, following: names.get(s.item_id) ?? "—" }));
   const table = $("all-sponsors");
@@ -829,6 +903,9 @@ $("add-item").addEventListener("click", () => openItem(null));
 $("item-close").addEventListener("click", () => $("item-dialog").close());
 $("finish-close").addEventListener("click", () => $("finish-dialog").close());
 $("update-close").addEventListener("click", () => $("update-dialog").close());
+$("welcome-close").addEventListener("click", () => $("welcome-dialog").close());
+$("welcome-download").addEventListener("click", downloadWelcome);
+$("welcome-copy").addEventListener("click", copyWelcomeCaption);
 $("sign-out").addEventListener("click", async () => {
   await supabase.auth.signOut();
   location.replace(pageUrl("signin.html"));

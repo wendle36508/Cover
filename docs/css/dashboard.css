@@ -139,3 +139,12 @@ body { background: var(--soft); }
 .wall-cell { white-space: nowrap; }
 .mini-btn { margin-left: 8px; font: inherit; font-size: 13px; font-weight: 650; color: var(--green-dark); background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; cursor: pointer; }
 .mini-btn:disabled { opacity: .5; cursor: default; }
+
+/* Share a welcome (Sponsors screen) */
+.welcome-panel { margin-bottom: 18px; }
+.welcome-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); font-size: 15px; }
+.welcome-row .who { flex: 1; min-width: 0; }
+.welcome-row small { display: block; color: var(--muted); font-size: 13px; }
+.welcome-canvas { display: block; width: 100%; aspect-ratio: 1; border-radius: 14px; background: var(--soft); }
+#welcome-caption { resize: none; font-size: 14px; color: var(--body); }
+

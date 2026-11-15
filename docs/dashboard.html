@@ -7,6 +7,7 @@
 <link rel="icon" href="brand/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="css/cover.css">
 <link rel="stylesheet" href="css/dashboard.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&display=swap">
 <!-- Stripe's embedded screens (sign-up, payments, payouts) must load from Stripe's own site. -->
 <script src="https://connect-js.stripe.com/v1.0/connect.js" async></script>
 </head>
@@ -109,6 +110,11 @@
     <!-- Sponsors -->
     <section class="view" data-view="sponsors" hidden>
       <div class="top"><div><h1>Sponsors</h1><p>Everyone who sponsors you. Emails are private: only your team sees them. Only sponsors who said yes appear on your page's thank-you wall, and you can hide anyone.</p></div></div>
+      <div class="panel welcome-panel" id="welcome-panel" hidden>
+        <h2>New sponsors to welcome</h2>
+        <p class="hint" style="margin:-8px 0 14px">They said yes to being thanked in public. Make a picture to share on your Instagram or Facebook.</p>
+        <div id="welcome-list"></div>
+      </div>
       <div class="panel"><div class="table-wrap"><table id="all-sponsors"></table></div></div>
     </section>
 
@@ -262,6 +268,22 @@
     <button class="btn btn-primary btn-lg btn-block" type="submit" id="update-send">Send update</button>
     <div class="field-error" id="update-error" role="alert"></div>
   </form>
+</dialog>
+
+<!-- Share a welcome: a ready-made picture + caption for a new sponsor (look B, Tanner Nov 15) -->
+<dialog class="sponsor-dialog" id="welcome-dialog" aria-labelledby="welcome-title">
+  <div class="dialog-head"><div><h2 id="welcome-title">Share a welcome</h2><p id="welcome-sub"></p></div><button class="dialog-close" type="button" id="welcome-close" aria-label="Close">×</button></div>
+  <div class="dialog-body">
+    <canvas class="welcome-canvas" id="welcome-canvas" aria-label="Welcome picture preview"></canvas>
+    <p class="hint" id="welcome-photo-note" hidden>No photo yet, so the picture uses your brand color. Add a photo on their card to use it here.</p>
+    <div class="field-group" style="margin-top:16px">
+      <label for="welcome-caption">Caption</label>
+      <textarea id="welcome-caption" readonly rows="5"></textarea>
+    </div>
+    <div class="btns"><button class="btn btn-primary" type="button" id="welcome-download">Download image</button><button class="btn btn-ghost" type="button" id="welcome-copy">Copy caption</button></div>
+    <p class="hint" style="margin-top:12px">Square picture sized for Instagram and Facebook. Cover never posts for you.</p>
+    <div class="field-error" id="welcome-error" role="alert"></div>
+  </div>
 </dialog>
 
 <!-- Mark a thing to follow as finished (adopted, wrapped up) -->
