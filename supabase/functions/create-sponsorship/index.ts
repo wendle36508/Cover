@@ -48,6 +48,7 @@ Deno.serve(async (request) => {
         first_name: signup.firstName,
         email: signup.email,
         show_name: signup.showName,
+        last_initial: signup.lastInitial,
         business_name: signup.businessName,
         monthly_cents: nonprofit.monthly_price_cents,
         status: "pending",

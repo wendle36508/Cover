@@ -4,7 +4,7 @@ import { test } from "node:test";
 
 import { ORGS } from "../docs/js/orgs.js";
 import {
-  LIMITS, buildRecord, cleanText, money, paymentUrl, percentCovered, publicName,
+  LIMITS, buildRecord, cleanInitial, cleanText, money, paymentUrl, percentCovered, publicName,
   sponsorLabel, thankYou, timeAgo, validateSponsor, withNewSponsor,
 } from "../docs/js/sponsor.js";
 
@@ -76,7 +76,7 @@ test("a record is pending, priced from the nonprofit, and time-stamped", () => {
   const record = buildRecord(values, "rescue", rescue, bella, now, () => "id-1");
   assert.deepEqual(record, {
     id: "id-1", orgKey: "rescue", itemName: "Bella", firstName: "Sarah", email: "sarah@example.com",
-    showName: true, businessName: null, monthly: 25, status: "pending", createdAt: "2026-11-13T15:00:00.000Z",
+    showName: true, lastInitial: null, businessName: null, monthly: 25, status: "pending", createdAt: "2026-11-13T15:00:00.000Z",
   });
 });
 
@@ -85,10 +85,27 @@ test("a record without a nonprofit or item is refused", () => {
   assert.throws(() => buildRecord(good, "rescue", undefined, bella), /nonprofit/);
 });
 
-test("public name: business first, then first name if allowed, else anonymous", () => {
-  assert.equal(publicName({ businessName: "Corner Cafe", firstName: "Jo", showName: false }), "Corner Cafe");
-  assert.equal(publicName({ businessName: null, firstName: "Jo", showName: true }), "Jo");
-  assert.equal(publicName({ businessName: null, firstName: "Jo", showName: false }), "A neighbor");
+test("public name: only if they opted in; business name, else 'Jo K.', else anonymous", () => {
+  assert.equal(publicName({ businessName: "Corner Cafe", firstName: "Jo", showName: true }), "Corner Cafe");
+  assert.equal(publicName({ businessName: "Corner Cafe", firstName: "Jo", showName: false }), "A neighbor");
+  assert.equal(publicName({ businessName: null, firstName: "Jo", lastInitial: "K", showName: true }), "Jo K.");
+  assert.equal(publicName({ businessName: null, firstName: "Jo", lastInitial: null, showName: true }), "Jo");
+  assert.equal(publicName({ businessName: null, firstName: "Jo", lastInitial: "K", showName: false }), "A neighbor");
+});
+
+test("cleanInitial: one letter in any form becomes a capital; anything else is flagged", () => {
+  for (const [input, want] of [["k", "K"], ["K.", "K"], [" k ", "K"], ["", ""], [undefined, ""], [null, ""], [5, ""]]) {
+    assert.equal(cleanInitial(input), want, String(input));
+  }
+  for (const bad of ["KL", "1", "-", "é"]) assert.equal(cleanInitial(bad), null, bad);
+});
+
+test("the form: last initial only counts when the wall box is ticked, and a bad one is an error", () => {
+  assert.equal(validateSponsor({ ...good, showName: true, lastInitial: "k" }).values.lastInitial, "K");
+  assert.equal(validateSponsor({ ...good, showName: false, lastInitial: "KL" }).ok, true);
+  const bad = validateSponsor({ ...good, showName: true, lastInitial: "KL" });
+  assert.equal(bad.ok, false);
+  assert.match(bad.errors.lastInitial, /one letter/);
 });
 
 // ---------- thank-you, payment, totals ----------

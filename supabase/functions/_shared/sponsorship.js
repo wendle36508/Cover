@@ -22,7 +22,8 @@ function cleanText(value) {
 
 /**
  * Check a sponsor sign-up sent to the server. Returns clean values or throws BadRequest.
- * Expects { slug, itemId, firstName, email, showName, isBusiness, businessName }.
+ * Expects { slug, itemId, firstName, email, showName, lastInitial, isBusiness, businessName }.
+ * showName is the thank-you wall opt-in: only an explicit true counts (off by default).
  */
 export function readSignup(body) {
   if (!body || typeof body !== "object") throw new BadRequest("Send the sign-up as JSON.");
@@ -32,6 +33,8 @@ export function readSignup(body) {
   const email = cleanText(body.email).toLowerCase();
   const isBusiness = body.isBusiness === true;
   const businessName = isBusiness ? cleanText(body.businessName) : "";
+  const showName = body.showName === true;
+  const rawInitial = showName && typeof body.lastInitial === "string" ? body.lastInitial.replace(/[.\s]/g, "") : "";
 
   if (!SLUG_PATTERN.test(slug) || slug.length > 60) throw new BadRequest("That nonprofit page doesn't exist.");
   if (!UUID_PATTERN.test(itemId)) throw new BadRequest("Pick something to sponsor.");
@@ -40,7 +43,8 @@ export function readSignup(body) {
   if (isBusiness && (!businessName || businessName.length > LIMITS.businessName)) {
     throw new BadRequest("Add your business name (under 80 characters).");
   }
-  return { slug, itemId, firstName, email, showName: body.showName !== false, businessName: businessName || null };
+  if (rawInitial && !/^[A-Za-z]$/.test(rawInitial)) throw new BadRequest("Your last initial should be just one letter.");
+  return { slug, itemId, firstName, email, showName, lastInitial: rawInitial ? rawInitial.toUpperCase() : null, businessName: businessName || null };
 }
 
 /** Can this nonprofit take a payment right now? Throws BadRequest with a reason if not. */

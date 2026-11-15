@@ -186,6 +186,12 @@ h3 { font-size: 21px; letter-spacing: -.015em; font-weight: 680; line-height: 1.
 .field-error { color: #B2321F; font-size: 13px; min-height: 0; }
 .toggle { display: flex; gap: 10px; align-items: flex-start; font-size: 15px; color: var(--body); margin-bottom: 12px; cursor: pointer; }
 .toggle input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--green-dark); }
+.wall-hint { font-size: 13px; color: var(--muted); margin: -6px 0 14px 28px; line-height: 1.45; }
+.initial-group { margin-left: 28px; }
+.initial-group input { width: 90px; }
+.initial-group .wall-hint { margin: 8px 0 0; }
+.optional { color: var(--muted); font-weight: 500; }
+.wall-preview { display: inline-block; background: var(--mint); color: var(--ink); font-weight: 650; padding: 2px 9px; border-radius: 999px; }
 .fine { font-size: 13px; color: var(--muted); line-height: 1.45; margin-top: 14px; }
 .btn-block { width: 100%; justify-content: center; border: 0; cursor: pointer; font-family: inherit; }
 .pay-box { background: var(--soft); border-radius: 14px; padding: 18px; margin-bottom: 16px; font-size: 15px; color: var(--body); }
@@ -223,3 +229,23 @@ h3 { font-size: 21px; letter-spacing: -.015em; font-weight: 680; line-height: 1.
 .pay-status.error { color: #B2321F; }
 #pay-mount { min-height: 40px; }
 .sponsor-dialog { overflow-y: auto; }
+
+/* Thank-you wall (sponsor page): a handwritten card of sponsors who opted in. Names only. */
+.thanks-wall { background: var(--mint); }
+.thanks-wall .eyebrow { text-align: center; }
+.note-card { background: #FFFDF8; border-radius: 20px; box-shadow: 0 18px 40px rgba(40, 20, 10, .10); padding: 44px 48px 38px; max-width: 900px; margin: 22px auto 0; transform: rotate(-.6deg); }
+.note-title { font-family: "Caveat", cursive; font-weight: 700; font-size: 52px; line-height: 1; letter-spacing: 0; color: var(--ink); }
+.note-title span { color: var(--green); }
+.sigs { list-style: none; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 24px; margin-top: 24px; font-family: "Caveat", cursive; font-size: 32px; font-weight: 600; color: #3A2E28; }
+.sigs li { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sigs li:nth-child(3n) { transform: rotate(-2deg); }
+.sigs li:nth-child(4n+1) { transform: rotate(1.5deg); }
+.note-from { margin-top: 26px; font-family: "Caveat", cursive; font-size: 30px; color: var(--green-dark); text-align: right; }
+.wall-more { display: block; margin: 22px auto 0; color: var(--green-dark); font-weight: 650; font-size: 16px; text-decoration: none; }
+@media (max-width: 760px) {
+  .note-card { padding: 30px 24px 26px; transform: none; }
+  .note-title { font-size: 42px; }
+  .sigs { grid-template-columns: repeat(2, minmax(0, 1fr)); font-size: 27px; }
+  .note-from { font-size: 25px; }
+}
+

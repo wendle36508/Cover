@@ -6,6 +6,7 @@
 <title>Sponsor page | Cover</title>
 <link rel="icon" href="brand/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="css/cover.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&display=swap">
 <!-- Stripe.js must load from Stripe's own site (required for card security rules). -->
 <script src="https://js.stripe.com/endive/stripe.js"></script>
 </head>
@@ -53,6 +54,19 @@
     </div>
     <div class="filters" id="filters"></div>
     <div class="items" id="items"></div>
+  </div>
+</section>
+
+<!-- Thank-you wall: only sponsors who ticked the box. Names only: no counts, no dogs. -->
+<section class="section thanks-wall" id="thanks-wall" hidden>
+  <div class="container">
+    <div class="eyebrow">Our sponsors</div>
+    <div class="note-card">
+      <h2 class="note-title">Thank you <span aria-hidden="true">♥</span></h2>
+      <ul class="sigs" id="wall-names"></ul>
+      <p class="note-from" id="wall-from"></p>
+    </div>
+    <button class="link-btn wall-more" type="button" id="wall-more" hidden>See everyone →</button>
   </div>
 </section>
 
@@ -124,7 +138,14 @@
         <input id="f-email" name="email" type="email" autocomplete="email" maxlength="254" required>
         <div class="field-error" id="e-email"></div>
       </div>
-      <label class="toggle"><input type="checkbox" name="showName" checked> Show my first name on this page</label>
+      <label class="toggle"><input type="checkbox" name="showName" id="f-show-name"> <span>Show my name on <span id="wall-org">their</span> thank-you wall</span></label>
+      <p class="wall-hint" id="wall-hint">Only your first name and last initial. Never your email or how much you give.</p>
+      <div class="field-group initial-group" id="initial-group" hidden>
+        <label for="f-initial">Last initial <span class="optional">(optional)</span></label>
+        <input id="f-initial" name="lastInitial" autocomplete="off" maxlength="2" autocapitalize="characters">
+        <div class="field-error" id="e-lastInitial"></div>
+        <p class="wall-hint">You'll show up as <span class="wall-preview" id="wall-preview"></span> You can take it off any time from your update emails.</p>
+      </div>
       <label class="toggle"><input type="checkbox" name="isBusiness" id="f-is-business"> I'm sponsoring as a business</label>
       <div class="field-group" id="business-group" hidden>
         <label for="f-business">Business name</label>

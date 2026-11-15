@@ -10,7 +10,7 @@ import { STRIPE_PUBLISHABLE_KEY } from "./config.js";
 import { loadLiveOrg, startSponsorship } from "./live.js";
 import { ORGS, SHARED_FAQ } from "./orgs.js";
 import {
-  buildRecord, money, percentCovered, publicName,
+  buildRecord, cleanInitial, money, percentCovered, publicName,
   thankYou, timeAgo, validateSponsor, withNewSponsor,
 } from "./sponsor.js";
 import { clearSponsors, saveSponsor, sponsorsFor } from "./store.js";
@@ -159,10 +159,30 @@ function drawItems() {
   $("items").replaceChildren(...org.items.map(itemCard));
 }
 
+const WALL_FIRST_SHOW = 24; // names on the card before "See everyone"
+let wallOpen = false;
+
+/** The handwritten thank-you card. Hidden until at least one sponsor opts in. Names only. */
+function drawWall() {
+  const names = org.wall ?? [];
+  $("thanks-wall").hidden = names.length === 0;
+  if (!names.length) return;
+  const shown = wallOpen ? names : names.slice(0, WALL_FIRST_SHOW);
+  $("wall-names").replaceChildren(...shown.map((name) => el("li", "", name)));
+  $("wall-from").textContent = `love, everyone at ${org.name}`;
+  $("wall-more").hidden = wallOpen || names.length <= WALL_FIRST_SHOW;
+}
+
+$("wall-more").addEventListener("click", () => {
+  wallOpen = true;
+  drawWall();
+});
+
 function drawAll(latest) {
   drawText();
   drawTotals();
   drawItems();
+  drawWall();
   drawToast(latest);
   addChecks();
 }
@@ -177,7 +197,7 @@ function showStep(id) {
 }
 
 function clearErrors() {
-  ["firstName", "email", "businessName"].forEach((field) => {
+  ["firstName", "email", "lastInitial", "businessName"].forEach((field) => {
     $(`e-${field}`).textContent = "";
     form.elements[field].removeAttribute("aria-invalid");
   });
@@ -197,6 +217,9 @@ function openDialog(itemName) {
   form.reset();
   clearErrors();
   $("business-group").hidden = true;
+  $("initial-group").hidden = true;
+  $("wall-hint").hidden = false;
+  $("wall-org").textContent = `${org.name}'s`;
   $("dialog-photo").src = photoSrc(currentItem.photo);
   $("dialog-photo").alt = currentItem.name;
   $("dialog-photo").style.objectPosition = currentItem.focus ?? "";
@@ -240,6 +263,7 @@ async function showCardForm(values) {
       firstName: values.firstName,
       email: values.email,
       showName: values.showName,
+      lastInitial: values.lastInitial,
       isBusiness: values.isBusiness,
       businessName: values.businessName,
     });
@@ -287,8 +311,10 @@ function showThankYou(record) {
 
 function celebrateOnPage(record) {
   org = withNewSponsor(org, record.itemName);
+  if (record.showName) org = { ...org, wall: [publicName(record), ...(org.wall ?? [])] };
   drawTotals();
   drawItems();
+  drawWall();
   drawToast(latestFromRecord(record));
   const toast = $("toast");
   toast.classList.remove("pop");
@@ -305,6 +331,22 @@ function finishSponsor(record) {
   pendingRecord = null;
 }
 
+/** "Sarah K." as they'll appear on the wall, updated as they type. */
+function drawWallPreview() {
+  const first = form.elements.firstName.value.trim().split(/\s+/)[0] || "Your name";
+  const initial = cleanInitial(form.elements.lastInitial.value);
+  $("wall-preview").textContent = initial ? `${first} ${initial}.` : first;
+}
+
+form.elements.showName.addEventListener("change", (event) => {
+  $("initial-group").hidden = !event.target.checked;
+  $("wall-hint").hidden = event.target.checked;
+  drawWallPreview();
+  if (event.target.checked) form.elements.lastInitial.focus();
+});
+form.elements.firstName.addEventListener("input", drawWallPreview);
+form.elements.lastInitial.addEventListener("input", drawWallPreview);
+
 form.elements.isBusiness.addEventListener("change", (event) => {
   $("business-group").hidden = !event.target.checked;
   if (event.target.checked) form.elements.businessName.focus();
@@ -317,6 +359,7 @@ form.addEventListener("submit", (event) => {
     firstName: form.elements.firstName.value,
     email: form.elements.email.value,
     showName: form.elements.showName.checked,
+    lastInitial: form.elements.lastInitial.value,
     isBusiness: form.elements.isBusiness.checked,
     businessName: form.elements.businessName.value,
   });

@@ -1,6 +1,7 @@
 // updates.js - the page sponsors open from links in Cover's emails (updates.html?a=stop|pick&t=TOKEN).
 //   a=stop -> turns off emails for this sponsorship right away (with an "undo"). The gift keeps going.
 //   a=pick -> choose a different buddy to follow at the same nonprofit.
+//   a=wall -> takes their name off the nonprofit's thank-you wall right away (with an "undo").
 // No account needed: the signed token in the link says which sponsorship it is. Everything shown
 // is set with textContent, never as HTML.
 
@@ -83,6 +84,27 @@ async function resumeUpdates() {
   show(el("h1", "", "Updates are back on"), el("p", "", `You'll hear about ${who()} again. Thanks for sticking with ${info.nonprofit.name}.`));
 }
 
+// ---------- the thank-you wall ----------
+
+async function takeNameOff() {
+  await call({ action: "wall_off" });
+  const undo = el("button", "btn btn-ghost", "Put my name back");
+  undo.type = "button";
+  undo.addEventListener("click", () => putNameBack().catch((e) => showError(e.message)));
+  const actions = el("div", "actions");
+  actions.append(undo);
+  show(
+    el("h1", "", "Your name is off the thank-you wall"),
+    el("p", "", `${info.nonprofit.name}'s page won't show your name anymore. Your monthly gift and your updates keep going.`),
+    actions,
+  );
+}
+
+async function putNameBack() {
+  await call({ action: "wall_on" });
+  show(el("h1", "", "Your name is back on the wall"), el("p", "", `Thanks for letting ${info.nonprofit.name} say thank you in public.`));
+}
+
 // ---------- pick a different buddy ----------
 
 function drawPicker() {
@@ -135,13 +157,14 @@ async function pick(item) {
 }
 
 async function start() {
-  if (!token || !["stop", "pick"].includes(action)) {
+  if (!token || !["stop", "pick", "wall"].includes(action)) {
     showError("This link is missing a piece. Open it straight from the email, or reply to the email for help.");
     return;
   }
   info = await call({ action: "lookup" });
   drawOrg();
   if (action === "stop") await stopUpdates();
+  else if (action === "wall") await takeNameOff();
   else drawPicker();
 }
 

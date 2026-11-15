@@ -49,6 +49,23 @@ export function sponsorName(sponsor) {
   return sponsor.business_name || sponsor.first_name;
 }
 
+/**
+ * Where a sponsor stands on the thank-you wall, for the owner's Sponsors table.
+ * Only sponsors who ticked the box can be on it; the owner can hide or show them.
+ * Returns { tone, text, button, hide } where button is "Hide", "Show" or null and hide is the next value to save.
+ */
+export function wallStatus(sponsor) {
+  if (!sponsor?.show_name) return { tone: "off", text: "Private", button: null, hide: null };
+  if (sponsor.wall_hidden) return { tone: "late", text: "Hidden by you", button: "Show", hide: false };
+  return { tone: "active", text: "On the wall", button: "Hide", hide: true };
+}
+
+/** How the sponsor appears on the wall: the business name, or "Sarah K.". Matches the database. */
+export function wallName(sponsor) {
+  if (sponsor?.business_name) return sponsor.business_name;
+  return sponsor?.last_initial ? `${sponsor.first_name} ${sponsor.last_initial}.` : sponsor?.first_name ?? "";
+}
+
 /** This month's numbers from the sponsor list. Money in whole dollars. */
 export function monthStats(sponsors, goalCents, now = new Date()) {
   const active = sponsors.filter((s) => s.status === "active");

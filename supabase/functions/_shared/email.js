@@ -69,6 +69,14 @@ export function linkUrl(action, token) {
   return `${SITE_URL}/updates.html?a=${encodeURIComponent(action)}&t=${encodeURIComponent(token)}`;
 }
 
+const WALL_LINK_TEXT = "Take my name off the thank-you wall";
+
+/** The extra footer line for sponsors on the thank-you wall (text and HTML). Empty when there's no link. */
+function wallLink(wallUrl) {
+  if (!wallUrl) return { text: "", html: "" };
+  return { text: `${WALL_LINK_TEXT}: ${wallUrl}`, html: ` · <a href="${escapeHtml(wallUrl)}" style="color:#6B747C">${WALL_LINK_TEXT}</a>` };
+}
+
 /** Make text safe to put inside an email's HTML. */
 export function escapeHtml(value) {
   return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
@@ -82,13 +90,15 @@ export function fromLine(nonprofitName) {
 
 /**
  * The note sponsors get when what they follow is adopted (animals) or finished (programs).
- * details: { nonprofitName, kind, firstName, finishedName, ownerNote, pickUrl, stopUrl }
+ * details: { nonprofitName, kind, firstName, finishedName, ownerNote, pickUrl, stopUrl, wallUrl }
+ * wallUrl (optional) is only given to sponsors whose name is on the thank-you wall.
  * Tanner's call (Nov 14): sponsors are never moved to a new buddy automatically. They go back to
  * following the whole nonprofit, and the email asks if they'd like to pick someone new.
  * pickUrl is null when there's no one else on the page to pick.
  */
 export function adoptionEmail(details) {
-  const { nonprofitName, kind, firstName, finishedName, ownerNote, pickUrl, stopUrl } = details;
+  const { nonprofitName, kind, firstName, finishedName, ownerNote, pickUrl, stopUrl, wallUrl } = details;
+  const wall = wallLink(wallUrl);
   const animal = kind === "animal";
   const subject = animal ? `${finishedName} went home!` : `${finishedName} has wrapped up`;
   const news = animal
@@ -117,7 +127,8 @@ export function adoptionEmail(details) {
     "---",
     footer,
     `Stop these updates: ${stopUrl}`,
-  ].filter((line, i, all) => line !== "" || all[i - 1] !== "").join("\n");
+    wall.text,
+  ].filter((line, i, all) => line !== "" || all[i - 1] !== "").join("\n").trimEnd();
 
   const e = escapeHtml;
   const html = `<div style="background:#F5F7F6;padding:32px 16px;font-family:Helvetica,Arial,sans-serif">
@@ -133,7 +144,7 @@ export function adoptionEmail(details) {
     <p style="font-size:16px;line-height:1.55;color:#4A525A;margin:24px 0 0">Thank you for being a sponsor.<br>${e(nonprofitName)}</p>
   </div>
   <p style="max-width:520px;margin:16px auto 0;font-size:12px;line-height:1.5;color:#6B747C;text-align:center">${e(footer)}<br>
-    <a href="${e(stopUrl)}" style="color:#6B747C">Stop these updates</a> · Sent by Cover for ${e(nonprofitName)}</p>
+    <a href="${e(stopUrl)}" style="color:#6B747C">Stop these updates</a>${wall.html} · Sent by Cover for ${e(nonprofitName)}</p>
 </div>`;
 
   return { subject, text, html };
@@ -141,11 +152,12 @@ export function adoptionEmail(details) {
 
 /**
  * An owner's update about one dog or program, sent to its sponsors.
- * details: { nonprofitName, kind, firstName, itemName, body, photoUrl, stopUrl }
+ * details: { nonprofitName, kind, firstName, itemName, body, photoUrl, stopUrl, wallUrl }
  * photoUrl is optional and must be an https address (checked by the database too).
  */
 export function updateEmail(details) {
-  const { nonprofitName, kind, firstName, itemName, body, photoUrl, stopUrl } = details;
+  const { nonprofitName, kind, firstName, itemName, body, photoUrl, stopUrl, wallUrl } = details;
+  const wall = wallLink(wallUrl);
   const animal = kind === "animal";
   const subject = `News about ${itemName}`;
   const photo = /^https:\/\/[^\s"'<>]+$/.test(String(photoUrl ?? "")) ? photoUrl : "";
@@ -165,7 +177,8 @@ export function updateEmail(details) {
     "---",
     footer,
     `Stop updates about ${itemName}: ${stopUrl}`,
-  ].filter((line, i, all) => line !== "" || all[i - 1] !== "").join("\n");
+    wall.text,
+  ].filter((line, i, all) => line !== "" || all[i - 1] !== "").join("\n").trimEnd();
 
   const e = escapeHtml;
   const html = `<div style="background:#F5F7F6;padding:32px 16px;font-family:Helvetica,Arial,sans-serif">
@@ -180,7 +193,7 @@ export function updateEmail(details) {
     </div>
   </div>
   <p style="max-width:520px;margin:16px auto 0;font-size:12px;line-height:1.5;color:#6B747C;text-align:center">${e(footer)}<br>
-    <a href="${e(stopUrl)}" style="color:#6B747C">Stop updates about ${e(itemName)}</a> · Sent by Cover for ${e(nonprofitName)}</p>
+    <a href="${e(stopUrl)}" style="color:#6B747C">Stop updates about ${e(itemName)}</a>${wall.html} · Sent by Cover for ${e(nonprofitName)}</p>
 </div>`;
 
   return { subject, text, html };

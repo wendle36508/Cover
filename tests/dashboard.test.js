@@ -4,7 +4,7 @@ import { test } from "node:test";
 
 import {
   RAW_PHOTO_MAX_BYTES, checklist, clampFocus, fitWithin, focusFromClick, nameFromFile, objectPosition, countsByItem, followedMost, greeting, monthStats, newestSponsors, photoPath,
-  photoProblem, slugify, sponsorName, statusLabel, validateItem, validatePage, validateSignup, whenText,
+  photoProblem, slugify, sponsorName, statusLabel, validateItem, validatePage, validateSignup, wallName, wallStatus, whenText,
 } from "../docs/js/dashboard-logic.js";
 
 const NOW = new Date("2026-11-20T15:00:00");
@@ -184,4 +184,18 @@ test("who an update reaches, and what the owner is told", async () => {
   assert.equal(postSummary("Bella", { sent: true, emailed: 2, sponsors: 2, emailsOn: true }), "Update sent to 2 sponsors.");
   assert.match(postSummary("Bella", { sent: true, emailed: 0, sponsors: 0, emailsOn: true }), /no sponsors with updates on yet/);
   assert.equal(postSummary("Bella", { sent: false, scheduledFor: "2026-11-16T14:00:00Z" }), "You already sent an update about Bella today, so this one goes out Monday at 9am.");
+});
+
+test("thank-you wall column: private unless they opted in, and the owner can hide or show", () => {
+  assert.deepEqual(wallStatus({ show_name: false }), { tone: "off", text: "Private", button: null, hide: null });
+  assert.deepEqual(wallStatus({ show_name: true, wall_hidden: false }), { tone: "active", text: "On the wall", button: "Hide", hide: true });
+  assert.deepEqual(wallStatus({ show_name: true, wall_hidden: true }), { tone: "late", text: "Hidden by you", button: "Show", hide: false });
+  assert.equal(wallStatus(undefined).text, "Private");
+});
+
+test("wall name matches what the page shows", () => {
+  assert.equal(wallName({ first_name: "Sarah", last_initial: "K" }), "Sarah K.");
+  assert.equal(wallName({ first_name: "Sarah", last_initial: null }), "Sarah");
+  assert.equal(wallName({ first_name: "Jo", business_name: "Corner Cafe", last_initial: "K" }), "Corner Cafe");
+  assert.equal(wallName(null), "");
 });

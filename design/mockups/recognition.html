@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sponsor recognition | Cover mockup</title>
+<!-- Mockup board (not the live site), Nov 15 2026: the "Thank you, sponsors" wall, the opt-in box at
+     checkout, the owner's hide controls and the shareable welcome post. Uses the real site stylesheet,
+     shown in terracotta (the red Tanner picked) because that's where the brand is heading. -->
+<link rel="stylesheet" href="../../docs/css/cover.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&display=swap">
+<style>
+  :root { --green: #D9653B; --green-dark: #B85632; --mint: #FAEDE7; --deep: #2B1A15; --on-green: #14181C; }
+  body { background: #F3EDE1; }
+  .board { max-width: 1240px; margin: 0 auto; padding: 40px 32px 80px; }
+  .board > h1 { font-size: 32px; letter-spacing: -.02em; }
+  .board > .lead { color: var(--body); margin: 6px 0 8px; max-width: 820px; }
+  .rules { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 34px; }
+  .rules span { background: #fff; border: 1px solid #E5DCCB; border-radius: 999px; padding: 6px 12px; font-size: 13px; color: var(--body); }
+  .label { font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--green-dark); margin: 44px 0 6px; }
+  .label + h2 { font-size: 22px; margin-bottom: 4px; }
+  .label + h2 + p { color: var(--body); font-size: 15px; margin-bottom: 16px; max-width: 820px; }
+  .frame { background: #fff; border: 1px solid #E5DCCB; border-radius: 20px; overflow: hidden; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .tag { display: inline-block; font-size: 12px; font-weight: 700; background: var(--ink); color: #fff; border-radius: 6px; padding: 3px 8px; margin: 0 0 10px; }
+
+  /* Wall A: name chips */
+  .wall { padding: 56px 64px; }
+  .wall .eyebrow { margin-bottom: 10px; }
+  .wall h3 { font-size: 34px; letter-spacing: -.02em; line-height: 1.15; max-width: 640px; }
+  .wall .sub { color: var(--body); margin: 10px 0 28px; max-width: 560px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chips span { background: var(--mint); color: var(--ink); font-weight: 600; font-size: 15px; padding: 9px 14px; border-radius: 999px; }
+  .chips span.new { background: var(--green); color: var(--on-green); }
+  .chips span.new::after { content: "new"; font-size: 11px; font-weight: 700; margin-left: 8px; text-transform: uppercase; letter-spacing: .06em; opacity: .75; }
+  .wall .more { margin-top: 22px; font-size: 15px; color: var(--green-dark); font-weight: 650; }
+  .wall .join { margin-top: 26px; padding-top: 22px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; color: var(--body); font-size: 15px; }
+
+  /* Wall B: thank-you card with handwritten names */
+  .card-wall { padding: 56px 64px; background: var(--mint); }
+  .note-card { background: #FFFDF8; border-radius: 18px; box-shadow: 0 18px 40px rgba(60, 30, 15, .10); padding: 40px 44px 36px; max-width: 900px; margin: 22px auto 0; transform: rotate(-.6deg); }
+  .note-card h4 { font-family: "Caveat", cursive; font-size: 44px; line-height: 1; color: var(--ink); }
+  .note-card h4 i { font-style: normal; color: var(--green); }
+  .sigs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 22px; white-space: nowrap; margin-top: 22px; font-family: "Caveat", cursive; font-size: 30px; color: #3A2E28; }
+  .sigs span:nth-child(3n) { transform: rotate(-2deg); }
+  .sigs span:nth-child(4n+1) { transform: rotate(1.5deg); }
+  .note-card .from { margin-top: 24px; font-family: "Caveat", cursive; font-size: 28px; color: var(--green-dark); text-align: right; }
+
+  /* Checkout */
+  .checkout { padding: 28px; display: grid; gap: 20px; grid-template-columns: 1fr 1fr; background: var(--soft); }
+  .dialog { background: #fff; border-radius: 18px; padding: 26px; box-shadow: 0 10px 30px rgba(0,0,0,.08); }
+  .dialog h3 { font-size: 20px; margin-bottom: 16px; }
+  .fld { margin-bottom: 14px; }
+  .fld label { display: block; font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .fld .in { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 16px; color: var(--ink); }
+  .fld .in.small { width: 90px; }
+  .opt { display: flex; gap: 10px; align-items: flex-start; font-size: 15px; margin: 6px 0 4px; }
+  .box { width: 18px; height: 18px; border-radius: 4px; border: 1.5px solid #9AA1A8; flex: none; margin-top: 2px; display: grid; place-items: center; }
+  .box.on { background: var(--green-dark); border-color: var(--green-dark); color: #fff; font-size: 12px; font-weight: 800; }
+  .hint { font-size: 13px; color: var(--muted); margin: 0 0 14px 28px; }
+  .preview-chip { display: inline-block; background: var(--mint); font-weight: 600; font-size: 14px; padding: 5px 11px; border-radius: 999px; }
+  .dialog .btn { width: 100%; margin-top: 8px; }
+
+  /* Dashboard */
+  .dash { padding: 28px; background: var(--soft); display: grid; grid-template-columns: 1.15fr 1fr; gap: 20px; }
+  .panel { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 22px; }
+  .panel h3 { font-size: 18px; margin-bottom: 4px; }
+  .panel .muted { color: var(--muted); font-size: 14px; margin-bottom: 14px; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); font-size: 15px; }
+  .row .who { flex: 1; }
+  .row .who small { display: block; color: var(--muted); font-size: 13px; }
+  .pill { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; }
+  .pill.on { background: var(--mint); color: var(--green-dark); }
+  .pill.off { background: #EEF0F2; color: var(--muted); }
+  .pill.hid { background: #FBE7E4; color: #A23A2A; }
+  .mini { font-size: 13px; font-weight: 650; color: var(--green-dark); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; background: #fff; }
+
+  /* Welcome post */
+  .post-wrap { display: grid; grid-template-columns: 300px 1fr; gap: 18px; align-items: start; }
+  .post { width: 300px; height: 300px; border-radius: 14px; overflow: hidden; position: relative; }
+  .post.a { background: var(--green); color: var(--on-green); padding: 22px; display: flex; flex-direction: column; }
+  .post.a .ph { width: 128px; height: 128px; border-radius: 50%; object-fit: cover; border: 5px solid #fff; }
+  .post.a .big { font-size: 26px; font-weight: 800; line-height: 1.1; letter-spacing: -.02em; margin-top: auto; }
+  .post.a .org { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; position: absolute; top: 22px; right: 22px; }
+  .post.a .org b { width: 26px; height: 26px; border-radius: 7px; background: #fff; color: var(--green-dark); display: grid; place-items: center; font-size: 11px; }
+  .post.b img { width: 100%; height: 100%; object-fit: cover; }
+  .post.b .shade { position: absolute; inset: auto 0 0 0; padding: 70px 20px 18px; background: linear-gradient(transparent, rgba(20, 12, 8, .82)); color: #fff; }
+  .post.b .shade small { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #FFD9C7; }
+  .post.b .shade div { font-family: "Caveat", cursive; font-size: 40px; line-height: .95; margin-top: 4px; }
+  .post.b .stripe { position: absolute; top: 16px; left: 16px; background: var(--green); color: var(--on-green); font-size: 12px; font-weight: 800; padding: 6px 10px; border-radius: 8px; }
+  .caption { background: var(--soft); border: 1px solid var(--line); border-radius: 12px; padding: 14px; font-size: 14px; color: var(--body); line-height: 1.5; }
+  .btns { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  .btns .btn { padding: 10px 16px; font-size: 14px; }
+  .fine-note { font-size: 13px; color: var(--muted); margin-top: 10px; }
+  .q { background: #fff; border: 1px dashed #CDBFA6; border-radius: 16px; padding: 18px 22px; margin-top: 40px; }
+  .q h3 { font-size: 17px; margin-bottom: 8px; }
+  .q li { margin: 6px 0 6px 20px; color: var(--body); font-size: 15px; }
+</style>
+</head>
+<body>
+<div class="board">
+  <h1>Sponsor recognition</h1>
+  <p class="lead">The rescue owner said recognition is what brings donors back year after year. Three pieces: a thank-you wall on the sponsor page, an opt-in box at checkout, and a welcome post the owner can share. Shown on the Harbor Paws demo, in terracotta.</p>
+  <div class="rules"><span>Opt-in only, off by default</span><span>First name + last initial</span><span>No counts per dog</span><span>Names never grouped by dog on the page</span><span>Owner can hide any name</span><span>Nothing auto-posts to social media</span></div>
+
+  <!-- 1. The wall -->
+  <div class="label">1 · Sponsor page</div>
+  <h2>"Thank you, sponsors" wall: pick a style</h2>
+  <p>Sits right under the dogs, one wall for the whole rescue. Newest first, shows 24, then "See everyone." No numbers anywhere.</p>
+  <div class="pair">
+    <div>
+      <span class="tag">Style A · Name chips</span>
+      <div class="frame wall">
+        <div class="eyebrow">Our sponsors</div>
+        <h3>Thank you to the neighbors who keep Harbor Paws going.</h3>
+        <p class="sub">Every name here gives every month. Their gifts feed, walk and care for every dog in our care.</p>
+        <div class="chips">
+          <span class="new">Sarah K.</span><span>Marcus T.</span><span>Priya S.</span><span>Dana W.</span><span>Luis R.</span><span>Jenna M.</span><span>Owen P.</span><span>Aaliyah B.</span><span>Chris D.</span><span>Mei L.</span><span>Tom H.</span><span>Rosa G.</span><span>Ben F.</span><span>Nina A.</span>
+        </div>
+        <div class="more">See everyone →</div>
+        <div class="join"><span>Want your name here? Tick the box when you sponsor.</span><span class="btn btn-primary">Meet the dogs</span></div>
+      </div>
+    </div>
+    <div>
+      <span class="tag">Style B · Handwritten thank-you card</span>
+      <div class="frame card-wall">
+        <div class="eyebrow">Our sponsors</div>
+        <div class="note-card">
+          <h4>Thank you <i>♥</i></h4>
+          <div class="sigs"><span>Sarah K.</span><span>Marcus T.</span><span>Priya S.</span><span>Dana W.</span><span>Luis R.</span><span>Jenna M.</span><span>Owen P.</span><span>Aaliyah B.</span><span>Chris D.</span><span>Mei L.</span><span>Tom H.</span><span>Rosa G.</span></div>
+          <div class="from">love, everyone at Harbor Paws</div>
+        </div>
+        <div class="more" style="text-align:center;margin-top:20px;color:var(--green-dark);font-weight:650">See everyone →</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Checkout -->
+  <div class="label">2 · Checkout</div>
+  <h2>The opt-in box</h2>
+  <p>We only ask for first name today, so a small "last initial" box shows up once they tick it. Left: how it starts (off). Right: after they tick it.</p>
+  <div class="frame checkout">
+    <div class="dialog">
+      <h3>Sponsor Bella · $25 a month</h3>
+      <div class="fld"><label>First name</label><div class="in">Sarah</div></div>
+      <div class="fld"><label>Email</label><div class="in">sarah@email.com</div></div>
+      <div class="opt"><span class="box"></span><span>Show my name on Harbor Paws' thank-you wall</span></div>
+      <p class="hint">Only your first name and last initial. Never your email or how much you give.</p>
+      <div class="opt"><span class="box"></span><span>I'm sponsoring as a business</span></div>
+      <span class="btn btn-primary btn-lg">Continue to payment</span>
+    </div>
+    <div class="dialog">
+      <h3>Sponsor Bella · $25 a month</h3>
+      <div class="fld"><label>First name</label><div class="in">Sarah</div></div>
+      <div class="fld"><label>Email</label><div class="in">sarah@email.com</div></div>
+      <div class="opt"><span class="box on">✓</span><span>Show my name on Harbor Paws' thank-you wall</span></div>
+      <div class="fld" style="margin-left:28px"><label>Last initial <span style="color:var(--muted);font-weight:500">(optional)</span></label><div class="in small">K</div></div>
+      <p class="hint">You'll show up as <span class="preview-chip">Sarah K.</span> You can take it off any time from your update emails.</p>
+      <div class="opt"><span class="box"></span><span>I'm sponsoring as a business</span></div>
+      <span class="btn btn-primary btn-lg">Continue to payment</span>
+    </div>
+  </div>
+
+  <!-- 3. Owner dashboard -->
+  <div class="label">3 · Owner dashboard</div>
+  <h2>Hide names + the welcome post</h2>
+  <p>On the Sponsors screen. The owner sees who's on the wall and can hide anyone with one click. When someone new opts in, a ready-made post shows up to download and share. Two looks for the post:</p>
+  <div class="frame dash">
+    <div class="panel">
+      <h3>Thank-you wall</h3>
+      <p class="muted">Only sponsors who ticked the box show up. Hidden names stay private.</p>
+      <div class="row"><div class="who">Sarah K.<small>Follows Bella · joined today</small></div><span class="pill on">On the wall</span><span class="mini">Hide</span></div>
+      <div class="row"><div class="who">Marcus T.<small>Follows Max · joined Nov 12</small></div><span class="pill on">On the wall</span><span class="mini">Hide</span></div>
+      <div class="row"><div class="who">Jordan<small>Follows Bella · joined Nov 10</small></div><span class="pill off">Private</span><span style="width:52px"></span></div>
+      <div class="row"><div class="who">Kevin S.<small>Follows Luna · joined Nov 8</small></div><span class="pill hid">Hidden by you</span><span class="mini">Show</span></div>
+    </div>
+    <div class="panel">
+      <h3>New sponsor! Share a welcome</h3>
+      <p class="muted">Sarah K. just started sponsoring Bella and said yes to being thanked.</p>
+      <div class="post-wrap">
+        <div>
+          <span class="tag">Look A · Brand color</span>
+          <div class="post a">
+            <div class="org"><b>HP</b>Harbor Paws</div>
+            <img class="ph" src="../photos/dog-smile.jpg" alt="">
+            <div class="big">Welcome Sarah, Bella's newest sponsor!</div>
+          </div>
+          <span class="tag" style="margin-top:14px">Look B · Photo + handwriting</span>
+          <div class="post b">
+            <img src="../photos/dog-smile.jpg" alt="">
+            <span class="stripe">Harbor Paws</span>
+            <div class="shade"><small>New sponsor</small><div>Welcome Sarah, Bella's newest sponsor!</div></div>
+          </div>
+        </div>
+        <div>
+          <div class="caption">Welcome Sarah, Bella's newest sponsor! Thank you for helping Bella (and every dog here) get fed, walked and cared for each month. Want to sponsor a buddy too? covergiving.com/give.html?org=harbor-paws</div>
+          <div class="btns"><span class="btn btn-primary">Download image</span><span class="btn btn-ghost">Copy caption</span></div>
+          <p class="fine-note">Square image sized for Instagram and Facebook, in your page's colors and logo. Cover never posts for you.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="q">
+    <h3>Two things to decide</h3>
+    <ol>
+      <li><b>Wall style:</b> A (name chips) or B (handwritten card)? And welcome post look A or B?</li>
+      <li><b>The "Sarah sponsored Bella" pop-up at the top of live pages</b> already shows real first names today, without asking. Should it only show people who ticked the box (everyone else becomes "Someone sponsored Bella")?</li>
+    </ol>
+  </div>
+</div>
+</body>
+</html>

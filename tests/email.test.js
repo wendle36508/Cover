@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { adoptionEmail, escapeHtml, fromLine, linkUrl, makeToken, readToken } from "../supabase/functions/_shared/email.js";
+import { adoptionEmail, escapeHtml, fromLine, linkUrl, makeToken, readToken, updateEmail } from "../supabase/functions/_shared/email.js";
 
 const SECRET = "test-secret-that-is-long-enough-1234567890";
 const SPONSOR = "6d86c4fb-be6b-4179-87b3-c86709f142f8";
@@ -97,4 +97,16 @@ test("owner update email: photo, the line, and the stop link", async () => {
   const sneaky = updateEmail({ ...details, body: "<b>hi</b>", itemName: '"><script>' });
   assert.ok(!sneaky.html.includes("<script>") && !sneaky.html.includes("<b>hi"));
   assert.match(updateEmail({ ...details, kind: "program" }).text, /helps everything at Harbor Paws/);
+});
+
+test("the 'take my name off the wall' link only shows for sponsors on the wall", () => {
+  const wallUrl = "https://covergiving.com/updates.html?a=wall&t=s";
+  const on = adoptionEmail({ ...base, wallUrl });
+  assert.match(on.text, /Take my name off the thank-you wall: https:\/\/covergiving\.com\/updates\.html\?a=wall&t=s$/);
+  assert.ok(on.html.includes("Take my name off the thank-you wall"));
+  const off = adoptionEmail(base);
+  assert.ok(!/thank-you wall/.test(off.text) && !/thank-you wall/.test(off.html));
+  assert.ok(off.text.endsWith(base.stopUrl), "no trailing blank line");
+  const update = updateEmail({ nonprofitName: "Harbor Paws", kind: "animal", firstName: "Sarah", itemName: "Bella", body: "Bella learned sit!", photoUrl: "", stopUrl: base.stopUrl, wallUrl });
+  assert.ok(update.text.includes("Take my name off the thank-you wall") && update.html.includes("a=wall"));
 });

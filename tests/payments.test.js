@@ -17,14 +17,22 @@ const item = { id: ITEM_ID, nonprofit_id: "np1", name: "Bella", status: "active"
 
 test("a good sign-up is cleaned up", () => {
   assert.deepEqual(readSignup(signup), {
-    slug: "harbor-paws", itemId: ITEM_ID, firstName: "Sarah", email: "sarah@example.com", showName: true, businessName: null,
+    slug: "harbor-paws", itemId: ITEM_ID, firstName: "Sarah", email: "sarah@example.com", showName: true, lastInitial: null, businessName: null,
   });
 });
 
-test("show name defaults to yes, and a business name only counts for businesses", () => {
-  assert.equal(readSignup({ ...signup, showName: undefined }).showName, true);
+test("the thank-you wall is opt-in: only an explicit yes counts, and a business name only counts for businesses", () => {
+  for (const notYes of [undefined, false, "true", 1, null]) assert.equal(readSignup({ ...signup, showName: notYes }).showName, false, String(notYes));
   assert.equal(readSignup({ ...signup, businessName: "Sneaky Inc" }).businessName, null);
   assert.equal(readSignup({ ...signup, isBusiness: true, businessName: "Corner Cafe" }).businessName, "Corner Cafe");
+});
+
+test("last initial: one letter, cleaned up, and only kept when they opted in", () => {
+  assert.equal(readSignup({ ...signup, lastInitial: " k. " }).lastInitial, "K");
+  assert.equal(readSignup({ ...signup, lastInitial: "" }).lastInitial, null);
+  assert.equal(readSignup({ ...signup, showName: false, lastInitial: "K" }).lastInitial, null);
+  assert.equal(readSignup({ ...signup, lastInitial: 7 }).lastInitial, null);
+  for (const bad of ["KL", "1", "<", "é"]) assert.throws(() => readSignup({ ...signup, lastInitial: bad }), /one letter/, bad);
 });
 
 const badSignups = [

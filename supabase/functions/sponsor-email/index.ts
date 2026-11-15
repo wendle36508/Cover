@@ -11,6 +11,7 @@
 //   { action: "lookup", token }      what the updates page shows
 //   { action: "stop" | "resume", token }   turn this sponsorship's emails off or back on
 //   { action: "move", token, itemId }      follow a new buddy at the same nonprofit
+//   { action: "wall_off" | "wall_on", token }   take their name off the thank-you wall, or put it back
 // Email apps' one-click unsubscribe also POSTs here with ?a=stop&t=TOKEN.
 //
 // Owner updates (photo + one line about a dog or program):
@@ -107,6 +108,14 @@ async function logEmails(rows: Record<string, unknown>[]) {
   if (error) console.error("Couldn't log sponsor emails", error.message);
 }
 
+/** Which of these sponsors currently show on the thank-you wall (so their emails get the "take my name off" link). */
+async function onTheWall(sponsorIds: string[]): Promise<Set<string>> {
+  if (!sponsorIds.length) return new Set();
+  const { data, error } = await adminDatabase().from("sponsors").select("id").in("id", sponsorIds).eq("show_name", true);
+  if (error) throw error;
+  return new Set((data ?? []).map((row) => row.id));
+}
+
 // ---------- "Mark adopted / Mark finished" (the nonprofit's team) ----------
 
 async function finish(request: Request, body: Record<string, unknown>) {
@@ -130,13 +139,15 @@ async function finish(request: Request, body: Record<string, unknown>) {
 
   const sponsors = (moved ?? []) as { sponsor_id: string; first_name: string; email: string; updates_off: boolean }[];
   const toEmail = sponsors.filter((s) => !s.updates_off);
+  const onWall = await onTheWall(toEmail.map((s) => s.sponsor_id));
   const secret = requireSetting("EMAIL_LINK_SECRET");
   const outgoing: Outgoing[] = await Promise.all(toEmail.map(async (s) => {
-    const stopUrl = linkUrl("stop", await makeToken(secret, s.sponsor_id, "stop"));
+    const stopToken = await makeToken(secret, s.sponsor_id, "stop");
+    const stopUrl = linkUrl("stop", stopToken);
     const pickUrl = canPick ? linkUrl("pick", await makeToken(secret, s.sponsor_id, "pick")) : null;
     const email = adoptionEmail({
       nonprofitName: nonprofit.name, kind: nonprofit.kind, firstName: s.first_name, finishedName: item.name,
-      ownerNote: note, pickUrl, stopUrl,
+      ownerNote: note, pickUrl, stopUrl, wallUrl: onWall.has(s.sponsor_id) ? linkUrl("wall", stopToken) : null,
     });
     return { sponsorId: s.sponsor_id, to: s.email, from: fromLine(nonprofit.name), stopUrl, ...email };
   }));
@@ -186,17 +197,19 @@ async function sendUpdate(updateId: string) {
   const [{ data: item }, { data: nonprofit }, { data: sponsors, error: sponsorError }] = await Promise.all([
     db.from("follow_items").select("name").eq("id", claimed.item_id).single(),
     db.from("nonprofits").select("name, kind").eq("id", claimed.nonprofit_id).single(),
-    db.from("sponsors").select("id, first_name, email").eq("item_id", claimed.item_id)
+    db.from("sponsors").select("id, first_name, email, show_name").eq("item_id", claimed.item_id)
       .in("status", ["active", "past_due"]).eq("updates_off", false),
   ]);
   if (sponsorError) throw sponsorError;
 
   const secret = requireSetting("EMAIL_LINK_SECRET");
   const outgoing: Outgoing[] = await Promise.all((sponsors ?? []).map(async (s) => {
-    const stopUrl = linkUrl("stop", await makeToken(secret, s.id, "stop"));
+    const stopToken = await makeToken(secret, s.id, "stop");
+    const stopUrl = linkUrl("stop", stopToken);
     const email = updateEmail({
       nonprofitName: nonprofit?.name ?? "", kind: nonprofit?.kind ?? "program", firstName: s.first_name,
       itemName: item?.name ?? "", body: claimed.body, photoUrl: claimed.photo_url, stopUrl,
+      wallUrl: s.show_name ? linkUrl("wall", stopToken) : null,
     });
     return { sponsorId: s.id, to: s.email, from: fromLine(nonprofit?.name ?? ""), stopUrl, ...email };
   }));
@@ -243,7 +256,7 @@ async function sponsorFromToken(token: unknown, purposes: string[]) {
   const db = adminDatabase();
   const { data: sponsor, error } = await db
     .from("sponsors")
-    .select("id, first_name, nonprofit_id, item_id, status, updates_off")
+    .select("id, first_name, nonprofit_id, item_id, status, updates_off, show_name")
     .eq("id", link.sponsorId)
     .maybeSingle();
   if (error) throw error;
@@ -267,6 +280,7 @@ async function lookup(body: Record<string, unknown>) {
     nonprofit: { name: nonprofit?.name ?? "", slug: nonprofit?.slug ?? "", kind: nonprofit?.kind ?? "program", brandColor: page.brandColor ?? null, logo: page.logo ?? null },
     current: current ?? null,
     updatesOff: sponsor.updates_off,
+    onWall: sponsor.show_name,
     canMove: PAYING.includes(sponsor.status),
     items: items ?? [],
   };
@@ -277,6 +291,14 @@ async function setUpdates(token: unknown, off: boolean) {
   const { error } = await db.from("sponsors").update({ updates_off: off }).eq("id", sponsor.id);
   if (error) throw error;
   return { updatesOff: off };
+}
+
+/** The sponsor's own switch for the thank-you wall (from the link in their emails). */
+async function setWall(token: unknown, show: boolean) {
+  const { db, sponsor } = await sponsorFromToken(token, ["stop", "pick"]);
+  const { error } = await db.from("sponsors").update({ show_name: show }).eq("id", sponsor.id);
+  if (error) throw error;
+  return { onWall: show };
 }
 
 async function move(body: Record<string, unknown>) {
@@ -313,6 +335,8 @@ Deno.serve(async (request) => {
       case "stop": return json(await setUpdates(body.token, true), 200, cors);
       case "resume": return json(await setUpdates(body.token, false), 200, cors);
       case "move": return json(await move(body), 200, cors);
+      case "wall_off": return json(await setWall(body.token, false), 200, cors);
+      case "wall_on": return json(await setWall(body.token, true), 200, cors);
       default: throw new Problem("Unknown action.");
     }
   } catch (error) {

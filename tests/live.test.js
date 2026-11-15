@@ -46,3 +46,9 @@ test("counts arriving as text (from the database) are read as numbers", () => {
 test("page links that aren't valid are never sent to the database", async () => {
   for (const slug of ["", null, "Harbor Paws", "../x", "a;drop"]) assert.equal(await loadLiveOrg(slug), null);
 });
+
+test("the thank-you wall keeps names only, newest first, and drops blanks", () => {
+  const wall = [{ display_name: "Sarah K.", joined_at: "t2" }, { display_name: "  ", joined_at: "t1" }, { display_name: null }, { display_name: "Corner Cafe" }];
+  assert.deepEqual(orgFromRows(nonprofit, items, [], 0, [], wall).wall, ["Sarah K.", "Corner Cafe"]);
+  assert.deepEqual(orgFromRows(nonprofit, items).wall, []);
+});

@@ -46,9 +46,10 @@ async function rpc(name, args) {
 
 /**
  * Turn database rows into the shape give.js draws. Pure, so it can be tested.
- * counts: [{ item_id, sponsors }], coveredCents: number, recent: [{ display_name, item_name, joined_at }]
+ * counts: [{ item_id, sponsors }], coveredCents: number, recent: [{ display_name, item_name, joined_at }],
+ * wall: [{ display_name, joined_at }] (the thank-you wall, newest first; names only)
  */
-export function orgFromRows(nonprofit, items, counts = [], coveredCents = 0, recent = []) {
+export function orgFromRows(nonprofit, items, counts = [], coveredCents = 0, recent = [], wall = []) {
   const page = { ...DEFAULT_PAGE, ...(nonprofit.page ?? {}) };
   const countFor = new Map(counts.map((row) => [row.item_id, Number(row.sponsors) || 0]));
   const price = Math.round(nonprofit.monthly_price_cents / 100);
@@ -69,6 +70,7 @@ export function orgFromRows(nonprofit, items, counts = [], coveredCents = 0, rec
     lead: page.lead ?? `Your monthly gift keeps ${nonprofit.name} running.`,
     trust: page.trust ?? "Cancel anytime.",
     recent,
+    wall: wall.map((row) => row.display_name).filter((name) => typeof name === "string" && name.trim()),
     // The nonprofit's own cover photo, if they uploaded one (otherwise the first photo is used).
     heroPhotoWide: safeImageUrl(page.coverPhoto) || undefined,
     items: items.map((item) => ({
@@ -91,13 +93,14 @@ export async function loadLiveOrg(slug) {
     `nonprofits?slug=eq.${slug}&select=id,slug,name,place,kind,monthly_price_cents,monthly_goal_cents,page`,
   );
   if (!nonprofit) return null;
-  const [items, counts, covered, recent] = await Promise.all([
+  const [items, counts, covered, recent, wall] = await Promise.all([
     get(`follow_items?nonprofit_id=eq.${nonprofit.id}&status=eq.active&select=id,name,photo_url,photo_focus_x,photo_focus_y,badge,note&order=sort_order,created_at`),
     rpc("page_item_counts", { target: nonprofit.id }),
     rpc("page_monthly_covered", { target: nonprofit.id }),
     rpc("page_recent_sponsors", { target: nonprofit.id, how_many: 1 }),
+    rpc("page_thank_you_wall", { target: nonprofit.id, how_many: 200 }),
   ]);
-  return orgFromRows(nonprofit, items, counts, covered, recent);
+  return orgFromRows(nonprofit, items, counts, covered, recent, wall);
 }
 
 /** Ask Cover's server for Stripe's card form. Returns { clientSecret, stripeAccount } or throws with a friendly message. */

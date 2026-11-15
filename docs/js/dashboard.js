@@ -8,7 +8,7 @@ import { STRIPE_PUBLISHABLE_KEY } from "./config.js";
 import {
   DEFAULT_FOCUS, PHOTO_MAX_BYTES, checklist, clampFocus, countsByItem, fitWithin, focusFromClick, followedMost,
   finishSummary, greeting, monthStats, nameFromFile, newestSponsors, objectPosition, photoPath, photoProblem, postSummary, slugify,
-  sponsorName, statusLabel, updateAudience, validateItem, validatePage, validateSignup, whenText,
+  sponsorName, statusLabel, updateAudience, validateItem, validatePage, validateSignup, wallName, wallStatus, whenText,
 } from "./dashboard-logic.js";
 import { finishSignInFromLink } from "./auth-link.js";
 import { recordTermsAgreement } from "./terms.js";
@@ -76,7 +76,7 @@ async function loadNonprofit(nonprofitId) {
     supabase.from("nonprofits").select("*").eq("id", nonprofitId).single(),
     supabase.from("follow_items").select("*").eq("nonprofit_id", nonprofitId).order("sort_order").order("created_at"),
     supabase.from("sponsors")
-      .select("id, item_id, first_name, email, business_name, monthly_cents, status, updates_off, created_at")
+      .select("id, item_id, first_name, last_initial, email, business_name, monthly_cents, status, updates_off, show_name, wall_hidden, created_at")
       .eq("nonprofit_id", nonprofitId)
       .order("created_at", { ascending: false }),
   ]);
@@ -229,7 +229,39 @@ function sponsorRow(row, index, full) {
   tr.append(whoCell);
   if (full) tr.append(el("td", "", row.email));
   tr.append(el("td", "", row.following), el("td", "", money(row.monthly_cents / 100)), statusCell);
+  if (full) tr.append(wallCell(row));
   return tr;
+}
+
+/** "On the wall / Hidden by you / Private" plus the owner's Hide or Show button. */
+function wallCell(row) {
+  const cell = el("td", "wall-cell");
+  const wall = wallStatus(row);
+  const pill = el("span", `status s-${wall.tone}`, wall.text);
+  if (wall.tone !== "off") pill.title = `Shows as "${wallName(row)}"`;
+  cell.append(pill);
+  if (wall.button) {
+    const button = el("button", "mini-btn", wall.button);
+    button.type = "button";
+    button.setAttribute("aria-label", `${wall.button} ${wallName(row)} on the thank-you wall`);
+    button.addEventListener("click", () => setWallHidden(row, wall.hide, button));
+    cell.append(button);
+  }
+  return cell;
+}
+
+async function setWallHidden(row, hide, button) {
+  button.disabled = true;
+  const { error } = await supabase.rpc("set_wall_hidden", { target_sponsor: row.id, hidden: hide });
+  if (error) {
+    button.disabled = false;
+    toast("That didn't save. Please try again.");
+    return;
+  }
+  const sponsor = state.sponsors.find((s) => s.id === row.id);
+  if (sponsor) sponsor.wall_hidden = hide;
+  drawSponsors();
+  toast(hide ? `${wallName(row)} is hidden from your thank-you wall` : `${wallName(row)} is back on your thank-you wall`);
 }
 
 function drawSponsors() {
@@ -243,7 +275,7 @@ function drawSponsors() {
     return;
   }
   const head = el("tr");
-  ["Sponsor", "Email", "Following", "Monthly", "Status"].forEach((h) => head.append(el("th", "", h)));
+  ["Sponsor", "Email", "Following", "Monthly", "Status", "Thank-you wall"].forEach((h) => head.append(el("th", "", h)));
   table.replaceChildren(head, ...rows.map((row, i) => sponsorRow(row, i, true)));
 }
 
