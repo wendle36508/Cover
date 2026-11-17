@@ -1,0 +1,34 @@
+# Monthly import of free IRS nonprofit data into Cover's walled-off "insights" database section.
+# Runs on the 12th of each month (the IRS usually posts the registry around the 10th) and can be
+# started by hand from GitHub > Actions > "Insights import" > Run workflow.
+# Needs one repository secret: INSIGHTS_IMPORT_SECRET (the database only stores its hash).
+
+name: Insights import
+
+on:
+  schedule:
+    - cron: "0 7 12 * *"
+  workflow_dispatch:
+    inputs:
+      sources:
+        description: "Which sources (comma list)"
+        default: "irs_bmf,irs_pub78,irs_revocations,irs_990n"
+
+permissions:
+  contents: read
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Test the importer
+        run: python -m unittest discover scripts/insights
+      - name: Import IRS data
+        env:
+          INSIGHTS_IMPORT_SECRET: ${{ secrets.INSIGHTS_IMPORT_SECRET }}
+        run: python scripts/insights/import_irs.py --sources "${{ github.event.inputs.sources || 'irs_bmf,irs_pub78,irs_revocations,irs_990n' }}"

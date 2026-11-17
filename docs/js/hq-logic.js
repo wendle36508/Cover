@@ -54,3 +54,67 @@ export function eventLabel(type) {
 }
 
 export { dollars };
+
+// ---------- Nonprofit data (the walled-off insights section) ----------
+
+const SOURCE_NAMES = {
+  irs_bmf: "IRS registry (BMF)",
+  irs_pub78: "Pub 78 (tax-deductible)",
+  irs_revocations: "Revocations",
+  irs_990n: "990-N postcards",
+};
+export const STALE_DAYS = 40; // the import runs monthly; older than this means it missed a run
+
+/** One row of the sources table: name, IRS file date, rows, last run, status text and tone. */
+export function sourceRow(source, now = new Date()) {
+  const finished = source?.finished_at ? new Date(source.finished_at) : null;
+  const ageDays = finished ? (now - finished) / 86400000 : Infinity;
+  let status = { text: "Never run", tone: "warn" };
+  if (source?.status === "running") status = { text: "Running", tone: "ok" };
+  else if (source?.status === "failed") status = { text: "Failed", tone: "bad" };
+  else if (source?.status === "done") status = ageDays > STALE_DAYS ? { text: "Out of date", tone: "warn" } : { text: "Up to date", tone: "ok" };
+  return {
+    name: SOURCE_NAMES[source?.source] ?? source?.source ?? "",
+    fileDate: source?.file_date ?? "—",
+    rows: Number(source?.rows_loaded ?? 0).toLocaleString("en-US"),
+    lastRun: finished ? finished.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—",
+    status,
+    note: source?.note ?? "",
+  };
+}
+
+/** Plain-English result of an EIN check. Returns { tone, text }. */
+export function einCheckText(result) {
+  const r = result ?? {};
+  const where = [r.city, r.state].filter(Boolean).join(", ");
+  const who = r.name ? `${r.name}${where ? ` (${where})` : ""}` : `EIN ${r.ein ?? ""}`;
+  switch (r.status) {
+    case "good":
+      return { tone: "ok", text: `${who} is a 501(c)(3) in good standing and can receive tax-deductible gifts.` };
+    case "not_in_pub78":
+      return { tone: "warn", text: `${who} is in the IRS registry but not on Pub 78, so gifts may not be tax-deductible. Ask them.` };
+    case "revoked":
+      return { tone: "bad", text: `EIN ${r.ein} lost its tax-exempt status on ${r.revoked_on ?? "an unknown date"}. Don't put its page live.` };
+    case "not_found":
+      return { tone: "warn", text: `EIN ${r.ein} isn't in the IRS registry of public charities. It may be a church, a private foundation, brand new, or a typo.` };
+    default:
+      return { tone: "bad", text: "That doesn't look like an EIN. It's 9 digits, like 12-3456789." };
+  }
+}
+
+/** Check a benchmark edit before saving. Returns { ok, errors, values }. */
+export function validateBenchmark(form) {
+  const text = (value) => String(value ?? "").trim();
+  const values = {
+    id: text(form?.id), label: text(form?.label), value: text(form?.value), definition: text(form?.definition),
+    source_name: text(form?.source_name), source_url: text(form?.source_url), as_of: text(form?.as_of),
+    sort_order: Number.parseInt(form?.sort_order, 10) || 0,
+  };
+  const errors = {};
+  for (const field of ["label", "value", "definition", "source_name"]) if (!values[field]) errors[field] = "Required.";
+  if (!/^https:\/\/\S+$/.test(values.source_url)) errors.source_url = "Use a full https:// link.";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(values.as_of) || Number.isNaN(Date.parse(values.as_of))) errors.as_of = "Use a date like 2026-10-29.";
+  if (!/^[a-z0-9_]{3,60}$/.test(values.id)) errors.id = "Lowercase letters, numbers and _ only.";
+  return { ok: Object.keys(errors).length === 0, errors, values };
+}
+

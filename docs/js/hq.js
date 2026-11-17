@@ -2,7 +2,7 @@
 // The database only answers admins (admin_overview), so this page shows nothing to anyone else.
 
 import { whenText } from "./dashboard-logic.js";
-import { dollars, eventLabel, hqAlerts, hqTiles } from "./hq-logic.js";
+import { dollars, einCheckText, eventLabel, hqAlerts, hqTiles, sourceRow, validateBenchmark } from "./hq-logic.js";
 import { pageUrl, supabase } from "./supabase.js";
 
 const $ = (id) => document.getElementById(id);
@@ -75,6 +75,81 @@ function draw(data) {
     : [row(["Nothing to review."])]));
 }
 
+// ---------- Nonprofit data ----------
+
+let benchmarks = [];
+
+function drawData(status) {
+  $("data-panel").hidden = false;
+  const n = (value) => Number(value ?? 0).toLocaleString("en-US");
+  $("data-counts").textContent = `${n(status.orgs)} public charities on file · ${n(status.prospects)} with $50K to $10M revenue · ${n(status.revocations)} revoked`;
+  $("data-sources").replaceChildren(row(["Source", "IRS file", "Rows", "Last run", "Status"], true),
+    ...(status.sources ?? []).map((source) => {
+      const r = sourceRow(source);
+      const badge = el("span", `tone-${r.status.tone}`, r.status.text);
+      if (r.note) badge.title = r.note;
+      return row([r.name, r.fileDate, r.rows, r.lastRun, badge]);
+    }));
+  benchmarks = status.benchmarks ?? [];
+  $("benchmarks").replaceChildren(row(["Benchmark", "Number", "Source", "As of", ""], true), ...benchmarks.map((b) => {
+    const label = el("div", "", b.label);
+    label.append(el("small", "", b.definition));
+    const link = el("a", "", b.source_name);
+    link.href = b.source_url;
+    link.target = "_blank";
+    link.rel = "noopener";
+    const edit = el("button", "mini-btn", "Edit");
+    edit.type = "button";
+    edit.addEventListener("click", () => openBenchmark(b));
+    return row([label, b.value, link, b.as_of, edit]);
+  }));
+}
+
+async function loadData() {
+  const { data, error } = await supabase.rpc("admin_insights_status");
+  if (error) {
+    console.warn("Couldn't load nonprofit data", error.message);
+    return;
+  }
+  drawData(data);
+}
+
+function openBenchmark(b) {
+  const form = $("bench-form");
+  for (const [name, value] of Object.entries(b)) if (form.elements[name]) form.elements[name].value = value ?? "";
+  form.querySelectorAll("[data-err]").forEach((node) => (node.textContent = ""));
+  $("bench-error").textContent = "";
+  $("bench-dialog").showModal();
+}
+
+$("bench-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.target;
+  const result = validateBenchmark(Object.fromEntries(new FormData(form)));
+  form.querySelectorAll("[data-err]").forEach((node) => (node.textContent = result.errors[node.dataset.err] ?? ""));
+  if (!result.ok) return;
+  const { error } = await supabase.rpc("admin_save_benchmark", { item: result.values });
+  if (error) {
+    $("bench-error").textContent = "That didn't save. Check the link and date, then try again.";
+    return;
+  }
+  $("bench-dialog").close();
+  await loadData();
+});
+$("bench-close").addEventListener("click", () => $("bench-dialog").close());
+
+$("ein-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const box = $("ein-result");
+  box.hidden = false;
+  box.className = "ein-result";
+  box.textContent = "Checking…";
+  const { data, error } = await supabase.rpc("admin_check_ein", { target_ein: $("ein-input").value });
+  const result = error ? { tone: "bad", text: "Couldn't check right now. Try again." } : einCheckText(data);
+  box.className = `ein-result tone-${result.tone}`;
+  box.textContent = result.text;
+});
+
 async function load() {
   const { data, error } = await supabase.rpc("admin_overview");
   if (error) {
@@ -88,6 +163,7 @@ async function load() {
   $("denied").hidden = true;
   $("hq").hidden = false;
   draw(data);
+  await loadData();
 }
 
 async function start() {

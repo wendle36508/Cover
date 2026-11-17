@@ -28,6 +28,19 @@
   .yes { color: var(--green-dark); font-weight: 650; }
   .no { color: var(--muted); }
   .denied { max-width: 480px; margin: 120px auto; text-align: center; }
+  .data-panel { margin-top: 22px; }
+  .data-panel .sub { color: var(--muted); font-size: 14px; margin: -8px 0 16px; }
+  .data-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 22px; }
+  .tone-ok { color: var(--green-dark); font-weight: 650; }
+  .tone-warn { color: #9A6B12; font-weight: 650; }
+  .tone-bad { color: #8A2A18; font-weight: 650; }
+  .ein-form { display: flex; gap: 8px; }
+  .ein-form input { flex: 1; font: inherit; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+  .ein-result { margin-top: 12px; font-size: 14px; padding: 12px 14px; border-radius: 10px; background: var(--soft); }
+  .bench td small { display: block; color: var(--muted); font-size: 12px; }
+  .bench a { color: var(--green-dark); text-decoration: underline; }
+  .mini-btn { font: inherit; font-size: 13px; font-weight: 650; color: var(--green-dark); background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; cursor: pointer; }
+  @media (max-width: 900px) { .data-grid { grid-template-columns: 1fr; } }
   @media (max-width: 900px) { .hq-tiles { grid-template-columns: repeat(2, 1fr); } .hq-grid { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -53,7 +66,41 @@
       <div class="panel" style="margin-top:22px"><h2>Stripe events to review</h2><table id="events"></table></div>
     </div>
   </div>
+
+  <!-- Nonprofit data: free IRS files in the walled-off insights section. Public records and totals only. -->
+  <div class="panel data-panel" id="data-panel" hidden>
+    <h2>Nonprofit data</h2>
+    <p class="sub" id="data-counts"></p>
+    <div class="data-grid">
+      <div>
+        <div class="table-wrap"><table id="data-sources"></table></div>
+        <p class="sub" style="margin:12px 0 0">Imports run on the 12th of each month (GitHub &gt; Actions &gt; Insights import). Source: IRS, irs.gov.</p>
+      </div>
+      <div>
+        <form class="ein-form" id="ein-form"><input id="ein-input" placeholder="Check an EIN, like 12-3456789" maxlength="12" aria-label="EIN to check"><button class="btn btn-primary" type="submit">Check</button></form>
+        <div class="ein-result" id="ein-result" hidden></div>
+      </div>
+    </div>
+    <h2 style="margin-top:26px">Benchmarks</h2>
+    <p class="sub">Headline numbers from donor reports. Refresh when FEP publishes each quarter.</p>
+    <div class="table-wrap"><table class="bench" id="benchmarks"></table></div>
+  </div>
 </main>
+
+<dialog class="sponsor-dialog" id="bench-dialog" aria-labelledby="bench-title">
+  <div class="dialog-head"><div><h2 id="bench-title">Edit benchmark</h2></div><button class="dialog-close" type="button" id="bench-close" aria-label="Close">×</button></div>
+  <form class="dialog-body" id="bench-form" novalidate>
+    <input type="hidden" name="id"><input type="hidden" name="sort_order">
+    <div class="field-group"><label for="b-label">Name</label><input id="b-label" name="label" maxlength="120"><div class="field-error" data-err="label"></div></div>
+    <div class="field-group"><label for="b-value">Number</label><input id="b-value" name="value" maxlength="120"><div class="field-error" data-err="value"></div></div>
+    <div class="field-group"><label for="b-definition">What it measures</label><textarea id="b-definition" name="definition" maxlength="400"></textarea><div class="field-error" data-err="definition"></div></div>
+    <div class="field-group"><label for="b-source">Source</label><input id="b-source" name="source_name" maxlength="120"><div class="field-error" data-err="source_name"></div></div>
+    <div class="field-group"><label for="b-url">Source link</label><input id="b-url" name="source_url" maxlength="500"><div class="field-error" data-err="source_url"></div></div>
+    <div class="field-group"><label for="b-date">As of</label><input id="b-date" name="as_of" type="date"><div class="field-error" data-err="as_of"></div></div>
+    <button class="btn btn-primary btn-lg btn-block" type="submit">Save</button>
+    <div class="field-error" id="bench-error" role="alert"></div>
+  </form>
+</dialog>
 
 <script type="module" src="js/hq.js"></script>
 </body>
