@@ -161,8 +161,19 @@ async function finish(request: Request, body: Record<string, unknown>) {
     });
     return { sponsorId: s.sponsor_id, to: s.email, from: fromLine(nonprofit.name), stopUrl, ...email };
   }));
-  const ids = await sendAll(outgoing);
   const emailsOn = Boolean(Deno.env.get("RESEND_API_KEY"));
+  // Over today's email budget? The notes are written now and wait for tomorrow morning.
+  if (emailsOn && outgoing.length && !fitsEmailBudget(await sentToday(), outgoing.length)) {
+    const sendAfter = nextBudgetDay().toISOString();
+    const { error: queueError } = await db.from("queued_emails").insert(outgoing.map((email) => ({
+      nonprofit_id: nonprofit.id, sponsor_id: email.sponsorId, item_id: itemId, kind: "adopted", to_email: email.to,
+      from_line: email.from, subject: email.subject, html: email.html, text_body: email.text, stop_url: email.stopUrl,
+      send_after: sendAfter,
+    })));
+    if (queueError) throw queueError;
+    return { moved: sponsors.length, emailed: 0, queued: outgoing.length, sendAfter, muted: sponsors.length - toEmail.length, failed: 0, emailsOn };
+  }
+  const ids = await sendAll(outgoing);
 
   const log = [
     ...sponsors.filter((s) => s.updates_off).map((s) => ({ sponsor_id: s.sponsor_id, status: "skipped", provider_id: null })),
@@ -264,7 +275,28 @@ async function sendDue(request: Request) {
       console.error("Couldn't send update", row.id, failure);
     }
   }
-  return { sent };
+  return { sent, adoptionNotes: await sendQueuedNotes() };
+}
+
+/** Adoption notes that waited for today's budget: send the ones that are due, if they fit. */
+async function sendQueuedNotes(): Promise<number> {
+  const db = adminDatabase();
+  const { data: due, error } = await db.from("queued_emails").select("*").lte("send_after", new Date().toISOString())
+    .order("send_after").limit(90);
+  if (error) throw error;
+  if (!due?.length || !fitsEmailBudget(await sentToday(), due.length)) return 0;
+  const outgoing: Outgoing[] = due.map((row) => ({
+    sponsorId: row.sponsor_id, to: row.to_email, from: row.from_line, subject: row.subject, html: row.html, text: row.text_body,
+    stopUrl: row.stop_url,
+  }));
+  const ids = await sendAll(outgoing);
+  await logEmails(due.map((row, i) => ({
+    sponsor_id: row.sponsor_id, nonprofit_id: row.nonprofit_id, item_id: row.item_id, kind: row.kind,
+    status: ids[i] ? "sent" : "failed", provider_id: ids[i],
+  })));
+  const { error: deleteError } = await db.from("queued_emails").delete().in("id", due.map((row) => row.id));
+  if (deleteError) throw deleteError;
+  return ids.filter(Boolean).length;
 }
 
 // ---------- Links in sponsors' emails ----------

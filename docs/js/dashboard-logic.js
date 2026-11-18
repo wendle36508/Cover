@@ -181,6 +181,7 @@ export function finishSummary(name, result) {
   const people = (n) => `${n} sponsor${n === 1 ? "" : "s"}`;
   let text = `${name} marked finished.`;
   if (result.emailsOn === false) text += ` Emails aren't switched on yet, so ${people(moved)} weren't told.`;
+  else if (result.queued) text += ` Cover has sent a lot of email today, so ${people(result.queued)} get the news tomorrow morning.`;
   else if (result.emailed) text += ` ${people(result.emailed)} got the news and can pick a new buddy.`;
   if (result.failed) text += ` ${result.failed} email${result.failed === 1 ? "" : "s"} didn't send.`;
   return text;

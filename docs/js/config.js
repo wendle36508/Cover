@@ -7,7 +7,7 @@ export const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_R7OCbhFtdS0-xOAnazuvSw_F
 
 // Cloudflare Turnstile site key for the bot check on the sponsor checkout (public by design).
 // Empty = bot check off. The matching secret lives only in Supabase secrets (TURNSTILE_SECRET_KEY).
-export const TURNSTILE_SITE_KEY = "";
+export const TURNSTILE_SITE_KEY = "0x4AAAAAAGHpJ1fqxZMKUfcv";
 
 // Stripe's publishable key for Cover's platform account (public by design, starts with pk_).
 // Live key (pk_live_): real cards, real money. Public by design.

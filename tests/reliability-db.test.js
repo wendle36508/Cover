@@ -75,3 +75,15 @@ test("HQ health numbers are admin-only and count the right things", async () => 
   assert.deepEqual(after.open_issues, []);
   await assert.rejects(runAs(db, "authenticated", OWNER, "select public.admin_resolve_sync_issue($1)", [issue]), /Only Cover admins/);
 });
+
+test("waiting adoption notes are private to Cover's server and counted in HQ", async () => {
+  const np = (await db.query("select id from public.nonprofits where slug = 'rescue'")).rows[0].id;
+  await db.query(`insert into public.queued_emails (nonprofit_id, kind, to_email, from_line, subject, html, text_body, stop_url, send_after)
+    values ($1, 'adopted', 's@example.com', 'Rescue via Cover <hello@covergiving.com>', 'Bella went home!', '<p>x</p>', 'x', 'https://covergiving.com/updates.html?a=stop&t=x', now() + interval '1 day')`, [np]);
+  await assert.rejects(runAs(db, "anon", null, "select * from public.queued_emails"), /permission denied/);
+  await assert.rejects(runAs(db, "authenticated", OWNER, "select * from public.queued_emails"), /permission denied/);
+  const health = (await runAs(db, "authenticated", ADMIN, "select public.admin_reliability() as h")).rows[0].h;
+  assert.equal(health.updates_held, 1);
+  await assert.rejects(db.query("insert into public.queued_emails (nonprofit_id, kind, to_email, from_line, subject, html, text_body, stop_url, send_after) values ($1, 'spam', 'a', 'b', 'c', 'd', 'e', 'f', now())", [np]), /check constraint/);
+});
+

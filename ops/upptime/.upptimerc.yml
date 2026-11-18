@@ -1,0 +1,39 @@
+# Upptime settings for Cover's uptime monitor (repo: wendle36508/cover-status, kept separate from the
+# site repo so its frequent commits never rebuild covergiving.com). Checks every 5 minutes on GitHub
+# Actions (free for public repos). When something goes down, Upptime opens a GitHub Issue assigned to
+# wendle36508, which sends Tanner an email and a GitHub app notification; the issue closes itself
+# when the site is back. Status page: https://wendle36508.github.io/cover-status/
+# Copy this file to the root of the cover-status repo, replacing the template's .upptimerc.yml.
+
+owner: wendle36508
+repo: cover-status
+
+sites:
+  - name: Homepage
+    url: https://covergiving.com/
+  - name: Sign-in page
+    url: https://covergiving.com/signin.html
+  - name: Sponsor page
+    url: https://covergiving.com/give.html
+  - name: Sign-in service
+    url: https://qclasffvdviuugczaway.supabase.co/auth/v1/health
+    headers:
+      - "apikey: sb_publishable_R7OCbhFtdS0-xOAnazuvSw_FdNpYq5r"
+  - name: Checkout server
+    url: https://qclasffvdviuugczaway.supabase.co/functions/v1/create-sponsorship
+  - name: Payments webhook
+    url: https://qclasffvdviuugczaway.supabase.co/functions/v1/stripe-webhook
+  - name: Nightly Stripe check
+    url: https://qclasffvdviuugczaway.supabase.co/functions/v1/stripe-sync
+
+assignees:
+  - wendle36508
+
+status-website:
+  baseUrl: /cover-status
+  name: Cover status
+  introTitle: "Is Cover up?"
+  introMessage: Live checks of covergiving.com, sign-in and checkout, every 5 minutes.
+  navbar:
+    - title: covergiving.com
+      href: https://covergiving.com

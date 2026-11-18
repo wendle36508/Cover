@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Trimmed from the real IRS e-file (object id 202402759349301450, via the GivingTuesday 990 data lake).
+     Only the header fields and Part I / Part VIII revenue lines Cover reads are kept; names and addresses removed. -->
+<Return xmlns="http://www.irs.gov/efile">
+  <ReturnHeader>
+    <ReturnTypeCd>990</ReturnTypeCd>
+    <TaxPeriodEndDt>2023-06-30</TaxPeriodEndDt>
+    <TaxYr>2022</TaxYr>
+    <Filer><EIN>237364546</EIN></Filer>
+  </ReturnHeader>
+  <ReturnData>
+    <IRS990>
+      <CYTotalRevenueAmt>30905951</CYTotalRevenueAmt>
+      <FederatedCampaignsAmt>52440</FederatedCampaignsAmt>
+      <FundraisingAmt>2290943</FundraisingAmt>
+      <GovernmentGrantsAmt>25685286</GovernmentGrantsAmt>
+      <AllOtherContributionsAmt>1946578</AllOtherContributionsAmt>
+      <TotalContributionsAmt>29975247</TotalContributionsAmt>
+      <TotalProgramServiceRevenueAmt>215251</TotalProgramServiceRevenueAmt>
+    </IRS990>
+  </ReturnData>
+</Return>
