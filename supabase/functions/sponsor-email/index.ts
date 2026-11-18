@@ -25,7 +25,9 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 import { adminDatabase, json, requireSetting } from "../_shared/clients.ts";
-import { adoptionEmail, fromLine, linkUrl, makeToken, readToken, REPLY_TO, updateEmail } from "../_shared/email.js";
+import {
+  adoptionEmail, fitsEmailBudget, fromLine, linkUrl, makeToken, nextBudgetDay, readToken, REPLY_TO, updateEmail, utcDayStart,
+} from "../_shared/email.js";
 import { corsHeaders, parseList } from "../_shared/sponsorship.js";
 
 class Problem extends Error {
@@ -100,6 +102,14 @@ function asSignedInUser(request: Request) {
 function friendly(error: { code?: string; message: string }): never {
   if (!["P0002", "42501", "22023"].includes(error.code ?? "")) throw error;
   throw new Problem(error.message, error.code === "42501" ? 403 : 400);
+}
+
+/** Sponsor emails Cover has sent since midnight UTC (Resend's daily quota window). */
+async function sentToday(): Promise<number> {
+  const { count, error } = await adminDatabase().from("sponsor_emails")
+    .select("id", { count: "exact", head: true }).eq("status", "sent").gte("created_at", utcDayStart().toISOString());
+  if (error) throw error;
+  return count ?? 0;
 }
 
 async function logEmails(rows: Record<string, unknown>[]) {
@@ -182,6 +192,7 @@ async function post(request: Request, body: Record<string, unknown>) {
   const saved = (data ?? [])[0] as { update_id: string; send_after: string; send_now: boolean };
   if (!saved.send_now) return { sent: false, scheduledFor: saved.send_after, emailed: 0 };
   const result = await sendUpdate(saved.update_id);
+  if (result.deferredTo) return { sent: false, deferred: true, scheduledFor: result.deferredTo, emailed: 0 };
   return { sent: true, scheduledFor: null, ...result };
 }
 
@@ -201,6 +212,14 @@ async function sendUpdate(updateId: string) {
       .in("status", ["active", "past_due"]).eq("updates_off", false),
   ]);
   if (sponsorError) throw sponsorError;
+
+  // Keep room for sign-in emails: if today's budget can't fit this update, hold it for tomorrow morning.
+  if (!fitsEmailBudget(await sentToday(), sponsors?.length ?? 0)) {
+    const deferredTo = nextBudgetDay().toISOString();
+    const { error: holdError } = await db.from("item_updates").update({ status: "queued", send_after: deferredTo }).eq("id", claimed.id);
+    if (holdError) throw holdError;
+    return { emailed: 0, sponsors: sponsors?.length ?? 0, emailsOn: true, deferredTo };
+  }
 
   const secret = requireSetting("EMAIL_LINK_SECRET");
   const outgoing: Outgoing[] = await Promise.all((sponsors ?? []).map(async (s) => {

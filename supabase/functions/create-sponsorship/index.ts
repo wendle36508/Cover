@@ -1,17 +1,60 @@
 // create-sponsorship - called by the sponsor pop-up after the donor fills in the form.
-// 1. Checks the sign-up again (never trust the browser).
+// 1. Checks the sign-up again (never trust the browser), then the bot check (Cloudflare Turnstile,
+//    once TURNSTILE_SECRET_KEY is set) and the rate limits (per IP and per email, in the database).
 // 2. Checks the nonprofit is live and can take payments, and the dog or program is active.
 // 3. Saves a "pending" sponsor (it only turns "active" when Stripe confirms payment via stripe-webhook).
 // 4. Creates Stripe's card form for a monthly gift on the nonprofit's own Stripe account.
 // Returns { clientSecret, stripeAccount } so the pop-up can show the card form.
 
 import { adminDatabase, json, requireSetting, stripeClient } from "../_shared/clients.ts";
-import { BadRequest, checkReady, checkoutRequest, corsHeaders, parseList, readSignup } from "../_shared/sponsorship.js";
+import {
+  BadRequest, checkReady, checkoutRequest, clientIp, corsHeaders, parseList, rateLimitMessage, readSignup, TURNSTILE_VERIFY_URL,
+  turnstilePassed,
+} from "../_shared/sponsorship.js";
+
+class TooMany extends Error {}
+
+/** A keyed fingerprint (HMAC-SHA256), so the rate-limit table never holds a real IP or email. */
+async function fingerprint(text: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    "raw", new TextEncoder().encode(requireSetting("EMAIL_LINK_SECRET")), { name: "HMAC", hash: "SHA-256" }, false, ["sign"],
+  );
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(text));
+  return [...new Uint8Array(signature)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+/** Cloudflare Turnstile. Off until TURNSTILE_SECRET_KEY is set in Supabase secrets. */
+async function checkNotABot(body: unknown, ip: string): Promise<void> {
+  const secret = Deno.env.get("TURNSTILE_SECRET_KEY");
+  if (!secret) return;
+  const token = typeof (body as { turnstileToken?: unknown })?.turnstileToken === "string" ? (body as { turnstileToken: string }).turnstileToken : "";
+  if (!token) throw new BadRequest("Please finish the quick robot check, then try again.");
+  const form = new FormData();
+  form.append("secret", secret);
+  form.append("response", token);
+  if (ip) form.append("remoteip", ip);
+  const response = await fetch(TURNSTILE_VERIFY_URL, { method: "POST", body: form });
+  if (!turnstilePassed(await response.json().catch(() => null))) {
+    throw new BadRequest("We couldn't confirm you're not a robot. Refresh the page and try again.");
+  }
+}
+
+/** Per-IP and per-email limits on opening the card form (stops card testing and bots). */
+async function checkRateLimit(ip: string, email: string): Promise<void> {
+  const { data: verdict, error } = await adminDatabase().rpc("checkout_rate_check", {
+    ip_hash: await fingerprint(`ip:${ip || "unknown"}`),
+    email_hash: await fingerprint(`email:${email}`),
+  });
+  if (error) throw error;
+  const message = rateLimitMessage(verdict);
+  if (message) throw new TooMany(message);
+}
 
 Deno.serve(async (request) => {
   const allowedOrigins = parseList(Deno.env.get("ALLOWED_ORIGINS"));
   const cors = corsHeaders(request.headers.get("Origin") ?? "", allowedOrigins);
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
+  if (request.method === "GET") return json({ ok: true, service: "create-sponsorship" }, 200, cors); // uptime monitor
   if (request.method !== "POST") return json({ error: "Use POST." }, 405, cors);
 
   try {
@@ -22,6 +65,9 @@ Deno.serve(async (request) => {
       throw new BadRequest("Send the sign-up as JSON.");
     }
     const signup = readSignup(body);
+    const ip = clientIp(request.headers);
+    await checkNotABot(body, ip);
+    await checkRateLimit(ip, signup.email);
     const db = adminDatabase();
 
     const { data: nonprofit, error: nonprofitError } = await db
@@ -67,6 +113,7 @@ Deno.serve(async (request) => {
     return json({ clientSecret: session.client_secret, stripeAccount: nonprofit.stripe_account_id }, 200, cors);
   } catch (error) {
     if (error instanceof BadRequest) return json({ error: error.message }, 400, cors);
+    if (error instanceof TooMany) return json({ error: error.message }, 429, cors);
     console.error("create-sponsorship failed", error);
     return json({ error: "Something went wrong on our end. Please try again in a minute." }, 500, cors);
   }

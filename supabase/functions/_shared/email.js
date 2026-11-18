@@ -11,6 +11,35 @@ export const SITE_URL = "https://covergiving.com";
 export const FROM_ADDRESS = "hello@covergiving.com";
 export const REPLY_TO = "hello@covergiving.com"; // Tanner's call: replies (like cancel requests) come to Cover
 export const PICK_LINK_DAYS = 30;
+
+// Resend's free plan sends 100 emails per UTC day, shared by sign-in links and sponsor emails
+// (Tanner, Nov 18: stay on the free plan). Sponsor update emails stop at 70 a day so sign-ins
+// always have about 30 left. An update that would go over waits for the next morning.
+export const RESEND_DAILY_LIMIT = 100;
+export const SPONSOR_EMAIL_DAILY_BUDGET = 70;
+const BUDGET_RESEND_HOUR_UTC = 14; // 9am Eastern in winter, 10am in summer
+
+/** Midnight UTC at the start of the day `now` is in (Resend's daily quota resets then). */
+export function utcDayStart(now = new Date()) {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
+
+/** When a held-back update goes out: tomorrow (UTC) at 14:00 UTC. */
+export function nextBudgetDay(now = new Date()) {
+  const start = utcDayStart(now);
+  return new Date(start.getTime() + 86400000 + BUDGET_RESEND_HOUR_UTC * 3600000);
+}
+
+/**
+ * Can an update to `audience` sponsors go out now, given `sentToday` sponsor emails already sent?
+ * Yes if it fits in today's budget. An update bigger than the whole budget goes out first thing on a
+ * fresh day (nothing sent yet), so it's never stuck forever.
+ */
+export function fitsEmailBudget(sentToday, audience, budget = SPONSOR_EMAIL_DAILY_BUDGET) {
+  const sent = Math.max(0, Number(sentToday) || 0);
+  const size = Math.max(0, Number(audience) || 0);
+  return size === 0 || sent + size <= budget || sent === 0;
+}
 const PURPOSES = new Set(["stop", "pick"]);
 
 const encoder = new TextEncoder();

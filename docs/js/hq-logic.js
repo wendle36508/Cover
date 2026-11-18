@@ -118,3 +118,68 @@ export function validateBenchmark(form) {
   return { ok: Object.keys(errors).length === 0, errors, values };
 }
 
+// ---------- Status line (reliability, Nov 18) ----------
+
+export const SPONSOR_EMAIL_BUDGET = 70; // matches supabase/functions/_shared/email.js
+const SYNC_STALE_HOURS = 30; // the re-sync runs nightly; older than this means it missed a night
+
+function ago(iso, now) {
+  if (!iso) return "never";
+  const minutes = Math.round((now - new Date(iso)) / 60000);
+  if (minutes < 60) return `${Math.max(minutes, 0)} min ago`;
+  const hours = Math.round(minutes / 60);
+  return hours < 48 ? `${hours} hr ago` : `${Math.round(hours / 24)} days ago`;
+}
+
+/**
+ * The status line at the top of HQ. checks: { site, checkout } (true = answered, false = down, null = not checked).
+ * health: admin_reliability(). Returns [{ label, value, tone: "ok" | "warn" | "bad" }].
+ */
+export function healthItems(checks, health, now = new Date()) {
+  const h = health ?? {};
+  const up = (value) => (value === true ? { value: "Up", tone: "ok" } : value === false ? { value: "Down", tone: "bad" } : { value: "Checking…", tone: "warn" });
+  const sync = h.last_sync;
+  const syncAgeHours = sync?.started_at ? (now - new Date(sync.started_at)) / 3600000 : Infinity;
+  let syncItem = { value: "Hasn't run yet", tone: "warn" };
+  if (sync && sync.finished_at && syncAgeHours <= SYNC_STALE_HOURS) {
+    syncItem = sync.errors > 0
+      ? { value: `${ago(sync.started_at, now)}, ${sync.errors} couldn't be checked`, tone: "warn" }
+      : { value: `${ago(sync.started_at, now)}, ${sync.fixed} fixed`, tone: "ok" };
+  } else if (sync) {
+    syncItem = { value: `Last ran ${ago(sync.started_at, now)}`, tone: "bad" };
+  }
+  const sent = Number(h.emails_sent_today ?? 0);
+  const failed = Number(h.emails_failed_24h ?? 0);
+  let emailTone = sent >= SPONSOR_EMAIL_BUDGET ? "warn" : "ok";
+  if (failed > 0) emailTone = "bad";
+  return [
+    { label: "Website", ...up(checks?.site) },
+    { label: "Checkout server", ...up(checks?.checkout) },
+    { label: "Last Stripe update", value: ago(h.last_webhook_at, now), tone: "ok" },
+    { label: "Nightly Stripe check", ...syncItem },
+    {
+      label: "Sponsor emails today",
+      value: `${sent} of ${SPONSOR_EMAIL_BUDGET}${failed ? ` · ${failed} failed` : ""}${h.updates_held ? ` · ${h.updates_held} held for tomorrow` : ""}`,
+      tone: emailTone,
+    },
+    { label: "Checkouts blocked (24 hr)", value: String(h.checkout_blocked_24h ?? 0), tone: (h.checkout_blocked_24h ?? 0) > 20 ? "warn" : "ok" },
+  ];
+}
+
+/** One line for a re-sync flag. */
+export function syncIssueText(issue) {
+  const who = [issue?.sponsor, issue?.nonprofit].filter(Boolean).join(" at ") || "A sponsorship";
+  switch (issue?.kind) {
+    case "status_fixed":
+      return `${who}: Cover said "${issue.cover_status}", Stripe said "${issue.stripe_status}". Fixed to match Stripe.`;
+    case "missed_payment_update":
+      return `${who}: paid in Stripe but Cover missed the update. Now marked active.`;
+    case "not_in_stripe":
+      return `${who}: Stripe has no record of this sponsorship. Look it up in Stripe.`;
+    case "stripe_error":
+      return `${who}: couldn't be checked with Stripe (${issue.detail ?? "unknown error"}).`;
+    default:
+      return `${who}: ${issue?.kind ?? "unknown issue"}.`;
+  }
+}
+

@@ -163,7 +163,7 @@ export function corsHeaders(origin, allowedOrigins) {
   const allowed = allowedOrigins.includes(origin) ? origin : allowedOrigins[0] ?? "";
   return {
     "Access-Control-Allow-Origin": allowed,
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "content-type, apikey, authorization, x-client-info",
     Vary: "Origin",
   };
@@ -172,4 +172,60 @@ export function corsHeaders(origin, allowedOrigins) {
 /** Comma-separated list from an environment setting, with blanks removed. */
 export function parseList(value) {
   return (value ?? "").split(",").map((part) => part.trim()).filter(Boolean);
+}
+
+// ---------- Checkout protection (approved Nov 18) ----------
+
+export const TURNSTILE_VERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
+
+/** The visitor's IP address from the request headers (Supabase puts the real one first). "" if unknown. */
+export function clientIp(headers) {
+  const get = (name) => (typeof headers?.get === "function" ? headers.get(name) : headers?.[name]) ?? "";
+  const forwarded = String(get("x-forwarded-for")).split(",")[0].trim();
+  return forwarded || String(get("cf-connecting-ip")).trim() || String(get("x-real-ip")).trim();
+}
+
+/** Did Cloudflare's bot check pass? Only an explicit success counts. */
+export function turnstilePassed(result) {
+  return result?.success === true;
+}
+
+/** The message a visitor sees when the rate limit stops them (never says which limit). */
+export function rateLimitMessage(verdict) {
+  return verdict === "ok" ? null : "Too many tries in a short time. Please wait a little while and try again.";
+}
+
+// ---------- Nightly Stripe re-sync (approved Nov 18) ----------
+
+const CHECKOUT_GRACE_MS = 24 * 3600 * 1000; // a card form left open less than a day isn't stale yet
+
+/**
+ * What to do for one sponsorship after asking Stripe about it.
+ * sponsor: { status, created_at }; stripe: { subscriptionStatus } or { sessionStatus, paymentStatus, subscriptionId }
+ * or { missing: true }. Returns null (nothing to do) or { set, kind, stripeStatus }.
+ */
+export function syncAction(sponsor, stripe, now = new Date()) {
+  if (!sponsor || !stripe) return null;
+  if (stripe.missing) {
+    return { set: null, kind: "not_in_stripe", stripeStatus: "missing" };
+  }
+  if (stripe.subscriptionStatus) {
+    const real = statusForSubscription(stripe.subscriptionStatus);
+    if (real === "pending" || real === sponsor.status) return null;
+    return { set: { status: real }, kind: "status_fixed", stripeStatus: stripe.subscriptionStatus };
+  }
+  if (sponsor.status !== "pending") return null;
+  const paid = stripe.paymentStatus === "paid" || stripe.paymentStatus === "no_payment_required";
+  if (stripe.sessionStatus === "complete" && paid) {
+    return {
+      set: { status: "active", ...(stripe.subscriptionId ? { stripe_subscription_id: stripe.subscriptionId } : {}) },
+      kind: "missed_payment_update",
+      stripeStatus: "complete",
+    };
+  }
+  const age = now.getTime() - new Date(sponsor.created_at).getTime();
+  if (stripe.sessionStatus === "expired" && age > CHECKOUT_GRACE_MS) {
+    return { set: { status: "canceled" }, kind: null, stripeStatus: "expired" };
+  }
+  return null;
 }

@@ -191,3 +191,41 @@ test("only Cover's own site addresses are allowed to call the server", () => {
   assert.deepEqual(parseList(" a , ,b,"), ["a", "b"]);
   assert.deepEqual(parseList(undefined), []);
 });
+
+// ---------- checkout protection and nightly re-sync ----------
+
+test("client IP comes from the first forwarded address, with fallbacks", async () => {
+  const { clientIp } = await import("../supabase/functions/_shared/sponsorship.js");
+  assert.equal(clientIp(new Headers({ "x-forwarded-for": "203.0.113.9, 10.0.0.1" })), "203.0.113.9");
+  assert.equal(clientIp({ "cf-connecting-ip": "198.51.100.2" }), "198.51.100.2");
+  assert.equal(clientIp(new Headers()), "");
+  assert.equal(clientIp(null), "");
+});
+
+test("bot check only passes on an explicit success; rate limit message never says which limit", async () => {
+  const { turnstilePassed, rateLimitMessage } = await import("../supabase/functions/_shared/sponsorship.js");
+  assert.equal(turnstilePassed({ success: true }), true);
+  for (const bad of [{ success: false }, { success: "true" }, null, {}]) assert.equal(turnstilePassed(bad), false);
+  assert.equal(rateLimitMessage("ok"), null);
+  assert.equal(rateLimitMessage("ip"), rateLimitMessage("email"));
+  assert.doesNotMatch(rateLimitMessage("ip"), /ip|email/i);
+});
+
+test("nightly re-sync: Stripe wins, and missed payments are caught", async () => {
+  const { syncAction } = await import("../supabase/functions/_shared/sponsorship.js");
+  const now = new Date("2026-12-02T07:30:00Z");
+  const old = "2026-11-28T10:00:00Z";
+  assert.equal(syncAction({ status: "active" }, { subscriptionStatus: "active" }, now), null, "matches: nothing to do");
+  assert.deepEqual(syncAction({ status: "active" }, { subscriptionStatus: "canceled" }, now),
+    { set: { status: "canceled" }, kind: "status_fixed", stripeStatus: "canceled" });
+  assert.deepEqual(syncAction({ status: "active" }, { subscriptionStatus: "past_due" }, now).set, { status: "past_due" });
+  assert.equal(syncAction({ status: "active" }, { subscriptionStatus: "incomplete" }, now), null, "never downgrades to pending");
+  assert.deepEqual(syncAction({ status: "pending", created_at: old }, { sessionStatus: "complete", paymentStatus: "paid", subscriptionId: "sub_1" }, now),
+    { set: { status: "active", stripe_subscription_id: "sub_1" }, kind: "missed_payment_update", stripeStatus: "complete" });
+  assert.deepEqual(syncAction({ status: "pending", created_at: old }, { sessionStatus: "expired" }, now),
+    { set: { status: "canceled" }, kind: null, stripeStatus: "expired" }, "abandoned card forms are tidied quietly");
+  assert.equal(syncAction({ status: "pending", created_at: "2026-12-02T06:00:00Z" }, { sessionStatus: "expired" }, now), null, "too new to tidy");
+  assert.equal(syncAction({ status: "pending", created_at: old }, { sessionStatus: "open" }, now), null);
+  assert.equal(syncAction({ status: "active" }, { missing: true }, now).kind, "not_in_stripe");
+  assert.equal(syncAction(null, {}, now), null);
+});

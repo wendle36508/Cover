@@ -324,6 +324,7 @@ export function postSummary(name, result, now = new Date()) {
   if (!result?.sent) {
     const when = new Date(result?.scheduledFor ?? now);
     const day = when.toLocaleDateString("en-US", { weekday: "long", timeZone: "America/New_York" });
+    if (result?.deferred) return `Update saved. Cover has sent a lot of email today, so this one goes out ${day} morning.`;
     return `You already sent an update about ${name} today, so this one goes out ${day} at 9am.`;
   }
   if (result.emailsOn === false) return `Update saved. Emails aren't switched on yet, so no one was emailed.`;

@@ -2,7 +2,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { dollars, einCheckText, eventLabel, hqAlerts, hqTiles, sourceRow, STALE_DAYS, validateBenchmark } from "../docs/js/hq-logic.js";
+import {
+  dollars, einCheckText, eventLabel, healthItems, hqAlerts, hqTiles, sourceRow, SPONSOR_EMAIL_BUDGET, STALE_DAYS, syncIssueText, validateBenchmark,
+} from "../docs/js/hq-logic.js";
 
 const base = { live_pages: 1, nonprofits: 2, active_sponsors: 5, monthly_cents: 12500, new_sponsors_7d: 2, card_failed: 0, needs_review: 0, pending_invites: 0, canceled_30d: 1 };
 
@@ -79,4 +81,44 @@ test("benchmark edits need a real https link, a date and every field", () => {
   const bad = validateBenchmark({ ...good, source_url: "javascript:alert(1)", as_of: "Jan 28", value: " ", id: "Bad!" });
   assert.deepEqual(Object.keys(bad.errors).sort(), ["as_of", "id", "source_url", "value"]);
   assert.equal(validateBenchmark(undefined).ok, false);
+});
+
+// ---------- status line ----------
+
+test("status line: up/down checks, Stripe freshness, nightly check and email budget", () => {
+  const now = new Date("2026-12-01T15:00:00Z");
+  const healthy = {
+    last_webhook_at: "2026-12-01T14:40:00Z", emails_sent_today: 12, emails_failed_24h: 0, updates_held: 0, checkout_blocked_24h: 0,
+    last_sync: { started_at: "2026-12-01T07:30:00Z", finished_at: "2026-12-01T07:31:00Z", checked: 4, fixed: 0, errors: 0 },
+  };
+  const items = Object.fromEntries(healthItems({ site: true, checkout: true }, healthy, now).map((i) => [i.label, i]));
+  assert.deepEqual(items.Website, { label: "Website", value: "Up", tone: "ok" });
+  assert.equal(items["Last Stripe update"].value, "20 min ago");
+  assert.deepEqual([items["Nightly Stripe check"].value, items["Nightly Stripe check"].tone], ["8 hr ago, 0 fixed", "ok"]);
+  assert.deepEqual([items["Sponsor emails today"].value, items["Sponsor emails today"].tone], [`12 of ${SPONSOR_EMAIL_BUDGET}`, "ok"]);
+
+  const trouble = {
+    ...healthy, emails_sent_today: 70, emails_failed_24h: 2, updates_held: 1, checkout_blocked_24h: 25,
+    last_sync: { started_at: "2026-11-28T07:30:00Z", finished_at: "2026-11-28T07:31:00Z", errors: 0, fixed: 0 },
+  };
+  const bad = Object.fromEntries(healthItems({ site: false, checkout: null }, trouble, now).map((i) => [i.label, i]));
+  assert.equal(bad.Website.tone, "bad");
+  assert.equal(bad["Checkout server"].value, "Checking…");
+  assert.deepEqual([bad["Nightly Stripe check"].value, bad["Nightly Stripe check"].tone], ["Last ran 3 days ago", "bad"]);
+  assert.equal(bad["Sponsor emails today"].value, "70 of 70 · 2 failed · 1 held for tomorrow");
+  assert.equal(bad["Sponsor emails today"].tone, "bad");
+  assert.equal(bad["Checkouts blocked (24 hr)"].tone, "warn");
+
+  const empty = Object.fromEntries(healthItems(undefined, undefined, now).map((i) => [i.label, i]));
+  assert.equal(empty["Last Stripe update"].value, "never");
+  assert.equal(empty["Nightly Stripe check"].value, "Hasn't run yet");
+});
+
+test("re-sync flags read in plain English", () => {
+  assert.equal(syncIssueText({ kind: "status_fixed", sponsor: "Sarah", nonprofit: "Rescue", cover_status: "active", stripe_status: "canceled" }),
+    'Sarah at Rescue: Cover said "active", Stripe said "canceled". Fixed to match Stripe.');
+  assert.match(syncIssueText({ kind: "missed_payment_update", sponsor: "Sarah" }), /^Sarah: paid in Stripe/);
+  assert.match(syncIssueText({ kind: "not_in_stripe" }), /^A sponsorship: Stripe has no record/);
+  assert.match(syncIssueText({ kind: "stripe_error", detail: "timeout" }), /\(timeout\)/);
+  assert.match(syncIssueText(null), /unknown issue/);
 });

@@ -10,6 +10,7 @@ import { changesForEvent } from "../_shared/sponsorship.js";
 const cryptoProvider = Stripe.createSubtleCryptoProvider();
 
 Deno.serve(async (request) => {
+  if (request.method === "GET") return json({ ok: true, service: "stripe-webhook" }, 200); // uptime monitor
   if (request.method !== "POST") return json({ error: "Use POST." }, 405);
   const signature = request.headers.get("Stripe-Signature");
   if (!signature) return json({ error: "Missing Stripe signature." }, 400);

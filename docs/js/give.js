@@ -8,6 +8,7 @@
 import { applyBrand, pageLinks, safeImageUrl } from "./brand.js";
 import { STRIPE_PUBLISHABLE_KEY } from "./config.js";
 import { loadLiveOrg, startSponsorship } from "./live.js";
+import { TURNSTILE_SITE_KEY } from "./config.js";
 import { ORGS, SHARED_FAQ } from "./orgs.js";
 import {
   buildRecord, cleanInitial, money, percentCovered, publicName,
@@ -187,6 +188,61 @@ function drawAll(latest) {
   addChecks();
 }
 
+// ---------- Bot check (Cloudflare Turnstile) ----------
+// Most visitors never see it ("interaction-only"); it only asks for a click when something looks off.
+// Off until a site key is set in config.js. Not used on demo pages.
+
+const TURNSTILE_SCRIPT = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+let turnstileWidget = null;
+let turnstileToken = "";
+let turnstileLoading = null;
+
+function loadTurnstile() {
+  turnstileLoading ??= new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = TURNSTILE_SCRIPT;
+    script.async = true;
+    script.onload = resolve;
+    script.onerror = () => reject(new Error("The robot check didn't load."));
+    document.head.append(script);
+  });
+  return turnstileLoading;
+}
+
+async function startTurnstile() {
+  if (!TURNSTILE_SITE_KEY || !org.live) return;
+  try {
+    await loadTurnstile();
+    turnstileToken = "";
+    if (turnstileWidget !== null) {
+      globalThis.turnstile.reset(turnstileWidget);
+      return;
+    }
+    turnstileWidget = globalThis.turnstile.render("#turnstile", {
+      sitekey: TURNSTILE_SITE_KEY,
+      appearance: "interaction-only",
+      callback: (token) => (turnstileToken = token),
+      "expired-callback": () => (turnstileToken = ""),
+    });
+  } catch (error) {
+    console.warn(error);
+  }
+}
+
+const TURNSTILE_WAIT_MS = 8000; // how long to wait for the check to finish if they click fast
+
+/** The token for this checkout (single use, so the widget resets after each try). Waits briefly if it isn't ready. */
+async function takeTurnstileToken() {
+  if (!TURNSTILE_SITE_KEY || !org.live) return "";
+  for (let waited = 0; !turnstileToken && waited < TURNSTILE_WAIT_MS; waited += 250) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  const token = turnstileToken;
+  turnstileToken = "";
+  if (turnstileWidget !== null) globalThis.turnstile?.reset(turnstileWidget);
+  return token;
+}
+
 // ---------- The sponsor pop-up ----------
 
 const dialog = $("sponsor-dialog");
@@ -231,6 +287,7 @@ function openDialog(itemName) {
   showStep("step-form");
   dialog.showModal();
   form.elements.firstName.focus();
+  startTurnstile();
 }
 
 function closeDialog() {
@@ -266,6 +323,7 @@ async function showCardForm(values) {
       lastInitial: values.lastInitial,
       isBusiness: values.isBusiness,
       businessName: values.businessName,
+      turnstileToken: await takeTurnstileToken(),
     });
     const stripe = globalThis.Stripe(STRIPE_PUBLISHABLE_KEY, { stripeAccount });
     const record = pendingRecord;

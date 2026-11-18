@@ -14,6 +14,13 @@
   .hq-top h1 { font-size: 30px; letter-spacing: -.03em; display: flex; align-items: center; gap: 12px; }
   .hq-top h1 img { height: 26px; }
   .hq-top .meta { color: var(--muted); font-size: 14px; display: flex; gap: 10px; align-items: center; }
+  .health { display: flex; flex-wrap: wrap; gap: 8px; margin: -8px 0 20px; }
+  .health span { background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: 13px; color: var(--body); display: inline-flex; gap: 6px; align-items: center; }
+  .health span::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--green); }
+  .health span.warn::before { background: #E0A526; }
+  .health span.bad::before { background: #D2462E; }
+  .health b { color: var(--ink); font-weight: 650; }
+  .issues li { display: flex; gap: 10px; align-items: center; justify-content: space-between; }
   .hq-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 22px; }
   .hq-tile { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
   .hq-tile span { font-size: 13px; color: var(--muted); }
@@ -54,6 +61,7 @@
     <div class="meta"><span id="updated"></span><button class="btn btn-ghost" type="button" id="refresh">Refresh</button><a class="btn btn-dark" href="dashboard.html">Dashboard</a></div>
   </div>
 
+  <div class="health" id="health" aria-live="polite"></div>
   <div class="hq-tiles" id="tiles"></div>
 
   <div class="hq-grid">
@@ -63,6 +71,7 @@
     </div>
     <div>
       <div class="panel"><h2>Needs your attention</h2><ul class="alerts" id="alerts"></ul></div>
+      <div class="panel" style="margin-top:22px" id="issues-panel" hidden><h2>Stripe re-sync flags</h2><ul class="alerts issues" id="issues"></ul></div>
       <div class="panel" style="margin-top:22px"><h2>Stripe events to review</h2><table id="events"></table></div>
     </div>
   </div>

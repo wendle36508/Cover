@@ -249,3 +249,6 @@ h3 { font-size: 21px; letter-spacing: -.015em; font-weight: 680; line-height: 1.
   .note-from { font-size: 25px; }
 }
 
+/* Cloudflare bot check on the sponsor checkout: invisible unless it needs a click. */
+.turnstile:empty { display: none; }
+.turnstile { margin: 4px 0 12px; }

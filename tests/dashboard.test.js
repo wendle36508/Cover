@@ -183,6 +183,7 @@ test("who an update reaches, and what the owner is told", async () => {
   assert.equal(updateAudience(sponsors, "bella"), 2);
   assert.equal(updateAudience([], "bella"), 0);
   assert.equal(postSummary("Bella", { sent: true, emailed: 2, sponsors: 2, emailsOn: true }), "Update sent to 2 sponsors.");
+  assert.match(postSummary("Bella", { sent: false, deferred: true, scheduledFor: "2026-12-02T14:00:00Z" }), /^Update saved\. Cover has sent a lot of email today, so this one goes out Wednesday morning\.$/);
   assert.match(postSummary("Bella", { sent: true, emailed: 0, sponsors: 0, emailsOn: true }), /no sponsors with updates on yet/);
   assert.equal(postSummary("Bella", { sent: false, scheduledFor: "2026-11-16T14:00:00Z" }), "You already sent an update about Bella today, so this one goes out Monday at 9am.");
 });

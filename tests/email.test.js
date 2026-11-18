@@ -2,7 +2,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { adoptionEmail, escapeHtml, fromLine, linkUrl, makeToken, readToken, updateEmail } from "../supabase/functions/_shared/email.js";
+import {
+  adoptionEmail, escapeHtml, fitsEmailBudget, fromLine, linkUrl, makeToken, nextBudgetDay, readToken, RESEND_DAILY_LIMIT,
+  SPONSOR_EMAIL_DAILY_BUDGET, updateEmail, utcDayStart,
+} from "../supabase/functions/_shared/email.js";
 
 const SECRET = "test-secret-that-is-long-enough-1234567890";
 const SPONSOR = "6d86c4fb-be6b-4179-87b3-c86709f142f8";
@@ -109,4 +112,22 @@ test("the 'take my name off the wall' link only shows for sponsors on the wall",
   assert.ok(off.text.endsWith(base.stopUrl), "no trailing blank line");
   const update = updateEmail({ nonprofitName: "Harbor Paws", kind: "animal", firstName: "Sarah", itemName: "Bella", body: "Bella learned sit!", photoUrl: "", stopUrl: base.stopUrl, wallUrl });
   assert.ok(update.text.includes("Take my name off the thank-you wall") && update.html.includes("a=wall"));
+});
+
+test("daily email budget keeps room for sign-in emails", () => {
+  assert.ok(SPONSOR_EMAIL_DAILY_BUDGET <= RESEND_DAILY_LIMIT - 25, "at least 25 left for sign-ins");
+  assert.equal(fitsEmailBudget(0, 5), true);
+  assert.equal(fitsEmailBudget(60, 10), true, "exactly at the budget is fine");
+  assert.equal(fitsEmailBudget(61, 10), false);
+  assert.equal(fitsEmailBudget(0, 150), true, "a huge update goes out first thing on a fresh day");
+  assert.equal(fitsEmailBudget(5, 150), false);
+  assert.equal(fitsEmailBudget(99, 0), true, "no audience, nothing to hold");
+  assert.equal(fitsEmailBudget(undefined, "x"), true);
+});
+
+test("the budget day follows Resend's UTC reset", () => {
+  const evening = new Date("2026-12-01T23:30:00Z");
+  assert.equal(utcDayStart(evening).toISOString(), "2026-12-01T00:00:00.000Z");
+  assert.equal(nextBudgetDay(evening).toISOString(), "2026-12-02T14:00:00.000Z");
+  assert.equal(nextBudgetDay(new Date("2026-12-31T01:00:00Z")).toISOString(), "2027-01-01T14:00:00.000Z");
 });

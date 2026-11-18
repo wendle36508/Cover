@@ -2,7 +2,8 @@
 // The database only answers admins (admin_overview), so this page shows nothing to anyone else.
 
 import { whenText } from "./dashboard-logic.js";
-import { dollars, einCheckText, eventLabel, hqAlerts, hqTiles, sourceRow, validateBenchmark } from "./hq-logic.js";
+import { dollars, einCheckText, eventLabel, healthItems, hqAlerts, hqTiles, sourceRow, syncIssueText, validateBenchmark } from "./hq-logic.js";
+import { SUPABASE_URL } from "./config.js";
 import { pageUrl, supabase } from "./supabase.js";
 
 const $ = (id) => document.getElementById(id);
@@ -73,6 +74,45 @@ function draw(data) {
   $("events").replaceChildren(...(events.length
     ? events.map((e) => row([eventLabel(e.type), whenText(e.received_at)]))
     : [row(["Nothing to review."])]));
+}
+
+// ---------- Status line ----------
+
+/** Does this address answer? (Website: the homepage. Checkout server: its health answer.) */
+async function answers(url, needsJson) {
+  try {
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) return false;
+    return needsJson ? (await response.json()).ok === true : true;
+  } catch {
+    return false;
+  }
+}
+
+async function loadHealth() {
+  const [site, checkout, { data: health }] = await Promise.all([
+    answers(pageUrl("index.html"), false),
+    answers(`${SUPABASE_URL}/functions/v1/create-sponsorship`, true),
+    supabase.rpc("admin_reliability"),
+  ]);
+  $("health").replaceChildren(...healthItems({ site, checkout }, health).map((item) => {
+    const chip = el("span", item.tone, `${item.label}: `);
+    chip.append(el("b", "", item.value));
+    return chip;
+  }));
+  const issues = health?.open_issues ?? [];
+  $("issues-panel").hidden = issues.length === 0;
+  $("issues").replaceChildren(...issues.map((issue) => {
+    const li = el("li", issue.kind === "status_fixed" || issue.kind === "missed_payment_update" ? "warn" : "bad", syncIssueText(issue));
+    const done = el("button", "mini-btn", "Got it");
+    done.type = "button";
+    done.addEventListener("click", async () => {
+      await supabase.rpc("admin_resolve_sync_issue", { issue_id: issue.id });
+      await loadHealth();
+    });
+    li.append(done);
+    return li;
+  }));
 }
 
 // ---------- Nonprofit data ----------
@@ -163,7 +203,7 @@ async function load() {
   $("denied").hidden = true;
   $("hq").hidden = false;
   draw(data);
-  await loadData();
+  await Promise.all([loadData(), loadHealth()]);
 }
 
 async function start() {
