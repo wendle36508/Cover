@@ -14,8 +14,17 @@ export function requireSetting(name: string): string {
   return value;
 }
 
+/**
+ * Cover's Stripe key. Uses the restricted key (STRIPE_RESTRICTED_KEY, only the permissions Cover needs)
+ * when it's set, otherwise the full secret key. To undo a bad restricted key instantly, delete that one
+ * secret in Supabase and Cover goes back to STRIPE_SECRET_KEY.
+ */
+export function stripeKey(): string {
+  return Deno.env.get("STRIPE_RESTRICTED_KEY") || requireSetting("STRIPE_SECRET_KEY");
+}
+
 export function stripeClient(): Stripe {
-  return new Stripe(requireSetting("STRIPE_SECRET_KEY"), {
+  return new Stripe(stripeKey(), {
     apiVersion: STRIPE_API_VERSION as Stripe.LatestApiVersion,
     httpClient: Stripe.createFetchHttpClient(),
     appInfo: { name: "Cover" },

@@ -4,8 +4,12 @@
 // Stripe for the real status (practice pages marked is_test are skipped). Stripe wins: anything that didn't match is fixed and flagged in Cover HQ.
 //
 // GET ?health returns {ok:true} for the uptime monitor (no secret needed, nothing private).
+// POST {"check": "stripe_key"} (with the secret) tests the Stripe key's permissions without changing
+// anything in Stripe: each call is built to fail on purpose (made-up ids, an invalid field), so a
+// "missing permission" answer is the only thing that counts as a problem.
 
-import { adminDatabase, json, stripeClient } from "../_shared/clients.ts";
+import { adminDatabase, json, STRIPE_API_VERSION, stripeClient, stripeKey } from "../_shared/clients.ts";
+import { keyCheckVerdict } from "../_shared/sponsorship.js";
 import { syncAction } from "../_shared/sponsorship.js";
 
 const OPEN_STATUSES = ["pending", "active", "past_due"];
@@ -96,12 +100,48 @@ async function resync() {
   return { checked, fixed, errors };
 }
 
+/** One Stripe call for the key check; returns the verdict for it. */
+async function probe(label: string, path: string, method: string, account: string | null, body?: string) {
+  const headers: Record<string, string> = { Authorization: `Bearer ${stripeKey()}`, "Stripe-Version": STRIPE_API_VERSION };
+  if (account) headers["Stripe-Account"] = account;
+  if (body) headers["Content-Type"] = path.startsWith("/v2/") ? "application/json" : "application/x-www-form-urlencoded";
+  try {
+    const response = await fetch(`https://api.stripe.com${path}`, { method, headers, body, signal: AbortSignal.timeout(15000) });
+    const payload = await response.json().catch(() => ({}));
+    return { label, ...keyCheckVerdict(response.status, payload) };
+  } catch (error) {
+    return { label, verdict: "unknown", detail: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+/** Every kind of Stripe call Cover makes, tried with the current key. */
+async function checkStripeKey() {
+  const db = adminDatabase();
+  const { data: real } = await db.from("nonprofits").select("stripe_account_id").not("stripe_account_id", "is", null).eq("is_test", false).limit(1);
+  const account = real?.[0]?.stripe_account_id ?? null;
+  const target = account ?? "acct_1CoverKeyCheck00000";
+  const keyKind = stripeKey().slice(0, 3); // "rk_" restricted or "sk_" full (never the key itself)
+  const results = await Promise.all([
+    probe("Read accounts (v2)", "/v2/core/accounts?limit=1", "GET", null),
+    probe("Create accounts (v2)", "/v2/core/accounts", "POST", null, JSON.stringify({ dashboard: "not_a_real_value" })),
+    probe("Read an account (v1)", `/v1/accounts/${target}`, "GET", null),
+    probe("Create account sessions", "/v1/account_sessions", "POST", null, `account=${target}&components[payments][enabled]=true`),
+    probe("Create checkout sessions (on a nonprofit's account)", "/v1/checkout/sessions", "POST", target, "mode=subscription&line_items[0][quantity]=0"),
+    probe("Read checkout sessions (on a nonprofit's account)", "/v1/checkout/sessions/cs_live_CoverKeyCheck", "GET", target),
+    probe("Read subscriptions (on a nonprofit's account)", "/v1/subscriptions/sub_CoverKeyCheck", "GET", target),
+  ]);
+  const missing = results.filter((r) => r.verdict === "missing_permission" || r.verdict === "unknown");
+  return { key: keyKind, testedOnRealAccount: Boolean(account), ok: missing.length === 0, missing: missing.map((r) => r.label), results };
+}
+
 Deno.serve(async (request) => {
   if (request.method === "GET") return json({ ok: true, service: "stripe-sync" }, 200);
   if (request.method !== "POST") return json({ error: "Use POST." }, 405);
   const expected = Deno.env.get("CRON_SECRET") ?? "";
   if (expected.length < 32 || request.headers.get("x-cron-secret") !== expected) return json({ error: "Not allowed." }, 403);
   try {
+    const body = await request.json().catch(() => ({}));
+    if (body?.check === "stripe_key") return json(await checkStripeKey(), 200);
     return json(await resync(), 200);
   } catch (error) {
     console.error("stripe-sync failed", error);

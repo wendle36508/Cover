@@ -106,9 +106,10 @@ test("the card form is a monthly subscription shown inside the page", () => {
   assert.equal(request.return_url, "https://cover.example/give.html?org=harbor-paws&session_id={CHECKOUT_SESSION_ID}");
 });
 
-test("the card form never pins payment method types (Stripe picks the best ones)", () => {
+test("the card form takes cards and Link only, never pay-later options", () => {
   const request = checkoutRequest({ nonprofit, item, sponsorId: "sp_1", signup: readSignup(signup), siteUrl: "https://cover.example/" });
-  assert.ok(!("payment_method_types" in request));
+  assert.deepEqual(request.payment_method_types, ["card", "link"]);
+  for (const payLater of ["klarna", "afterpay_clearpay", "affirm", "zip"]) assert.ok(!request.payment_method_types.includes(payLater), payLater);
   assert.equal(request.return_url, "https://cover.example/give.html?org=harbor-paws&session_id={CHECKOUT_SESSION_ID}");
 });
 
@@ -240,3 +241,18 @@ test("bot check outcome: pass, block, and let donors through when Cloudflare is 
   assert.equal(botCheckOutcome(true, 503, null), "allow", "Cloudflare error");
 });
 
+
+test("Stripe key check: only a missing-permission answer counts as a problem", async () => {
+  const { keyCheckVerdict } = await import("../supabase/functions/_shared/sponsorship.js");
+  assert.equal(keyCheckVerdict(200, {}).verdict, "ok");
+  assert.equal(keyCheckVerdict(404, { error: { code: "resource_missing", message: "No such subscription" } }).verdict, "ok");
+  assert.equal(keyCheckVerdict(400, { error: { type: "invalid_request_error", message: "Invalid dashboard" } }).verdict, "ok");
+  const missing = keyCheckVerdict(403, { error: { type: "invalid_request_error", message: "The provided key 'rk_live_***' does not have the required permissions for this endpoint on account 'acct_1'." } });
+  assert.equal(missing.verdict, "missing_permission");
+  assert.match(missing.detail, /required permissions/);
+  assert.equal(keyCheckVerdict(400, { error: { message: "This key does not have the required permissions" } }).verdict, "missing_permission");
+  assert.equal(keyCheckVerdict(401, {}).verdict, "unknown");
+  const noAccount = keyCheckVerdict(403, { error: { message: "The provided key 'sk_live_***' does not have access to account 'acct_1Fake' (or that account does not exist). Application access may have been revoked." } });
+  assert.equal(noAccount.verdict, "needs_real_account", "a made-up account proves nothing either way");
+  assert.equal(keyCheckVerdict(500, null).verdict, "ok", "a Stripe hiccup isn't a permission problem");
+});

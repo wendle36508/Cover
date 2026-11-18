@@ -5,7 +5,7 @@
 //   { action: "status" }  -> asks Stripe whether the nonprofit can take payments, and turns their
 //                            public page on (or off) to match. Only this server code can do that.
 
-import { adminDatabase, json, requireSetting, STRIPE_API_VERSION, stripeClient } from "../_shared/clients.ts";
+import { adminDatabase, json, STRIPE_API_VERSION, stripeClient, stripeKey } from "../_shared/clients.ts";
 import {
   accountRequest, cardPaymentsStatus, connectionMessage, DASHBOARD_FALLBACK, DASHBOARD_FIRST_CHOICE,
   EMBEDDED_COMPONENTS, isMissingAccount, readAction, readNonprofitId, shouldTryFallback,
@@ -16,7 +16,7 @@ class NotAllowed extends Error {}
 
 async function stripeV2(path: string, init: { method: string; body?: unknown; idempotencyKey?: string }) {
   const headers: Record<string, string> = {
-    Authorization: `Bearer ${requireSetting("STRIPE_SECRET_KEY")}`,
+    Authorization: `Bearer ${stripeKey()}`,
     "Stripe-Version": STRIPE_API_VERSION,
     "Content-Type": "application/json",
   };

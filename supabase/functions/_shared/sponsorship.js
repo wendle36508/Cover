@@ -13,6 +13,12 @@ const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 // A fixed label (with 8 random letters, as Stripe recommends) so Cover's checkouts are easy to find in Stripe.
 export const INTEGRATION_IDENTIFIER = "cover_sponsor_page_qkzmwtrb";
 
+// Monthly gifts take cards only (Apple Pay and Google Pay count as cards) plus Link, Stripe's saved-card
+// wallet. "Pay later" options (Klarna, Afterpay, Affirm, Zip) are left out on purpose (Tanner, Nov 18):
+// they don't fit a gift that repeats every month. Pinned here so it holds on every nonprofit's
+// account, whatever that account's own payment settings say.
+export const PAYMENT_METHOD_TYPES = ["card", "link"];
+
 /** Thrown for anything the visitor sent wrong. The message is safe to show them. */
 export class BadRequest extends Error {}
 
@@ -69,6 +75,7 @@ export function checkoutRequest({ nonprofit, item, sponsorId, signup, siteUrl })
     mode: "subscription",
     ui_mode: "embedded_page",
     redirect_on_completion: "if_required",
+    payment_method_types: PAYMENT_METHOD_TYPES,
     return_url: `${returnUrl.href}&session_id={CHECKOUT_SESSION_ID}`,
     customer_email: signup.email,
     client_reference_id: sponsorId,
@@ -238,3 +245,26 @@ export function syncAction(sponsor, stripe, now = new Date()) {
   }
   return null;
 }
+
+// ---------- Stripe key check (restricted key, Nov 18) ----------
+
+/**
+ * Was a Stripe answer a missing-permission error? The key check makes calls that are meant to fail
+ * (made-up ids, an invalid field); any answer EXCEPT "this key isn't allowed" means the permission is there.
+ * A made-up nonprofit account can't prove anything ("no access to that account" happens with any key),
+ * so those come back as "needs_real_account". Returns { verdict, detail } with verdict
+ * "ok" | "missing_permission" | "needs_real_account" | "unknown".
+ */
+export function keyCheckVerdict(status, payload) {
+  const error = payload?.error ?? {};
+  const message = String(error.message ?? "");
+  if (status === 401) return { verdict: "unknown", detail: "Stripe didn't accept the key at all." };
+  if (/does not have access to account|that account does not exist|no such account/i.test(message)) {
+    return { verdict: "needs_real_account", detail: "Can only be confirmed on a real nonprofit's Stripe account." };
+  }
+  if (status === 403 || /required permissions|does not have the required permission|permission_error/i.test(`${message} ${error.type ?? ""}`)) {
+    return { verdict: "missing_permission", detail: message.slice(0, 200) };
+  }
+  return { verdict: "ok", detail: status >= 400 ? (error.code ?? error.type ?? `HTTP ${status}`) : `HTTP ${status}` };
+}
+
