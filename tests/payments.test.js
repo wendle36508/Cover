@@ -229,3 +229,14 @@ test("nightly re-sync: Stripe wins, and missed payments are caught", async () =>
   assert.equal(syncAction({ status: "active" }, { missing: true }, now).kind, "not_in_stripe");
   assert.equal(syncAction(null, {}, now), null);
 });
+
+test("bot check outcome: pass, block, and let donors through when Cloudflare is down", async () => {
+  const { botCheckOutcome } = await import("../supabase/functions/_shared/sponsorship.js");
+  assert.equal(botCheckOutcome(true, 200, { success: true }), "pass");
+  assert.equal(botCheckOutcome(true, 200, { success: false, "error-codes": ["invalid-input-response"] }), "block");
+  assert.equal(botCheckOutcome(true, 200, null), "block", "a garbled answer is not a pass");
+  assert.equal(botCheckOutcome(true, 400, { success: false }), "block");
+  assert.equal(botCheckOutcome(false, 0, null), "allow", "unreachable");
+  assert.equal(botCheckOutcome(true, 503, null), "allow", "Cloudflare error");
+});
+

@@ -190,6 +190,15 @@ export function turnstilePassed(result) {
   return result?.success === true;
 }
 
+/**
+ * What to do with a checkout after asking Cloudflare. reached = got any answer; status = its HTTP status.
+ * "pass", "block", or "allow" (Cloudflare down or erroring: let real donors through; rate limits still apply).
+ */
+export function botCheckOutcome(reached, status, result) {
+  if (!reached || status >= 500) return "allow";
+  return turnstilePassed(result) ? "pass" : "block";
+}
+
 /** The message a visitor sees when the rate limit stops them (never says which limit). */
 export function rateLimitMessage(verdict) {
   return verdict === "ok" ? null : "Too many tries in a short time. Please wait a little while and try again.";

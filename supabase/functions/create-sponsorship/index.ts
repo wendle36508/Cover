@@ -8,8 +8,7 @@
 
 import { adminDatabase, json, requireSetting, stripeClient } from "../_shared/clients.ts";
 import {
-  BadRequest, checkReady, checkoutRequest, clientIp, corsHeaders, parseList, rateLimitMessage, readSignup, TURNSTILE_VERIFY_URL,
-  turnstilePassed,
+  BadRequest, botCheckOutcome, checkReady, checkoutRequest, clientIp, corsHeaders, parseList, rateLimitMessage, readSignup, TURNSTILE_VERIFY_URL,
 } from "../_shared/sponsorship.js";
 
 class TooMany extends Error {}
@@ -33,8 +32,22 @@ async function checkNotABot(body: unknown, ip: string): Promise<void> {
   form.append("secret", secret);
   form.append("response", token);
   if (ip) form.append("remoteip", ip);
-  const response = await fetch(TURNSTILE_VERIFY_URL, { method: "POST", body: form });
-  if (!turnstilePassed(await response.json().catch(() => null))) {
+  let response: Response | null = null;
+  try {
+    response = await fetch(TURNSTILE_VERIFY_URL, { method: "POST", body: form, signal: AbortSignal.timeout(8000) });
+  } catch (error) {
+    console.error("Bot check unreachable", error);
+  }
+  const result = response && response.status < 500 ? await response.json().catch(() => null) : null;
+  const outcome = botCheckOutcome(Boolean(response), response?.status ?? 0, result);
+  if (outcome === "allow") {
+    // Cloudflare down: let the donor through (the rate limits still apply). A bot-check outage must never stop real gifts.
+    console.error("Bot check unavailable; allowing this checkout", response?.status ?? "no answer");
+    return;
+  }
+  if (outcome === "block") {
+    // Cloudflare's reason, for the logs: "invalid-input-response" = bad token (a bot); "invalid-input-secret" = our key is wrong.
+    console.warn("Bot check failed", result?.["error-codes"] ?? response?.status);
     throw new BadRequest("We couldn't confirm you're not a robot. Refresh the page and try again.");
   }
 }
