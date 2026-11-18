@@ -1,0 +1,67 @@
+# No bad deploys (approved Nov 18): covergiving.com only updates when every check passes.
+# On each push to main: run the site and database tests, the Python tests and linter, and the
+# server-code type check. Only if all pass is the docs/ folder published to GitHub Pages.
+# A failed check leaves the live site exactly as it was.
+
+name: Test and deploy site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Site and database tests
+        run: npm test
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Python linter and tests
+        run: |
+          pip install ruff
+          ruff check design scripts
+          python -m unittest discover design
+          python -m unittest discover scripts/insights
+          python -m unittest discover scripts -p "test_deploy*.py"
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Server code type check and lint
+        run: |
+          deno check --no-lock --config supabase/functions/deno.json supabase/functions/*/index.ts
+          deno lint --config supabase/functions/deno.json supabase/functions/
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+      - id: deployment
+        uses: actions/deploy-pages@v4
