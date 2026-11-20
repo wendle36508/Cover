@@ -15,7 +15,8 @@ export function requireSetting(name: string): string {
 }
 
 /**
- * Cover's Stripe key. Uses the restricted key (STRIPE_RESTRICTED_KEY, only the permissions Cover needs)
+ * Cover's Stripe key. Uses the limited key (STRIPE_RESTRICTED_KEY, only the permissions Cover needs; since
+ * Nov 2026 Stripe starts limited keys with sk_live_ too, so the prefix doesn't tell them apart)
  * when it's set, otherwise the full secret key. To undo a bad restricted key instantly, delete that one
  * secret in Supabase and Cover goes back to STRIPE_SECRET_KEY.
  */

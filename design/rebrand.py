@@ -88,9 +88,10 @@ def swaps_for(palette: Palette) -> list[Swap]:
         Swap("docs/js/dashboard.js", f'?? "{OLD_ACCENT}"', f'?? "{p.accent}"'),
         Swap("docs/dashboard.html", f'placeholder="{OLD_ACCENT}"', f'placeholder="{p.accent}"'),
         Swap("docs/js/brand.js", f'BRAND_SWATCHES = ["{OLD_ACCENT}"', f'BRAND_SWATCHES = ["{p.accent}"'),
-        # Sponsor emails (adoption note and owner updates).
-        Swap(email, f"color:{OLD_ACCENT_DARK};margin:0 0 12px", f"color:{p.accent_dark};margin:0 0 12px", count=2),
-        Swap(email, f"background:{OLD_ACCENT};color:{OLD_ON_ACCENT};", f"background:{p.accent};color:{p.on_accent};"),
+        # Sponsor emails (adoption note, owner updates and the My gifts link email).
+        Swap(email, f"color:{OLD_ACCENT_DARK};margin:0 0 12px", f"color:{p.accent_dark};margin:0 0 12px", count=3),
+        Swap(email, f"background:{OLD_ACCENT};color:{OLD_ON_ACCENT};", f"background:{p.accent};color:{p.on_accent};", count=2),
+        Swap(email, f'style="color:{OLD_ACCENT_DARK};font-weight:700">', f'style="color:{p.accent_dark};font-weight:700">'),
         # Sign-in email (has to be re-pasted into Supabase after this runs).
         Swap("supabase/templates/sign-in.html", f'<span style="color:{OLD_ACCENT}">', f'<span style="color:{p.accent}">'),
         Swap("supabase/templates/sign-in.html", f"background:{OLD_ACCENT};color:{OLD_ON_ACCENT};",

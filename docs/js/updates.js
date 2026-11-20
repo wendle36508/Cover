@@ -37,6 +37,16 @@ async function call(body) {
   return result;
 }
 
+/** "To change your card, amount or cancel, go to My gifts." with a link to the sponsor's My gifts page. */
+function giftsLine() {
+  const line = el("p", "", "To change your card or amount, or cancel, go to ");
+  const link = el("a", "", "My gifts");
+  link.href = "gifts.html";
+  link.style.textDecoration = "underline";
+  line.append(link, ".");
+  return line;
+}
+
 function show(...nodes) {
   $("content").replaceChildren(...nodes);
 }
@@ -74,7 +84,7 @@ async function stopUpdates() {
   show(
     el("h1", "", "You won't get more updates"),
     el("p", "", `We've stopped emails about ${who()} from ${info.nonprofit.name}. Your monthly gift keeps going and still helps everyone there.`),
-    el("p", "", "To change or cancel your gift, reply to any email from us."),
+    giftsLine(),
     actions,
   );
 }

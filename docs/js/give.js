@@ -356,7 +356,7 @@ function showThankYou(record) {
   $("thanks-body").textContent = org.thanks ? String(org.thanks) : note.body;
   $("thanks-sig").textContent = `— ${note.signedBy}`;
   $("done-fine").textContent = org.live
-    ? `${org.name} will email your receipt to ${record.email}. You can cancel anytime from that email.`
+    ? `${org.name} will email your receipt to ${record.email}. You can change or cancel anytime at covergiving.com/gifts.html.`
     : `Demo only: no money moved. Updates would go to ${record.email}.`;
   const stamp = $("stamp");
   stamp.innerHTML = CHECK_SVG;

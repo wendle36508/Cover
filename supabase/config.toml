@@ -441,3 +441,6 @@ verify_jwt = false  # sponsors use it from email links (signed tokens); the team
 
 [functions.stripe-sync]
 verify_jwt = false  # called by the nightly database job with CRON_SECRET; GET ?health is public and returns nothing private
+
+[functions.sponsor-portal]
+verify_jwt = false  # sponsors' My gifts page: signed "My gifts" tokens, and the link form has the bot check and rate limits

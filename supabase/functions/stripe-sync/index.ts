@@ -120,7 +120,10 @@ async function checkStripeKey() {
   const { data: real } = await db.from("nonprofits").select("stripe_account_id").not("stripe_account_id", "is", null).eq("is_test", false).limit(1);
   const account = real?.[0]?.stripe_account_id ?? null;
   const target = account ?? "acct_1CoverKeyCheck00000";
-  const keyKind = stripeKey().slice(0, 3); // "rk_" restricted or "sk_" full (never the key itself)
+  // Which key is in use, by its last 4 characters (Stripe shows the same 4 on its API keys page).
+  // Never the key itself. Stripe now gives limited keys the same sk_live_ start as full ones.
+  const key = stripeKey();
+  const keyKind = `${Deno.env.get("STRIPE_RESTRICTED_KEY") ? "STRIPE_RESTRICTED_KEY" : "STRIPE_SECRET_KEY"} ending ${key.slice(-4)}`;
   const results = await Promise.all([
     probe("Read accounts (v2)", "/v2/core/accounts?limit=1", "GET", null),
     probe("Create accounts (v2)", "/v2/core/accounts", "POST", null, JSON.stringify({ dashboard: "not_a_real_value" })),

@@ -26,7 +26,8 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 import { adminDatabase, json, requireSetting } from "../_shared/clients.ts";
 import {
-  adoptionEmail, fitsEmailBudget, fromLine, linkUrl, makeToken, nextBudgetDay, readToken, REPLY_TO, updateEmail, utcDayStart,
+  adoptionEmail, fitsEmailBudget, fromLine, linkUrl, makeManageToken, makeToken, manageUrl, nextBudgetDay, readToken, REPLY_TO, updateEmail,
+  utcDayStart,
 } from "../_shared/email.js";
 import { corsHeaders, parseList } from "../_shared/sponsorship.js";
 
@@ -118,6 +119,15 @@ async function logEmails(rows: Record<string, unknown>[]) {
   if (error) console.error("Couldn't log sponsor emails", error.message);
 }
 
+/** The "Manage my gift" link for a sponsor's email address (null if the address can't make one). */
+async function manageLinkFor(secret: string, email: string): Promise<string | null> {
+  try {
+    return manageUrl(await makeManageToken(secret, email));
+  } catch {
+    return null; // the email still goes out, with the old "reply to change or cancel" line
+  }
+}
+
 /** Which of these sponsors currently show on the thank-you wall (so their emails get the "take my name off" link). */
 async function onTheWall(sponsorIds: string[]): Promise<Set<string>> {
   if (!sponsorIds.length) return new Set();
@@ -158,6 +168,7 @@ async function finish(request: Request, body: Record<string, unknown>) {
     const email = adoptionEmail({
       nonprofitName: nonprofit.name, kind: nonprofit.kind, firstName: s.first_name, finishedName: item.name,
       ownerNote: note, pickUrl, stopUrl, wallUrl: onWall.has(s.sponsor_id) ? linkUrl("wall", stopToken) : null,
+      manageUrl: await manageLinkFor(secret, s.email),
     });
     return { sponsorId: s.sponsor_id, to: s.email, from: fromLine(nonprofit.name), stopUrl, ...email };
   }));
@@ -240,6 +251,7 @@ async function sendUpdate(updateId: string) {
       nonprofitName: nonprofit?.name ?? "", kind: nonprofit?.kind ?? "program", firstName: s.first_name,
       itemName: item?.name ?? "", body: claimed.body, photoUrl: claimed.photo_url, stopUrl,
       wallUrl: s.show_name ? linkUrl("wall", stopToken) : null,
+      manageUrl: await manageLinkFor(secret, s.email),
     });
     return { sponsorId: s.id, to: s.email, from: fromLine(nonprofit?.name ?? ""), stopUrl, ...email };
   }));
@@ -303,7 +315,7 @@ async function sendQueuedNotes(): Promise<number> {
 
 async function sponsorFromToken(token: unknown, purposes: string[]) {
   const link = await readToken(requireSetting("EMAIL_LINK_SECRET"), token, purposes);
-  if (!link) throw new Problem("This link isn't valid anymore. Use the newest email, or reply to it for help.", 403);
+  if (!link) throw new Problem("This link isn't valid anymore. Use the newest email, or open covergiving.com/gifts.html to get a fresh link.", 403);
   const db = adminDatabase();
   const { data: sponsor, error } = await db
     .from("sponsors")

@@ -6,11 +6,15 @@
 // knows, so nobody can make a link for someone else's sponsorship.
 //   * "stop" links (stop or restart updates) never expire, as people expect from unsubscribe links.
 //   * "pick" links (choose a different buddy) last 30 days.
+//   * "manage" links (the sponsor's "My gifts" page: card, amount, buddy, cancel) name an email address,
+//     not one sponsorship, so one link shows every gift that email gives. They last 60 days; the page
+//     can email a fresh one.
 
 export const SITE_URL = "https://covergiving.com";
 export const FROM_ADDRESS = "hello@covergiving.com";
 export const REPLY_TO = "hello@covergiving.com"; // Tanner's call: replies (like cancel requests) come to Cover
 export const PICK_LINK_DAYS = 30;
+export const MANAGE_LINK_DAYS = 60;
 
 // Resend's free plan sends 100 emails per UTC day, shared by sign-in links and sponsor emails
 // (Tanner, Nov 18: stay on the free plan). Sponsor update emails stop at 70 a day so sign-ins
@@ -39,6 +43,15 @@ export function fitsEmailBudget(sentToday, audience, budget = SPONSOR_EMAIL_DAIL
   const sent = Math.max(0, Number(sentToday) || 0);
   const size = Math.max(0, Number(audience) || 0);
   return size === 0 || sent + size <= budget || sent === 0;
+}
+
+// "Email me a link to my gifts" is a sign-in, so it may use the room kept for sign-ins, but stops at 90
+// sponsor-side emails a day so nonprofit staff always have 10 sign-in links left.
+export const MANAGE_LINK_DAILY_CAP = 90;
+
+/** Can one more "My gifts" link go out today, given `sentToday` sponsor-side emails already sent? */
+export function manageLinkFits(sentToday, cap = MANAGE_LINK_DAILY_CAP) {
+  return Math.max(0, Number(sentToday) || 0) < cap;
 }
 const PURPOSES = new Set(["stop", "pick"]);
 
@@ -98,6 +111,82 @@ export function linkUrl(action, token) {
   return `${SITE_URL}/updates.html?a=${encodeURIComponent(action)}&t=${encodeURIComponent(token)}`;
 }
 
+/** An email address as Cover compares it: trimmed and lowercase. Empty string if it isn't an email. */
+export function normalizeEmail(value) {
+  const email = String(value ?? "").trim().toLowerCase();
+  return email.length <= 254 && /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(email) ? email : "";
+}
+
+/** A signed "My gifts" token for every sponsorship this email address gives. Lasts MANAGE_LINK_DAYS. */
+export async function makeManageToken(secret, email, nowMs = Date.now()) {
+  const clean = normalizeEmail(email);
+  if (!clean) throw new Error("A manage link needs a real email address.");
+  const expires = Math.floor(nowMs / 1000) + MANAGE_LINK_DAYS * 86400;
+  const body = base64url(encoder.encode(JSON.stringify({ e: clean, p: "manage", x: expires })));
+  return `${body}.${await signature(secret, body)}`;
+}
+
+/** The email address a genuine, unexpired "My gifts" token is for; otherwise null. */
+export async function readManageToken(secret, token, nowMs = Date.now()) {
+  const parts = String(token ?? "").split(".");
+  if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
+  if (!sameText(parts[1], await signature(secret, parts[0]))) return null;
+  let payload;
+  try {
+    payload = JSON.parse(new TextDecoder().decode(fromBase64url(parts[0])));
+  } catch {
+    return null;
+  }
+  if (payload?.p !== "manage" || !normalizeEmail(payload.e) || !payload.x || payload.x * 1000 < nowMs) return null;
+  return { email: payload.e };
+}
+
+/** The "My gifts" page for a manage token. */
+export function manageUrl(token) {
+  return `${SITE_URL}/gifts.html?t=${encodeURIComponent(token)}`;
+}
+
+const MANAGE_LINK_TEXT = "Manage my gift";
+const REPLY_FOOTER = "To change or cancel your monthly gift, just reply to this email.";
+
+/** The footer's first line: a "Manage my gift" link (card, amount, cancel), or the old reply line if there's no link. */
+function manageFooter(url) {
+  if (!url) return { text: REPLY_FOOTER, html: escapeHtml(REPLY_FOOTER) };
+  return {
+    text: `${MANAGE_LINK_TEXT} (card, amount or cancel): ${url}`,
+    html: `<a href="${escapeHtml(url)}" style="color:#0B6B47;font-weight:700">${MANAGE_LINK_TEXT}</a> (card, amount or cancel)`,
+  };
+}
+
+/**
+ * The email with a sponsor's "My gifts" link, sent when they ask for one on the page.
+ * Says the same thing whether or not they have gifts, so the page never reveals who sponsors.
+ */
+export function manageLinkEmail(url) {
+  const subject = "Your link to manage your gifts";
+  const text = [
+    "Hi,",
+    "",
+    "Here's your link to see and manage your monthly gifts on Cover: update your card, change the amount, switch who you follow, or cancel.",
+    "",
+    url,
+    "",
+    `The link works for ${MANAGE_LINK_DAYS} days. If you didn't ask for it, you can ignore this email.`,
+    "Cover",
+  ].join("\n");
+  const e = escapeHtml;
+  const html = `<div style="background:#F5F7F6;padding:32px 16px;font-family:Helvetica,Arial,sans-serif">
+  <div style="max-width:520px;margin:0 auto;background:#FFFFFF;border:1px solid #E6E9EC;border-radius:16px;padding:32px">
+    <p style="font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#0B6B47;margin:0 0 12px">Cover</p>
+    <h1 style="font-size:26px;line-height:1.2;color:#14181C;margin:0 0 18px">Manage your gifts</h1>
+    <p style="font-size:16px;line-height:1.55;color:#4A525A;margin:0 0 18px">Update your card, change the amount, switch who you follow, or cancel.</p>
+    <a href="${e(url)}" style="display:inline-block;background:#22C67A;color:#14181C;font-weight:700;font-size:15px;text-decoration:none;padding:12px 20px;border-radius:10px">Open my gifts</a>
+    <p style="font-size:13px;line-height:1.55;color:#6B747C;margin:24px 0 0">The link works for ${MANAGE_LINK_DAYS} days. If you didn't ask for it, you can ignore this email.</p>
+  </div>
+</div>`;
+  return { subject, text, html };
+}
+
 const WALL_LINK_TEXT = "Take my name off the thank-you wall";
 
 /** The extra footer line for sponsors on the thank-you wall (text and HTML). Empty when there's no link. */
@@ -119,15 +208,16 @@ export function fromLine(nonprofitName) {
 
 /**
  * The note sponsors get when what they follow is adopted (animals) or finished (programs).
- * details: { nonprofitName, kind, firstName, finishedName, ownerNote, pickUrl, stopUrl, wallUrl }
+ * details: { nonprofitName, kind, firstName, finishedName, ownerNote, pickUrl, stopUrl, wallUrl, manageUrl }
  * wallUrl (optional) is only given to sponsors whose name is on the thank-you wall.
  * Tanner's call (Nov 14): sponsors are never moved to a new buddy automatically. They go back to
  * following the whole nonprofit, and the email asks if they'd like to pick someone new.
  * pickUrl is null when there's no one else on the page to pick.
  */
 export function adoptionEmail(details) {
-  const { nonprofitName, kind, firstName, finishedName, ownerNote, pickUrl, stopUrl, wallUrl } = details;
+  const { nonprofitName, kind, firstName, finishedName, ownerNote, pickUrl, stopUrl, wallUrl, manageUrl: manage } = details;
   const wall = wallLink(wallUrl);
+  const footer = manageFooter(manage);
   const animal = kind === "animal";
   const subject = animal ? `${finishedName} went home!` : `${finishedName} has wrapped up`;
   const news = animal
@@ -139,7 +229,6 @@ export function adoptionEmail(details) {
     ? `Would you like to follow ${animal ? "a new buddy" : "something new"}? Pick one and you'll get their updates. If not, no problem: we'll keep you posted with news from the whole ${whole}.`
     : `There's no one else on their page right now, so we'll keep you posted with news from the whole ${whole}.`;
   const button = animal ? "Pick a new buddy" : "Pick what to follow";
-  const footer = "To change or cancel your monthly gift, just reply to this email.";
 
   const text = [
     `Hi ${firstName},`,
@@ -154,7 +243,7 @@ export function adoptionEmail(details) {
     `${nonprofitName}, via Cover`,
     "",
     "---",
-    footer,
+    footer.text,
     `Stop these updates: ${stopUrl}`,
     wall.text,
   ].filter((line, i, all) => line !== "" || all[i - 1] !== "").join("\n").trimEnd();
@@ -172,7 +261,7 @@ export function adoptionEmail(details) {
     ${pickUrl ? `<a href="${e(pickUrl)}" style="display:inline-block;background:#22C67A;color:#14181C;font-weight:700;font-size:15px;text-decoration:none;padding:12px 20px;border-radius:10px">${e(button)}</a>` : ""}
     <p style="font-size:16px;line-height:1.55;color:#4A525A;margin:24px 0 0">Thank you for being a sponsor.<br>${e(nonprofitName)}</p>
   </div>
-  <p style="max-width:520px;margin:16px auto 0;font-size:12px;line-height:1.5;color:#6B747C;text-align:center">${e(footer)}<br>
+  <p style="max-width:520px;margin:16px auto 0;font-size:12px;line-height:1.5;color:#6B747C;text-align:center">${footer.html}<br>
     <a href="${e(stopUrl)}" style="color:#6B747C">Stop these updates</a>${wall.html} · Sent by Cover for ${e(nonprofitName)}</p>
 </div>`;
 
@@ -181,17 +270,17 @@ export function adoptionEmail(details) {
 
 /**
  * An owner's update about one dog or program, sent to its sponsors.
- * details: { nonprofitName, kind, firstName, itemName, body, photoUrl, stopUrl, wallUrl }
+ * details: { nonprofitName, kind, firstName, itemName, body, photoUrl, stopUrl, wallUrl, manageUrl }
  * photoUrl is optional and must be an https address (checked by the database too).
  */
 export function updateEmail(details) {
-  const { nonprofitName, kind, firstName, itemName, body, photoUrl, stopUrl, wallUrl } = details;
+  const { nonprofitName, kind, firstName, itemName, body, photoUrl, stopUrl, wallUrl, manageUrl: manage } = details;
   const wall = wallLink(wallUrl);
+  const footer = manageFooter(manage);
   const animal = kind === "animal";
   const subject = `News about ${itemName}`;
   const photo = /^https:\/\/[^\s"'<>]+$/.test(String(photoUrl ?? "")) ? photoUrl : "";
   const thanks = `Thanks for sponsoring ${itemName}. Your monthly gift helps ${animal ? "every animal" : "everything"} at ${nonprofitName}.`;
-  const footer = "To change or cancel your monthly gift, just reply to this email.";
 
   const text = [
     `Hi ${firstName},`,
@@ -204,7 +293,7 @@ export function updateEmail(details) {
     thanks,
     "",
     "---",
-    footer,
+    footer.text,
     `Stop updates about ${itemName}: ${stopUrl}`,
     wall.text,
   ].filter((line, i, all) => line !== "" || all[i - 1] !== "").join("\n").trimEnd();
@@ -221,7 +310,7 @@ export function updateEmail(details) {
       <p style="font-size:16px;line-height:1.55;color:#4A525A;margin:0">${e(thanks)}<br>${e(nonprofitName)}</p>
     </div>
   </div>
-  <p style="max-width:520px;margin:16px auto 0;font-size:12px;line-height:1.5;color:#6B747C;text-align:center">${e(footer)}<br>
+  <p style="max-width:520px;margin:16px auto 0;font-size:12px;line-height:1.5;color:#6B747C;text-align:center">${footer.html}<br>
     <a href="${e(stopUrl)}" style="color:#6B747C">Stop updates about ${e(itemName)}</a>${wall.html} · Sent by Cover for ${e(nonprofitName)}</p>
 </div>`;
 

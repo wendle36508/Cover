@@ -964,7 +964,9 @@ async function drawTeam() {
 function inviteMessage(email) {
   return `Hi! I set up a monthly sponsor page for ${state.nonprofit.name} on Cover. To finish, go to ${pageUrl("signin.html")} ` +
     `and sign in with ${email}. You'll land on one short step: setting up payouts so donations go to your bank. ` +
-    `It takes about 10 minutes. Your page: ${publicUrl()}`;
+    `It takes about 10 minutes. Have these ready: your EIN, your bank login (or routing and account numbers), a photo ID, ` +
+    `and 5 or so ${state.nonprofit.kind === "animal" ? "photos of your animals" : "photos of your programs"} on your phone. ` +
+    `Your page: ${publicUrl()}`;
 }
 
 async function sendInvite(email, role) {
