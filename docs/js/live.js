@@ -111,6 +111,8 @@ export function orgFromRows(nonprofit, items, counts = [], coveredCents = 0, rec
       focus: `${item.photo_focus_x ?? 50}% ${item.photo_focus_y ?? 38}%`,
       badge: item.badge ?? "",
       note: item.note ?? "",
+      story: item.story ?? "",
+      morePhotos: (Array.isArray(item.more_photos) ? item.more_photos : []).map(safeImageUrl).filter(Boolean).slice(0, 6),
       hot: false,
       sponsors: countFor.get(item.id) ?? 0,
     })),
@@ -125,7 +127,7 @@ export async function loadLiveOrg(slug) {
   );
   if (!nonprofit) return null;
   const [items, counts, covered, recent, wall] = await Promise.all([
-    get(`follow_items?nonprofit_id=eq.${nonprofit.id}&status=eq.active&select=id,name,photo_url,photo_focus_x,photo_focus_y,badge,note&order=sort_order,created_at`),
+    get(`follow_items?nonprofit_id=eq.${nonprofit.id}&status=eq.active&select=id,name,photo_url,photo_focus_x,photo_focus_y,badge,note,story,more_photos&order=sort_order,created_at`),
     rpc("page_item_counts", { target: nonprofit.id }),
     rpc("page_monthly_covered", { target: nonprofit.id }),
     rpc("page_recent_sponsors", { target: nonprofit.id, how_many: 1 }),

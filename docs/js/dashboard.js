@@ -6,7 +6,7 @@
 
 import { STRIPE_PUBLISHABLE_KEY } from "./config.js";
 import {
-  DEFAULT_FOCUS, PHOTO_MAX_BYTES, checklist, clampFocus, countsByItem, fitWithin, focusFromClick, followedMost,
+  DEFAULT_FOCUS, MORE_PHOTOS_MAX, PHOTO_MAX_BYTES, checklist, clampFocus, countsByItem, fitWithin, focusFromClick, followedMost,
   finishSummary, greeting, monthStats, nameFromFile, newestSponsors, objectPosition, photoPath, photoProblem, postSummary, slugify,
   sponsorName, statusLabel, updateAudience, validateItem, validatePage, validateSignup, wallName, wallStatus, welcomeCandidates,
   welcomeCaption, welcomeFileName, welcomeHeadline, whenText,
@@ -23,7 +23,7 @@ const CHECK_SVG = '<svg viewBox="0 0 24 24"><polyline points="5,12.5 10,17 19,7"
 const AVATAR_COLORS = ["#C98B5E", "#5B8F7E", "#7B7FB8", "#B86E7B", "#6E9BB8", "#A08A4E"];
 const $ = (id) => document.getElementById(id);
 
-const state = { user: null, nonprofit: null, items: [], sponsors: [], connect: null, mounted: new Set(), editing: null, finishing: null, accountCreated: false, role: null, admin: false, memberships: [], creatingFor: null, focus: { x: 50, y: 38 }, look: { logo: "", coverPhoto: "" } };
+const state = { user: null, nonprofit: null, items: [], sponsors: [], connect: null, mounted: new Set(), editing: null, finishing: null, accountCreated: false, role: null, admin: false, memberships: [], creatingFor: null, focus: { x: 50, y: 38 }, look: { logo: "", coverPhoto: "" }, morePhotos: [] };
 
 /** True once the nonprofit has a Stripe account (saved earlier, or just created by Stripe's sign-up form). */
 const hasStripeAccount = () => Boolean(state.nonprofit?.stripe_account_id) || state.accountCreated;
@@ -422,6 +422,10 @@ function openItem(item) {
   form.elements.name.value = item?.name ?? "";
   form.elements.badge.value = item?.badge ?? "";
   form.elements.note.value = item?.note ?? "";
+  form.elements.story.value = item?.story ?? "";
+  $("i-story-count").textContent = form.elements.story.value.length;
+  state.morePhotos = [...(item?.more_photos ?? [])];
+  drawMorePhotos();
   showCropEditor(item?.photo_url ?? "");
   $("item-save").disabled = false;
   $("item-dialog").showModal();
@@ -514,7 +518,7 @@ $("i-photo").addEventListener("change", (event) => {
 $("item-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.target;
-  const result = validateItem({ name: form.elements.name.value, badge: form.elements.badge.value, note: form.elements.note.value });
+  const result = validateItem({ name: form.elements.name.value, badge: form.elements.badge.value, note: form.elements.note.value, story: form.elements.story.value });
   const file = form.elements.photo.files?.[0];
   const photoError = photoProblem(file);
   showErrors("ie-", { ...result.errors, ...(photoError ? { photo: photoError } : {}) });
@@ -526,6 +530,8 @@ $("item-form").addEventListener("submit", async (event) => {
       name: result.values.name,
       badge: result.values.badge || null,
       note: result.values.note || null,
+      story: result.values.story || null,
+      more_photos: state.morePhotos.slice(0, MORE_PHOTOS_MAX),
       photo_focus_x: state.focus.x,
       photo_focus_y: state.focus.y,
     };
@@ -544,6 +550,57 @@ $("item-form").addEventListener("submit", async (event) => {
     $("item-save").disabled = false;
     $("item-save").textContent = "Save";
   }
+});
+
+// ---------- more photos and the longer story (each one's own page, Nov 22) ----------
+
+/** The extra photos in the edit box, each with a remove button. */
+function drawMorePhotos() {
+  $("more-photos").replaceChildren(...state.morePhotos.map((url, index) => {
+    const box = el("div", "more-photo");
+    const img = el("img");
+    img.src = url;
+    img.alt = `More photo ${index + 1}`;
+    const remove = el("button", "", "×");
+    remove.type = "button";
+    remove.setAttribute("aria-label", `Remove photo ${index + 1}`);
+    remove.addEventListener("click", () => {
+      state.morePhotos.splice(index, 1);
+      drawMorePhotos();
+    });
+    box.append(img, remove);
+    return box;
+  }));
+  $("i-more").disabled = state.morePhotos.length >= MORE_PHOTOS_MAX;
+}
+
+$("i-more").addEventListener("change", async (event) => {
+  const files = [...(event.target.files ?? [])];
+  event.target.value = "";
+  const room = MORE_PHOTOS_MAX - state.morePhotos.length;
+  const errors = [];
+  if (files.length > room) errors.push(`Only ${MORE_PHOTOS_MAX} extra photos fit, so the last ${files.length - room} weren't added.`);
+  $("item-save").disabled = true;
+  for (const [index, file] of files.slice(0, Math.max(0, room)).entries()) {
+    const problem = photoProblem(file);
+    if (problem) {
+      errors.push(`${file.name}: ${problem}`);
+      continue;
+    }
+    $("ie-more").textContent = `Adding photo ${index + 1}…`;
+    try {
+      state.morePhotos.push(await uploadPhoto(file));
+      drawMorePhotos();
+    } catch (error) {
+      errors.push(`${file.name}: ${error.message}`);
+    }
+  }
+  $("item-save").disabled = false;
+  $("ie-more").textContent = errors.join(" ");
+});
+
+$("i-story").addEventListener("input", (event) => {
+  $("i-story-count").textContent = event.target.value.length;
 });
 
 // ---------- add many photos at once ----------

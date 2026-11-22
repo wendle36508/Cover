@@ -149,3 +149,37 @@ export function timeAgo(isoTime, now = new Date()) {
 export function sponsorLabel(count) {
   return `${count} sponsor${count === 1 ? "" : "s"}`;
 }
+
+// ---------- Each dog's own page (Nov 22) ----------
+
+/** A dog's part of its page link: "Burt" -> "burt", "Mr. Bean" -> "mr-bean", "Zoë" -> "zoe". */
+export function itemSlug(name) {
+  return String(name ?? "")
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/** The one a page link points to (?dog=burt), or null if there's no match. */
+export function findItemBySlug(items, slug) {
+  const wanted = itemSlug(slug);
+  if (!wanted) return null;
+  return (items ?? []).find((item) => itemSlug(item.name) === wanted) ?? null;
+}
+
+/** A longer story split into paragraphs at blank lines, with spaces tidied. */
+export function storyParagraphs(text) {
+  return String(text ?? "")
+    .split(/\n\s*\n/)
+    .map((part) => part.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+}
+
+/** Lowercase the first letter so a phrase reads mid-sentence ("Dogs in our care" -> "dogs in our care"), but keep "BBQ". */
+export function midSentence(text) {
+  const value = String(text ?? "").trim();
+  return /^[A-Z][a-z]/.test(value) ? value[0].toLowerCase() + value.slice(1) : value;
+}

@@ -243,6 +243,14 @@
     </div>
     <div class="field-group"><label for="i-badge">Short tag (optional)</label><input id="i-badge" name="badge" maxlength="40"><div class="hint">Like "Waiting 94 days" or "Ages 5-8"</div><div class="field-error" id="ie-badge"></div></div>
     <div class="field-group"><label for="i-note">One line about them</label><textarea id="i-note" name="note" maxlength="200"></textarea><div class="field-error" id="ie-note"></div></div>
+    <div class="field-group"><label for="i-story">Longer story (optional)</label><textarea id="i-story" name="story" maxlength="1200" rows="5"></textarea><div class="hint">Shown on their own page when someone clicks their card. Leave a blank line between paragraphs. <span id="i-story-count">0</span> / 1200</div><div class="field-error" id="ie-story"></div></div>
+    <div class="field-group">
+      <label for="i-more">More photos (optional)</label>
+      <div class="more-photos" id="more-photos"></div>
+      <input id="i-more" type="file" accept="image/*" multiple>
+      <div class="hint">Up to 6. They show under the main photo on their own page.</div>
+      <div class="field-error" id="ie-more"></div>
+    </div>
     <button class="btn btn-primary btn-lg btn-block" type="submit" id="item-save">Save</button>
     <div class="field-error" id="ie-form" role="alert"></div>
   </form>

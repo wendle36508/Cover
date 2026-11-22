@@ -201,13 +201,28 @@ export function checklist({ nonprofit, items, linkShared }) {
 }
 
 /** Check the add/edit form for a thing to follow. Returns { ok, errors, values }. */
+export const STORY_MAX = 1200; // the longer story on each one's own page
+export const MORE_PHOTOS_MAX = 6;
+
+/** A longer story: keeps paragraphs (blank lines), tidies spaces inside each line. */
+export function cleanStory(value) {
+  return String(value ?? "")
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((line) => line.replace(/[ \t]+/g, " ").trim())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export function validateItem(form) {
-  const values = { name: cleanText(form?.name), badge: cleanText(form?.badge), note: cleanText(form?.note) };
+  const values = { name: cleanText(form?.name), badge: cleanText(form?.badge), note: cleanText(form?.note), story: cleanStory(form?.story) };
   const errors = {};
   if (!values.name) errors.name = "Add a name.";
   else if (values.name.length > 80) errors.name = "Keep the name under 80 characters.";
   if (values.badge.length > 40) errors.badge = "Keep this under 40 characters.";
   if (values.note.length > 200) errors.note = "Keep this under 200 characters.";
+  if (values.story.length > STORY_MAX) errors.story = `Keep the story under ${STORY_MAX.toLocaleString("en-US")} characters.`;
   return { ok: Object.keys(errors).length === 0, errors, values };
 }
 

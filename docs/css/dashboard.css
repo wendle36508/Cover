@@ -148,3 +148,10 @@ body { background: var(--soft); }
 .welcome-canvas { display: block; width: 100%; aspect-ratio: 1; border-radius: 14px; background: var(--soft); }
 #welcome-caption { resize: none; font-size: 14px; color: var(--body); }
 
+
+/* Extra photos for each one's own page (edit box) */
+.more-photos { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.more-photos:empty { display: none; }
+.more-photo { position: relative; }
+.more-photo img { width: 84px; height: 66px; object-fit: cover; border-radius: 10px; display: block; }
+.more-photo button { position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; border-radius: 50%; border: 0; background: var(--ink); color: #fff; font-size: 14px; line-height: 22px; padding: 0; cursor: pointer; }

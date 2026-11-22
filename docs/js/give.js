@@ -11,8 +11,8 @@ import { loadLiveOrg, startSponsorship } from "./live.js";
 import { TURNSTILE_SITE_KEY } from "./config.js";
 import { ORGS, SHARED_FAQ } from "./orgs.js";
 import {
-  buildRecord, cleanInitial, money, percentCovered, publicName,
-  thankYou, timeAgo, validateSponsor, withNewSponsor,
+  buildRecord, cleanInitial, findItemBySlug, itemSlug, midSentence, money, percentCovered, publicName,
+  storyParagraphs, thankYou, timeAgo, validateSponsor, withNewSponsor,
 } from "./sponsor.js";
 import { clearSponsors, saveSponsor, sponsorsFor } from "./store.js";
 
@@ -138,11 +138,12 @@ function itemCard(item) {
   const top = el("div", "top");
   top.append(el("h3", "", item.name));
   const foot = el("div", "foot");
+  foot.style.marginTop = "18px";
   // No public sponsor counts: a dog showing "6 sponsors" can look "taken" and put people off.
   // Nonprofits still see counts in their dashboard.
-  const button = el("button", "btn btn-dark btn-block", `Sponsor ${item.name}`);
+  // Tanner (Nov 22): the card is just photo, name and tag; the rest is on their own page.
+  const button = el("button", "btn btn-dark btn-block", `Meet ${item.name}`);
   button.type = "button";
-  button.addEventListener("click", () => openDialog(item.name));
   foot.append(button);
   body.append(top);
   if (item.badge) {
@@ -150,9 +151,140 @@ function itemCard(item) {
     badge.style.marginTop = "10px";
     body.append(badge);
   }
-  body.append(el("p", "", item.note), foot);
+  body.append(foot);
   card.append(img, body);
+  card.addEventListener("click", () => openDog(item));
   return card;
+}
+
+// ---------- Each dog's own page (?dog=burt) ----------
+
+const pageTitle = () => `${org.cta} | ${org.name}`; // same as the page's normal title
+
+/** This dog's page link, keeping the nonprofit in it. */
+function dogUrl(item) {
+  const url = new URL(location.href);
+  url.search = "";
+  url.hash = "";
+  url.searchParams.set("org", org.slug);
+  url.searchParams.set("dog", itemSlug(item.name));
+  return url;
+}
+
+function drawGallery(item) {
+  const photos = [{ src: photoSrc(item.photo), focus: item.focus }, ...(item.morePhotos ?? []).map((src) => ({ src, focus: "" }))];
+  const main = $("dog-main");
+  const show = (photo) => {
+    main.src = photo.src;
+    main.style.objectPosition = photo.focus ?? "";
+  };
+  show(photos[0]);
+  main.alt = item.name;
+  const thumbs = photos.length > 1 ? photos.map((photo, index) => {
+    const button = el("button");
+    button.type = "button";
+    button.setAttribute("aria-label", `Photo ${index + 1} of ${item.name}`);
+    button.setAttribute("aria-pressed", String(index === 0));
+    const img = el("img");
+    img.src = photo.src;
+    img.alt = "";
+    if (photo.focus) img.style.objectPosition = photo.focus;
+    button.append(img);
+    button.addEventListener("click", () => {
+      show(photo);
+      [...$("dog-thumbs").children].forEach((other) => other.setAttribute("aria-pressed", String(other === button)));
+    });
+    return button;
+  }) : [];
+  $("dog-thumbs").replaceChildren(...thumbs);
+}
+
+function drawOthers(item) {
+  const others = org.items.filter((other) => other !== item).slice(0, 4);
+  $("dog-others-wrap").hidden = others.length === 0;
+  $("dog-others").replaceChildren(...others.map((other) => {
+    const mini = el("button", "dog-mini");
+    mini.type = "button";
+    const img = el("img");
+    img.src = photoSrc(other.photo);
+    img.alt = other.name;
+    if (other.focus) img.style.objectPosition = other.focus;
+    mini.append(img, el("b", "", other.name));
+    if (other.badge) mini.append(el("span", "", other.badge));
+    mini.addEventListener("click", () => openDog(other));
+    return mini;
+  }));
+}
+
+/** Show one dog's own page. push: false when it comes from the link or the back button. */
+function openDog(item, push = true) {
+  if (!item) return;
+  const label = org.navLabel && org.navLabel !== "Sponsor" ? `All ${org.navLabel.toLowerCase()}` : "See everyone";
+  $("dog-back").textContent = `← ${label}`;
+  drawGallery(item);
+  $("dog-name").textContent = item.name;
+  $("dog-badge").textContent = item.badge ?? "";
+  $("dog-badge").hidden = !item.badge;
+  $("dog-note").textContent = item.note ?? "";
+  $("dog-note").hidden = !item.note;
+  $("dog-story").replaceChildren(...storyParagraphs(item.story).map((text) => el("p", "", text)));
+  $("dog-price").textContent = money(org.price);
+  $("dog-give-text").textContent = `You'll get photos and news about ${item.name}. Your gift goes into one fund that helps ${midSentence(org.everyone)}.`;
+  $("dog-sponsor").textContent = `Sponsor ${item.name}`;
+  $("dog-sponsor").onclick = () => openDialog(item.name);
+  const url = dogUrl(item);
+  $("dog-link").textContent = `${url.host}${url.pathname}${url.search}`;
+  $("dog-copy").textContent = "Copy link";
+  $("dog-copy").onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(url.href);
+      $("dog-copy").textContent = "Copied";
+    } catch {
+      $("dog-copy").textContent = "Copy the link above";
+    }
+  };
+  drawOthers(item);
+  document.body.classList.add("dog-open");
+  $("dog-view").hidden = false;
+  document.title = `${item.name} | ${org.name}`;
+  if (push) history.pushState({ dog: itemSlug(item.name) }, "", url);
+  globalThis.scrollTo(0, 0);
+}
+
+/** Back to the whole page. push: false when it comes from the back button. */
+function closeDog(push = true, scrollToList = true) {
+  if (!document.body.classList.contains("dog-open")) return;
+  document.body.classList.remove("dog-open");
+  $("dog-view").hidden = true;
+  document.title = pageTitle();
+  if (push) {
+    const url = new URL(location.href);
+    url.searchParams.delete("dog");
+    url.hash = "";
+    history.pushState({}, "", url);
+  }
+  if (scrollToList) $("list").scrollIntoView();
+}
+
+$("dog-back").addEventListener("click", (event) => {
+  event.preventDefault();
+  closeDog();
+});
+// The menu links (Dogs, How it works...) leave the dog page and go to that part of the page.
+document.querySelector(".nav").addEventListener("click", (event) => {
+  const link = event.target.closest('a[href^="#"]');
+  if (link && document.body.classList.contains("dog-open")) closeDog(true, false);
+});
+globalThis.addEventListener("popstate", () => {
+  const item = findItemBySlug(org?.items, new URLSearchParams(location.search).get("dog"));
+  if (item) openDog(item, false);
+  else closeDog(false);
+});
+
+/** Opened from a dog's own link (?dog=burt): show that dog's page right away. */
+function openDogFromLink() {
+  const item = findItemBySlug(org.items, params.get("dog"));
+  if (item) openDog(item, false);
 }
 
 function drawItems() {
@@ -473,6 +605,7 @@ async function start() {
     org = live;
     const latest = live.recent[0];
     drawAll(latest ? { name: latest.display_name, item: latest.item_name, when: latest.joined_at } : null);
+    openDogFromLink();
     if (params.has("session_id")) showReturnThanks();
     return;
   }
@@ -480,6 +613,7 @@ async function start() {
   const saved = sponsorsFor(demoKey);
   org = { ...saved.reduce((current, record) => withNewSponsor(current, record.itemName), ORGS[demoKey]), slug: demoKey, live: false };
   drawAll(latestFromRecord(saved.at(-1)));
+  openDogFromLink();
 }
 
 start();

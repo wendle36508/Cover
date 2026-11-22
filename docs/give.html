@@ -21,6 +21,35 @@
 </nav>
 
 <main>
+<!-- One dog's own page (?dog=burt): bigger photos, the full story and the sponsor button. Filled in by give.js. -->
+<section class="section dog-view" id="dog-view" hidden>
+  <div class="container">
+    <a class="dog-back" id="dog-back" href="#list"></a>
+    <div class="dog-layout">
+      <div class="dog-gallery">
+        <img class="dog-main" id="dog-main" alt="">
+        <div class="dog-thumbs" id="dog-thumbs"></div>
+      </div>
+      <div class="dog-about">
+        <h1 id="dog-name"></h1>
+        <span class="pill" id="dog-badge"></span>
+        <p class="dog-note" id="dog-note"></p>
+        <div class="dog-story" id="dog-story"></div>
+        <div class="card dog-give">
+          <div class="dog-price"><b id="dog-price"></b> <span>a month</span></div>
+          <p id="dog-give-text"></p>
+          <button class="btn btn-primary btn-lg btn-block" type="button" id="dog-sponsor"></button>
+          <p class="dog-fine">Cancel anytime.</p>
+        </div>
+        <div class="dog-share"><span id="dog-link"></span><button type="button" id="dog-copy">Copy link</button></div>
+      </div>
+    </div>
+    <div class="dog-others" id="dog-others-wrap">
+      <h2>More to meet</h2>
+      <div class="dog-others-row" id="dog-others"></div>
+    </div>
+  </div>
+</section>
 <header class="hero">
   <div class="container">
     <div>
