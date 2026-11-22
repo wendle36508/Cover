@@ -28,20 +28,51 @@ const DEFAULT_PAGE = {
   quote: ["Your gift helps everyone here. What you follow just keeps you ", "in the loop."],
 };
 
-async function get(path) {
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers: HEADERS });
-  if (!response.ok) throw new Error(`Couldn't load ${path.split("?")[0]} (${response.status}).`);
+// Where the dashboard's sign-in is saved in this browser (Supabase's default name for it).
+const AUTH_STORAGE_KEY = `sb-${new URL(SUPABASE_URL).hostname.split(".")[0]}-auth-token`;
+
+/**
+ * The signed-in person's access token from the saved sign-in, or null if there isn't a usable one.
+ * Lets a nonprofit's staff see their own page before it's live (the database only shows hidden
+ * pages to their staff). Everyone else reads the page as a visitor. Pure, so it can be tested.
+ */
+export function savedAccessToken(raw, nowMs = Date.now()) {
+  try {
+    const session = JSON.parse(raw ?? "null");
+    const token = session?.access_token;
+    const expiresMs = Number(session?.expires_at) * 1000;
+    return typeof token === "string" && token.split(".").length === 3 && expiresMs > nowMs + 30_000 ? token : null;
+  } catch {
+    return null;
+  }
+}
+
+function signedInHeaders() {
+  let raw = null;
+  try {
+    raw = globalThis.localStorage?.getItem(AUTH_STORAGE_KEY) ?? null;
+  } catch {
+    // storage blocked (private window): read as a visitor
+  }
+  const token = savedAccessToken(raw);
+  return token ? { apikey: SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${token}` } : null;
+}
+
+/** Read from the database, as the signed-in person if there is one; a refused sign-in falls back to visitor. */
+async function read(url, init, what) {
+  const asUser = signedInHeaders();
+  let response = await fetch(url, { ...init, headers: { ...(asUser ?? HEADERS), ...init.headers } });
+  if (asUser && response.status === 401) response = await fetch(url, { ...init, headers: { ...HEADERS, ...init.headers } });
+  if (!response.ok) throw new Error(`Couldn't load ${what} (${response.status}).`);
   return response.json();
 }
 
-async function rpc(name, args) {
-  const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
-    method: "POST",
-    headers: { ...HEADERS, "Content-Type": "application/json" },
-    body: JSON.stringify(args),
-  });
-  if (!response.ok) throw new Error(`Couldn't load ${name} (${response.status}).`);
-  return response.json();
+function get(path) {
+  return read(`${SUPABASE_URL}/rest/v1/${path}`, { headers: {} }, path.split("?")[0]);
+}
+
+function rpc(name, args) {
+  return read(`${SUPABASE_URL}/rest/v1/rpc/${name}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(args) }, name);
 }
 
 /**

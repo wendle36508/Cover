@@ -2,7 +2,19 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { loadLiveOrg, orgFromRows } from "../docs/js/live.js";
+import { loadLiveOrg, orgFromRows, savedAccessToken } from "../docs/js/live.js";
+
+test("staff preview: a saved, unexpired sign-in is used; anything else reads as a visitor", () => {
+  const now = Date.UTC(2026, 10, 22, 20);
+  const token = "aaa.bbb.ccc";
+  const saved = (expiresInSeconds, accessToken = token) => JSON.stringify({ access_token: accessToken, expires_at: now / 1000 + expiresInSeconds });
+  assert.equal(savedAccessToken(saved(3600), now), token);
+  assert.equal(savedAccessToken(saved(10), now), null, "about to expire");
+  assert.equal(savedAccessToken(saved(-60), now), null, "expired");
+  assert.equal(savedAccessToken(saved(3600, "not-a-token"), now), null);
+  assert.equal(savedAccessToken(null, now), null, "not signed in");
+  assert.equal(savedAccessToken("{broken", now), null);
+});
 
 const nonprofit = {
   id: "np1", slug: "harbor-paws", name: "Harbor Paws Rescue", place: "Portland, Maine", kind: "animal",
