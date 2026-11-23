@@ -62,7 +62,7 @@
     <section class="view" data-view="overview">
       <div class="top">
         <div><h1 id="hello"></h1><p>Here's how this month is going.</p></div>
-        <div class="linkbox"><span id="page-link-text"></span><button class="btn btn-dark" type="button" data-copy-link>Copy link</button><a class="btn btn-ghost" id="view-page" target="_blank" rel="noopener">View page</a></div>
+        <div class="linkbox"><span id="page-link-text"></span><button class="btn btn-dark" type="button" data-copy-link>Copy link</button><button class="btn btn-primary" type="button" id="share-page">Share</button><a class="btn btn-ghost" id="view-page" target="_blank" rel="noopener">View page</a></div>
       </div>
       <div class="grid">
         <div>
@@ -228,6 +228,21 @@
 </div>
 
 <!-- Add or edit a thing to follow -->
+<!-- Share: a link that shows a photo when pasted anywhere, a QR code, and a printable sign -->
+<dialog class="sponsor-dialog" id="share-dialog" aria-labelledby="share-title">
+  <div class="dialog-head"><div><h2 id="share-title"></h2><p id="share-sub"></p></div><button class="dialog-close" type="button" id="share-close" aria-label="Close">×</button></div>
+  <div class="dialog-body">
+    <p class="share-help">Paste this link anywhere: Facebook, texts, email, your website, Petfinder. It shows a photo and goes straight to the page.</p>
+    <div class="share-link"><span id="share-url"></span><button class="btn btn-dark" type="button" id="share-copy">Copy link</button></div>
+    <button class="btn btn-ghost btn-block" type="button" id="share-native" hidden>Share to…</button>
+    <div class="share-qr" id="share-qr-wrap" hidden>
+      <canvas id="share-qr" aria-label="QR code"></canvas>
+      <div><b>QR code</b><p>People point their phone camera at it to open the page.</p><button class="btn btn-ghost" type="button" id="share-download">Download QR code</button></div>
+    </div>
+    <a class="btn btn-primary btn-lg btn-block" id="share-sign" target="_blank" rel="noopener">Print a sign</a>
+  </div>
+</dialog>
+
 <dialog class="sponsor-dialog" id="item-dialog" aria-labelledby="item-dialog-title">
   <div class="dialog-head"><div><h2 id="item-dialog-title"></h2><p id="item-dialog-sub"></p></div><button class="dialog-close" type="button" id="item-close" aria-label="Close">×</button></div>
   <form class="dialog-body" id="item-form" novalidate>

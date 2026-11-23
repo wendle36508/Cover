@@ -158,3 +158,12 @@ body { background: var(--soft); }
 
 /* Cover's fee notice (setup and payments; only when the fee is switched on) */
 .fee-note { background: var(--soft); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-size: 14px; color: var(--body); margin: 12px 0; }
+
+/* Share box: link, QR code, printable sign */
+.share-help { color: var(--body); font-size: 15px; }
+.share-link { display: flex; align-items: center; gap: 10px; margin: 14px 0 10px; border: 1.5px solid var(--line); border-radius: 12px; padding: 8px 8px 8px 12px; }
+.share-link span { flex: 1; min-width: 0; font-weight: 650; font-size: 14px; overflow-wrap: anywhere; }
+.share-qr { display: flex; gap: 16px; align-items: center; margin: 14px 0; padding: 14px; background: var(--soft); border-radius: 14px; }
+.share-qr canvas { width: 128px; height: 128px; border-radius: 8px; background: #fff; flex: none; image-rendering: pixelated; }
+.share-qr p { color: var(--body); font-size: 14px; margin: 4px 0 10px; }
+#share-dialog .btn-block { margin-top: 10px; }

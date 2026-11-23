@@ -1,0 +1,14 @@
+# Cover's share links (go.covergiving.com), on Cloudflare's free Workers plan.
+# The two values below are public (the same ones the website uses); there are no secrets here.
+name = "cover-share"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+workers_dev = false
+
+routes = [
+  { pattern = "go.covergiving.com", custom_domain = true },
+]
+
+[vars]
+SUPABASE_URL = "https://qclasffvdviuugczaway.supabase.co"
+SUPABASE_PUBLISHABLE_KEY = "sb_publishable_R7OCbhFtdS0-xOAnazuvSw_FdNpYq5r"

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Printable sign | Cover</title>
+<link rel="icon" href="brand/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/cover.css">
+<style>
+  /* A one-page sign for events: one letter-size sheet. The buttons at the top don't print. */
+  @page { size: letter; margin: 0.5in; }
+  body { background: var(--soft); }
+  .tools { max-width: 8.5in; margin: 0 auto; padding: 18px 16px 0; display: flex; gap: 10px; align-items: center; justify-content: space-between; }
+  .tools p { color: var(--muted); font-size: 14px; }
+  .sheet { width: 7.5in; min-height: 10in; margin: 14px auto 40px; background: #fff; border-radius: 18px; padding: 0.55in 0.6in; box-shadow: 0 10px 40px rgba(20,24,28,.08); display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .org { display: flex; align-items: center; gap: 12px; font-weight: 750; font-size: 20px; }
+  .org img { height: 54px; max-width: 120px; object-fit: contain; }
+  h1 { font-size: 54px; letter-spacing: -.04em; line-height: 1.02; margin-top: 22px; }
+  .at { font-size: 22px; color: var(--body); margin-top: 6px; }
+  .photo { width: 100%; height: 3.1in; object-fit: cover; border-radius: 22px; margin-top: 22px; }
+  .scan { display: flex; align-items: center; gap: 28px; margin-top: 26px; text-align: left; }
+  .scan canvas { width: 2.3in; height: 2.3in; flex: none; image-rendering: pixelated; }
+  .scan b { display: block; font-size: 26px; letter-spacing: -.02em; }
+  .scan .link { display: block; font-size: 19px; font-weight: 700; color: var(--green-dark); margin-top: 10px; overflow-wrap: anywhere; }
+  .scan p { color: var(--body); font-size: 17px; margin-top: 10px; }
+  .foot { margin-top: auto; padding-top: 22px; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .foot img { height: 15px; }
+  .problem { max-width: 520px; margin: 60px auto; text-align: center; color: var(--body); }
+  @media print {
+    body { background: #fff; }
+    .tools { display: none; }
+    .sheet { margin: 0 auto; box-shadow: none; border-radius: 0; padding: 0; width: auto; min-height: 9.9in; }
+  }
+</style>
+</head>
+<body>
+<div class="tools"><p>One page, letter size. Tip: print in color.</p><button class="btn btn-primary" type="button" id="print">Print sign</button></div>
+<main id="sign"><p class="problem">Loading…</p></main>
+<script type="module" src="js/sign.js"></script>
+</body>
+</html>

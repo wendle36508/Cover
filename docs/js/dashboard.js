@@ -16,6 +16,7 @@ import { recordTermsAgreement } from "./terms.js";
 import { canvasToPng, drawWelcome } from "./welcome-image.js";
 import { applyBrand, BRAND_SWATCHES, normalizeHex, safeImageUrl, validateLook } from "./brand.js";
 import { money } from "./sponsor.js";
+import { drawQr, qrFileName, shareLink, signLink } from "./share.js";
 import { callServer, pageUrl, supabase } from "./supabase.js";
 
 const LOGO_LONG_SIDE = 512; // logos are small on screen; this keeps them sharp on phones
@@ -383,6 +384,10 @@ function drawItems() {
     edit.addEventListener("click", () => openItem(item));
     actions.append(edit);
     if (item.status === "active") {
+      const share = el("button", "btn btn-ghost", "Share");
+      share.type = "button";
+      share.addEventListener("click", () => openShare(item));
+      actions.append(share);
       const update = el("button", "btn btn-primary", "Post update");
       update.type = "button";
       update.addEventListener("click", () => openPostUpdate(item));
@@ -431,6 +436,46 @@ function openItem(item) {
   $("item-dialog").showModal();
   form.elements.name.focus();
 }
+
+// ---------- Share: link, QR code and printable sign (Nov 23) ----------
+
+/** Open the Share box for the whole page (item = null) or one dog. */
+async function openShare(item = null) {
+  const np = state.nonprofit;
+  const link = shareLink(np.slug, item?.name ?? null);
+  $("share-title").textContent = item ? `Share ${item.name}` : "Share your page";
+  $("share-sub").textContent = np.name;
+  $("share-url").textContent = link.replace(/^https:\/\//, "");
+  $("share-copy").textContent = "Copy link";
+  $("share-copy").onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(link);
+      $("share-copy").textContent = "Copied";
+    } catch {
+      $("share-copy").textContent = "Copy it above";
+    }
+  };
+  // On phones: the phone's own share menu (Messages, Facebook, email...).
+  $("share-native").hidden = typeof navigator.share !== "function";
+  $("share-native").onclick = () => navigator.share({ title: item ? `Sponsor ${item.name}` : np.name, url: link }).catch(() => {});
+  $("share-sign").href = signLink(np.slug, item?.name ?? null);
+  $("share-dialog").showModal();
+  const hasQr = await drawQr($("share-qr"), link);
+  $("share-qr-wrap").hidden = !hasQr;
+  $("share-download").onclick = () => {
+    $("share-qr").toBlob((blob) => {
+      if (!blob) return;
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = qrFileName(np.slug, item?.name ?? null);
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }, "image/png");
+  };
+}
+
+$("share-page").addEventListener("click", () => openShare(null));
+$("share-close").addEventListener("click", () => $("share-dialog").close());
 
 // ---------- photos: shrink, turn upright, and choose the crop ----------
 
