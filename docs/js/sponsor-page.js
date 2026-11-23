@@ -183,6 +183,9 @@ function drawHome() {
     main.append(section("", heading("Happy endings", "Who our sponsors have helped."), stories));
   }
 
+  const wall = thankYouWall();
+  if (wall) main.append(wall);
+
   const faq = el("div", "sp-faq");
   faq.append(...faqList(settings, org.name, org.feeOn).map((item, i) => {
     const d = el("details");
@@ -199,6 +202,34 @@ function drawHome() {
   // Grey and white take turns, whichever optional sections (numbers, happy endings) this page has.
   [...main.querySelectorAll(".sp-section")].forEach((s, i) => s.classList.toggle("soft", i % 2 === 0));
   $("main").replaceChildren(main);
+}
+
+const WALL_FIRST_SHOW = 24; // names on the card before "See everyone"
+
+/** The handwritten thank-you card (same as the old page): only sponsors who said yes, names only. */
+function thankYouWall() {
+  const names = org.wall ?? [];
+  if (!names.length) return null;
+  const wall = el("section", "thanks-wall sp-wall");
+  const c = el("div", "container");
+  const card = el("div", "note-card");
+  const title = el("h2", "note-title", "Thank you ");
+  const heart = el("span", "", "♥");
+  heart.setAttribute("aria-hidden", "true");
+  title.append(heart);
+  const list = el("ul", "sigs");
+  const more = el("button", "link-btn wall-more", "See everyone →");
+  more.type = "button";
+  const draw = (all) => {
+    list.replaceChildren(...(all ? names : names.slice(0, WALL_FIRST_SHOW)).map((name) => el("li", "", name)));
+    more.hidden = all || names.length <= WALL_FIRST_SHOW;
+  };
+  more.addEventListener("click", () => draw(true));
+  draw(false);
+  card.append(title, list, el("p", "note-from", `love, everyone at ${org.name}`));
+  c.append(el("div", "eyebrow", "Our sponsors"), card, more);
+  wall.append(c);
+  return wall;
 }
 
 // ---------- browse list ----------

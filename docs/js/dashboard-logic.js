@@ -306,7 +306,8 @@ export function validateSignup(form) {
   const values = {
     name: cleanText(form?.name),
     slug: cleanText(form?.slug).toLowerCase(),
-    kind: form?.kind === "animal" ? "animal" : "program",
+    kind: form?.template === "rescue" || form?.kind === "animal" ? "animal" : "program",
+    template: ["rescue", "food", "health", "youth"].includes(form?.template) ? form.template : null,
     followLabel: cleanText(form?.followLabel),
     priceCents: Math.round(Number(form?.price) * 100),
     goalCents: Math.round(Number(form?.goal) * 100),

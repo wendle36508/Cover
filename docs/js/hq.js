@@ -54,6 +54,28 @@ function feeSwitch(n) {
   return box;
 }
 
+/** Which sponsor page a nonprofit uses. "New page" makes the old link open the new one. */
+function pageSwitch(n) {
+  const box = el("span");
+  const state = yesNo(n.new_page, "New page", "Old page");
+  const button = el("button", "linklike", n.new_page ? "Use old" : "Switch");
+  button.type = "button";
+  button.style.marginLeft = "8px";
+  button.addEventListener("click", async () => {
+    const turnOn = !n.new_page;
+    const question = turnOn
+      ? `Switch ${n.name} to the new sponsor page? Their current link, QR codes and signs will open the new page.`
+      : `Switch ${n.name} back to the old sponsor page?`;
+    if (!confirm(question)) return;
+    button.disabled = true;
+    const { error } = await supabase.rpc("admin_set_new_page", { target: n.id, turn_on: turnOn });
+    if (error) alert(`That didn't work: ${error.message}`);
+    await load();
+  });
+  box.append(state, button);
+  return box;
+}
+
 function draw(data) {
   $("updated").textContent = `Updated ${new Date(data.generated_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
   $("tiles").replaceChildren(...hqTiles(data.totals).map((tile) => {
@@ -63,7 +85,7 @@ function draw(data) {
   }));
 
   const nonprofits = data.nonprofits ?? [];
-  $("nonprofits").replaceChildren(row(["Nonprofit", "Live", "Owner", "Payouts", "Following", "Sponsors", "Monthly", "Cover fee"], true),
+  $("nonprofits").replaceChildren(row(["Nonprofit", "Live", "Owner", "Payouts", "Following", "Sponsors", "Monthly", "Cover fee", "Page"], true),
     ...(nonprofits.length ? nonprofits.map((n) => {
       const name = el("a", "", n.name);
       name.href = `${pageUrl("give.html")}?org=${n.slug}`;
@@ -77,6 +99,7 @@ function draw(data) {
         String(n.active_sponsors),
         dollars(n.monthly_cents),
         feeSwitch(n),
+        pageSwitch(n),
       ]);
     }) : [row(["No nonprofits yet. Create one from your dashboard."])]));
 

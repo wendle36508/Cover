@@ -15,6 +15,7 @@ body { background: #fff; }
 /* Shared bits */
 .sp-section { padding: 64px 0; }
 .sp-section.soft { background: var(--soft); }
+.sp-wall { padding: 64px 0; }
 .sp-eyebrow { font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--green-dark); }
 .sp-h2 { font-size: 40px; letter-spacing: -.03em; line-height: 1.08; margin-top: 8px; }
 .sp-lead { color: var(--body); font-size: 18px; margin-top: 10px; max-width: 660px; }

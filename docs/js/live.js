@@ -97,6 +97,7 @@ export function orgFromRows(nonprofit, items, counts = [], coveredCents = 0, rec
     price,
     priceCents: nonprofit.monthly_price_cents,
     feeOn: nonprofit.cover_fee_on === true, // Cover's 3% fee (off for everyone during the pilot)
+    newPage: nonprofit.new_page === true, // uses the new sponsor page (sponsor.html); Cover flips it in HQ
     goal: Math.round(nonprofit.monthly_goal_cents / 100),
     covered: Math.round(Number(coveredCents) / 100),
     headline: page.headline ?? `Sponsor ${nonprofit.name} for $${price} a month.`,
@@ -132,7 +133,7 @@ export function orgFromRows(nonprofit, items, counts = [], coveredCents = 0, rec
 export async function loadLiveOrg(slug) {
   if (!SLUG_PATTERN.test(slug ?? "")) return null;
   const [nonprofit] = await get(
-    `nonprofits?slug=eq.${slug}&select=id,slug,name,place,kind,monthly_price_cents,monthly_goal_cents,page,cover_fee_on`,
+    `nonprofits?slug=eq.${slug}&select=id,slug,name,place,kind,monthly_price_cents,monthly_goal_cents,page,cover_fee_on,new_page`,
   );
   if (!nonprofit) return null;
   const [items, counts, covered, recent, wall] = await Promise.all([

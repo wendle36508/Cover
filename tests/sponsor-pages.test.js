@@ -190,3 +190,22 @@ test("what an owner saves is exactly what the new page reads back", async () => 
   assert.deepEqual(settings.stats, [{ value: "120", label: "kids every week" }]);
   assert.deepEqual(settings.helps, [{ icon: "gear", title: "Gear", text: "Cleats and balls" }]);
 });
+
+// ---------- phase 5: the switch, and the template at sign-up ----------
+
+test("the old link forwards to the new page: same nonprofit, same dog", async () => {
+  const { newPageLink } = await import("../docs/js/sponsor-page-logic.js");
+  assert.equal(newPageLink("?org=Lucky-Pup-Rescue"), "sponsor.html?org=lucky-pup-rescue");
+  assert.equal(newPageLink("?org=lucky-pup-rescue&dog=burt&sponsor=1"), "sponsor.html?org=lucky-pup-rescue&dog=burt");
+  assert.equal(newPageLink(""), "sponsor.html?org=");
+});
+
+test("signing up: the kind of nonprofit picks the template and what supporters follow", async () => {
+  const { validateSignup } = await import("../docs/js/dashboard-logic.js");
+  const base = { name: "Harbor Paws", slug: "harbor-paws", followLabel: "Dogs", price: "25", goal: "2000" };
+  assert.deepEqual([validateSignup({ ...base, template: "rescue" }).values.kind, validateSignup({ ...base, template: "rescue" }).values.template], ["animal", "rescue"]);
+  assert.deepEqual([validateSignup({ ...base, template: "youth" }).values.kind, validateSignup({ ...base, template: "youth" }).values.template], ["program", "youth"]);
+  assert.equal(validateSignup({ ...base, template: "casino" }).values.template, null, "unknown kinds are ignored");
+  assert.equal(validateSignup({ ...base, kind: "animal" }).values.kind, "animal", "the old form still works");
+  assert.equal(templateKey({ kind: "program", template: "health" }), "health");
+});

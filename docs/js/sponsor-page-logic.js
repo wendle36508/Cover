@@ -17,6 +17,17 @@ export function readView(search, items) {
   return { page: params.get("view") === "all" ? "browse" : "home", item: null };
 }
 
+/**
+ * Where an old give.html link goes once a nonprofit uses the new page: the same nonprofit and dog,
+ * so every shared link, QR code and printed sign keeps working.
+ */
+export function newPageLink(search) {
+  const params = new URLSearchParams(search ?? "");
+  const next = new URLSearchParams({ org: (params.get("org") ?? "").toLowerCase() });
+  if (params.get("dog")) next.set("dog", params.get("dog"));
+  return `sponsor.html?${next}`;
+}
+
 /** The link for a view of this nonprofit's sponsor pages. */
 export function viewLink(orgSlug, page, item = null) {
   const params = new URLSearchParams({ org: orgSlug });

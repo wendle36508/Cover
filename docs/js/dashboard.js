@@ -1372,8 +1372,9 @@ $("c-slug").addEventListener("input", () => {
   slugEdited = true;
   $("c-slug-preview").textContent = `${pageUrl("give.html")}?org=${$("c-slug").value || "your-link"}`;
 });
-$("c-kind").addEventListener("change", (event) => {
-  if (!$("c-label").dataset.edited) $("c-label").value = event.target.value === "animal" ? "Animals" : "Programs";
+$("c-template").replaceChildren(...Object.entries(TEMPLATES).map(([key, t]) => Object.assign(el("option", "", t.label), { value: key })));
+$("c-template").addEventListener("change", (event) => {
+  if (!$("c-label").dataset.edited) $("c-label").value = TEMPLATES[event.target.value]?.follow ?? "Programs";
 });
 $("c-label").addEventListener("input", (event) => (event.target.dataset.edited = "yes"));
 
@@ -1388,6 +1389,8 @@ function openCreate(forSomeone) {
   $("c-owner-group").hidden = !forSomeone;
   $("create-cancel").hidden = !forSomeone;
   $("create-form").reset();
+  $("c-label").value = TEMPLATES[$("c-template").value]?.follow ?? "Programs";
+  delete $("c-label").dataset.edited;
   slugEdited = false;
   $("c-slug-preview").textContent = `${pageUrl("give.html")}?org=your-link`;
   $("app").hidden = true;
@@ -1414,11 +1417,20 @@ $("create-form").addEventListener("submit", async (event) => {
     price_cents: values.priceCents,
     goal_cents: values.goalCents,
   });
-  $("create-submit").disabled = false;
   if (error) {
+    $("create-submit").disabled = false;
     $("ce-form").textContent = error.code === "P0001" ? error.message : "That didn't work. Please try again.";
     return;
   }
+  // Remember the kind they picked, so the page starts with that kind's wording (facts, "gift helps with").
+  if (values.template) {
+    const { data: made } = await supabase.from("nonprofits").select("id, page").eq("slug", values.slug).maybeSingle();
+    const { error: templateError } = made
+      ? await supabase.from("nonprofits").update({ page: { ...(made.page ?? {}), template: values.template } }).eq("id", made.id)
+      : { error: { message: "not found" } };
+    if (templateError) console.warn("Couldn't save the page's kind", templateError.message);
+  }
+  $("create-submit").disabled = false;
   if (forSomeone) {
     rememberNonprofit(data);
     if (ownerEmail) await supabase.rpc("invite_to_nonprofit", { target: data, invite_email: ownerEmail, invite_role: "owner" });
