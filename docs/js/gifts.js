@@ -213,7 +213,7 @@ function fact(label, value) {
 function facts(gift) {
   const grid = el("div", "facts");
   grid.append(
-    fact("Monthly gift", money(gift.monthlyCents)),
+    fact("Monthly gift", gift.coversFee ? `${money(gift.monthlyCents)} (${money(gift.giftCents)} + fee)` : money(gift.monthlyCents)),
     fact(gift.canChange ? "Next gift" : "Status", gift.canChange ? shortDate(gift.nextCharge) : "No more charges"),
     fact("Card", gift.card ? gift.card.label.replace(" ending ", " ··") : gift.stripeReached ? "None on file" : "Couldn't load"),
     fact("Giving since", monthYear(gift.startedAt)),
@@ -264,7 +264,7 @@ function amountBox(gift) {
   const row = el("form", "amount-row");
   const label = el("label");
   const input = el("input");
-  Object.assign(input, { inputMode: "decimal", value: String(gift.monthlyCents / 100), ariaLabel: "New monthly amount in dollars" });
+  Object.assign(input, { inputMode: "decimal", value: String((gift.giftCents ?? gift.monthlyCents) / 100), ariaLabel: "New monthly amount in dollars" });
   label.append(input);
   const error = el("p", "error");
   const save = el("button", "btn btn-primary", "Save");
@@ -280,7 +280,8 @@ function amountBox(gift) {
     save.disabled = true;
     act(gift, "amount", { amount: input.value }, `Done. Your gift is now ${money(checked.cents)} a month, starting with your next gift.`);
   });
-  box.append(el("h3", "", "Change your monthly gift"), el("p", "", "The new amount starts with your next gift. Nothing is charged today."), row, error);
+  const covers = gift.coversFee ? ` You chose to cover Cover's fee, so ${gift.nonprofit.name} gets the full amount; that stays on.` : "";
+  box.append(el("h3", "", "Change your monthly gift"), el("p", "", `The new amount starts with your next gift. Nothing is charged today.${covers}`), row, error);
   return box;
 }
 

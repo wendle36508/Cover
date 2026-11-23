@@ -980,6 +980,8 @@ function drawAll() {
   if (logo) $("org-logo").src = logo;
   applyBrand(document.body, np.page?.brandColor);
   $("me").textContent = state.user.email;
+  // Cover's 3% fee: told upfront in setup and on the payments screen, only once Cover switches it on.
+  document.querySelectorAll("[data-fee-note]").forEach((note) => (note.hidden = np.cover_fee_on !== true));
   drawOverview();
   drawSponsors();
   drawItems();

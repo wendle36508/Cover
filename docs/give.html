@@ -181,6 +181,11 @@
         <input id="f-business" name="businessName" autocomplete="organization" maxlength="80">
         <div class="field-error" id="e-businessName"></div>
       </div>
+      <!-- Cover's fee: only shown when it's switched on for this nonprofit (off during the pilot). -->
+      <div class="fee-box" id="fee-box" hidden>
+        <p class="fee-line">Fees: 3% + card processing</p>
+        <label class="toggle"><input type="checkbox" name="coverFee" id="f-cover-fee"> <span id="cover-fee-text"></span></label>
+      </div>
       <div class="turnstile" id="turnstile"></div>
       <button class="btn btn-primary btn-lg btn-block" type="submit" id="form-submit"></button>
       <p class="fine" id="form-fine"></p>

@@ -7,6 +7,7 @@
 
 import { applyBrand, pageLinks, safeImageUrl } from "./brand.js";
 import { STRIPE_PUBLISHABLE_KEY } from "./config.js";
+import { coveredTotalCents, formatCents } from "./fees.js";
 import { loadLiveOrg, startSponsorship } from "./live.js";
 import { TURNSTILE_SITE_KEY } from "./config.js";
 import { ORGS, SHARED_FAQ } from "./orgs.js";
@@ -397,6 +398,29 @@ function removeCardForm() {
   $("pay-mount").replaceChildren();
 }
 
+// ---------- Cover's fee (switched off for every nonprofit during the pilot) ----------
+
+/** What the donor pays this month: the gift, plus the fee cover if they ticked the box. */
+function chargedCents() {
+  const gift = org.priceCents ?? org.price * 100;
+  return org.feeOn && $("f-cover-fee").checked ? coveredTotalCents(gift) : gift;
+}
+
+/** The fee line and the unticked "add 3%" box (hidden when the fee is off), and the button's amount. */
+function drawFeeBox() {
+  const gift = org.priceCents ?? org.price * 100;
+  $("fee-box").hidden = !org.feeOn;
+  $("f-cover-fee").checked = false;
+  $("cover-fee-text").textContent = `Add ${formatCents(coveredTotalCents(gift) - gift)} so ${org.name} gets your full gift`;
+  drawSubmitAmount();
+}
+
+function drawSubmitAmount() {
+  $("form-submit").textContent = `Continue to ${formatCents(chargedCents())} a month`;
+}
+
+$("f-cover-fee").addEventListener("change", drawSubmitAmount);
+
 function openDialog(itemName) {
   currentItem = org.items.find((item) => item.name === itemName);
   if (!currentItem) return;
@@ -413,9 +437,9 @@ function openDialog(itemName) {
   $("dialog-photo").style.objectPosition = currentItem.focus ?? "";
   $("dialog-title").textContent = `Sponsor ${currentItem.name}`;
   $("dialog-sub").textContent = `${money(org.price)} a month · ${org.name}`;
-  $("form-submit").textContent = `Continue to ${money(org.price)} a month`;
+  drawFeeBox();
   $("form-submit").disabled = false;
-  $("form-fine").textContent = `Your gift goes into one fund that helps ${org.everyone}. ${currentItem.name} is who you'll get updates from. Cancel anytime.`;
+  $("form-fine").textContent = `Your gift goes into one fund that helps ${midSentence(org.everyone)}. ${currentItem.name} is who you'll get updates from. Cancel anytime.`;
   showStep("step-form");
   dialog.showModal();
   form.elements.firstName.focus();
@@ -455,6 +479,7 @@ async function showCardForm(values) {
       lastInitial: values.lastInitial,
       isBusiness: values.isBusiness,
       businessName: values.businessName,
+      coverFee: org.feeOn === true && $("f-cover-fee").checked,
       turnstileToken: await takeTurnstileToken(),
     });
     const stripe = globalThis.Stripe(STRIPE_PUBLISHABLE_KEY, { stripeAccount });

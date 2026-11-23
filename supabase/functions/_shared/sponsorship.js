@@ -5,6 +5,8 @@
 // Sign-up checks mirror docs/js/sponsor.js (the browser checks them first for speed; the server
 // checks again because anyone can send requests straight to the server).
 
+import { formatCents } from "./fees.js";
+
 export const LIMITS = { firstName: 40, email: 254, businessName: 80 };
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -50,7 +52,11 @@ export function readSignup(body) {
     throw new BadRequest("Add your business name (under 80 characters).");
   }
   if (rawInitial && !/^[A-Za-z]$/.test(rawInitial)) throw new BadRequest("Your last initial should be just one letter.");
-  return { slug, itemId, firstName, email, showName, lastInitial: rawInitial ? rawInitial.toUpperCase() : null, businessName: businessName || null };
+  // coverFee: the donor ticked "add 3% so the nonprofit gets my full gift" (only counts when the fee is on).
+  return {
+    slug, itemId, firstName, email, showName, lastInitial: rawInitial ? rawInitial.toUpperCase() : null, businessName: businessName || null,
+    coverFee: body.coverFee === true,
+  };
 }
 
 /** Can this nonprofit take a payment right now? Throws BadRequest with a reason if not. */
@@ -68,7 +74,14 @@ export function checkReady(nonprofit, item) {
  * The card form shows inside Cover's pop-up (embedded_page) and only leaves the page for
  * payment methods that need a redirect.
  */
-export function checkoutRequest({ nonprofit, item, sponsorId, signup, siteUrl }) {
+export function checkoutRequest({ nonprofit, item, sponsorId, signup, siteUrl, plan }) {
+  // plan (from fees.js chargePlan) says what to charge and Cover's fee; without one it's the plain gift.
+  const chargedCents = plan?.chargedCents ?? nonprofit.monthly_price_cents;
+  const feePercent = plan?.feePercent ?? 0;
+  const extraCents = chargedCents - nonprofit.monthly_price_cents;
+  const description = plan?.coversFee && extraCents > 0
+    ? `Following ${item.name} · includes ${formatCents(extraCents)} so ${nonprofit.name} gets the full gift`
+    : `Following ${item.name}`;
   const returnUrl = new URL("give.html", siteUrl.endsWith("/") ? siteUrl : `${siteUrl}/`);
   returnUrl.searchParams.set("org", nonprofit.slug);
   return {
@@ -85,14 +98,19 @@ export function checkoutRequest({ nonprofit, item, sponsorId, signup, siteUrl })
         quantity: 1,
         price_data: {
           currency: "usd",
-          unit_amount: nonprofit.monthly_price_cents,
+          unit_amount: chargedCents,
           recurring: { interval: "month" },
-          product_data: { name: `Monthly sponsorship · ${nonprofit.name}`, description: `Following ${item.name}` },
+          product_data: { name: `Monthly sponsorship · ${nonprofit.name}`, description },
         },
       },
     ],
     metadata: { cover_sponsor_id: sponsorId },
-    subscription_data: { metadata: { cover_sponsor_id: sponsorId, cover_item: item.name } },
+    subscription_data: {
+      metadata: { cover_sponsor_id: sponsorId, cover_item: item.name },
+      // Cover's fee (only when the nonprofit's switch is on): Stripe keeps this % of every monthly
+      // payment for Cover, on the nonprofit's own account, and shows it there as a fee.
+      ...(feePercent > 0 ? { application_fee_percent: feePercent } : {}),
+    },
   };
 }
 

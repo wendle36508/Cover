@@ -95,6 +95,8 @@ export function orgFromRows(nonprofit, items, counts = [], coveredCents = 0, rec
     kind: nonprofit.kind,
     initials: page.initials ?? initials,
     price,
+    priceCents: nonprofit.monthly_price_cents,
+    feeOn: nonprofit.cover_fee_on === true, // Cover's 3% fee (off for everyone during the pilot)
     goal: Math.round(nonprofit.monthly_goal_cents / 100),
     covered: Math.round(Number(coveredCents) / 100),
     headline: page.headline ?? `Sponsor ${nonprofit.name} for $${price} a month.`,
@@ -123,7 +125,7 @@ export function orgFromRows(nonprofit, items, counts = [], coveredCents = 0, rec
 export async function loadLiveOrg(slug) {
   if (!SLUG_PATTERN.test(slug ?? "")) return null;
   const [nonprofit] = await get(
-    `nonprofits?slug=eq.${slug}&select=id,slug,name,place,kind,monthly_price_cents,monthly_goal_cents,page`,
+    `nonprofits?slug=eq.${slug}&select=id,slug,name,place,kind,monthly_price_cents,monthly_goal_cents,page,cover_fee_on`,
   );
   if (!nonprofit) return null;
   const [items, counts, covered, recent, wall] = await Promise.all([

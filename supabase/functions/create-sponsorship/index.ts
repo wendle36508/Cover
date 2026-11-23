@@ -11,6 +11,7 @@ import { checkNotABot, fingerprint } from "../_shared/guards.ts";
 import {
   BadRequest, checkReady, checkoutRequest, clientIp, corsHeaders, parseList, rateLimitMessage, readSignup,
 } from "../_shared/sponsorship.js";
+import { chargePlan } from "../_shared/fees.js";
 
 class TooMany extends Error {}
 
@@ -47,7 +48,7 @@ Deno.serve(async (request) => {
 
     const { data: nonprofit, error: nonprofitError } = await db
       .from("nonprofits")
-      .select("id, slug, name, is_live, stripe_account_id, monthly_price_cents")
+      .select("id, slug, name, is_live, stripe_account_id, monthly_price_cents, cover_fee_on")
       .eq("slug", signup.slug)
       .maybeSingle();
     if (nonprofitError) throw nonprofitError;
@@ -60,6 +61,8 @@ Deno.serve(async (request) => {
     if (!nonprofit) throw new BadRequest("That nonprofit page doesn't exist.");
     if (!item) throw new BadRequest("That one can't be sponsored right now.");
     checkReady(nonprofit, item);
+    // Cover's 3% fee: only when this nonprofit's switch is on (off for everyone during the pilot).
+    const plan = chargePlan({ giftCents: nonprofit.monthly_price_cents, feeOn: nonprofit.cover_fee_on, coverFee: signup.coverFee });
 
     const { data: sponsor, error: insertError } = await db
       .from("sponsors")
@@ -71,7 +74,9 @@ Deno.serve(async (request) => {
         show_name: signup.showName,
         last_initial: signup.lastInitial,
         business_name: signup.businessName,
-        monthly_cents: nonprofit.monthly_price_cents,
+        monthly_cents: plan.chargedCents,
+        fee_percent: plan.feePercent,
+        covers_fee: plan.coversFee,
         status: "pending",
       })
       .select("id")
@@ -79,7 +84,7 @@ Deno.serve(async (request) => {
     if (insertError) throw insertError;
 
     const session = await stripeClient().checkout.sessions.create(
-      checkoutRequest({ nonprofit, item, sponsorId: sponsor.id, signup, siteUrl: requireSetting("SITE_URL") }),
+      checkoutRequest({ nonprofit, item, sponsorId: sponsor.id, signup, siteUrl: requireSetting("SITE_URL"), plan }),
       { stripeAccount: nonprofit.stripe_account_id },
     );
     const { error: linkError } = await db.from("sponsors").update({ stripe_checkout_session_id: session.id }).eq("id", sponsor.id);

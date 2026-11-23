@@ -22,7 +22,7 @@ import {
 } from "../_shared/email.js";
 import { checkNotABot, fingerprint } from "../_shared/guards.ts";
 import {
-  amountChange, BadInput, canChange, cardSession, giftView, PAYMENTS_SHOWN, portalConfiguration, readAmountCents, visibleSponsorships,
+  amountChange, BadInput, canChange, cardSession, chargeForGift, giftView, PAYMENTS_SHOWN, portalConfiguration, readAmountCents, visibleSponsorships,
 } from "../_shared/portal.js";
 import { BadRequest, clientIp, corsHeaders, parseList, rateLimitMessage } from "../_shared/sponsorship.js";
 
@@ -33,11 +33,11 @@ class Problem extends Error {
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const SPONSOR_COLUMNS = "id, nonprofit_id, item_id, email, status, monthly_cents, updates_off, show_name, created_at, stripe_customer_id, stripe_subscription_id";
+const SPONSOR_COLUMNS = "id, nonprofit_id, item_id, email, status, monthly_cents, fee_percent, covers_fee, updates_off, show_name, created_at, stripe_customer_id, stripe_subscription_id";
 const LINK_SENT = { sent: true, message: "If that email gives through Cover, a link is on its way. It can take a minute." };
 
 type Sponsor = {
-  id: string; nonprofit_id: string; item_id: string | null; email: string; status: string; monthly_cents: number;
+  id: string; nonprofit_id: string; item_id: string | null; email: string; status: string; monthly_cents: number; fee_percent: number; covers_fee: boolean;
   updates_off: boolean; show_name: boolean; created_at: string; stripe_customer_id: string | null; stripe_subscription_id: string | null;
 };
 
@@ -212,14 +212,15 @@ async function card(body: Record<string, unknown>) {
 async function amount(body: Record<string, unknown>) {
   const sponsor = await ownGift(body.token, body.sponsorId);
   needsChangeable(sponsor);
-  const cents = readAmountCents(body.amount);
+  const giftCents = readAmountCents(body.amount);
+  const cents = chargeForGift(giftCents, sponsor); // adds the fee cover if they chose it when they signed up
   const { account } = await stripeAccountOf(sponsor.nonprofit_id);
   const stripe = stripeClient();
   const subscription = await stripe.subscriptions.retrieve(sponsor.stripe_subscription_id!, {}, { stripeAccount: account });
   await stripe.subscriptions.update(sponsor.stripe_subscription_id!, amountChange(subscription, cents), { stripeAccount: account });
   const { error } = await adminDatabase().from("sponsors").update({ monthly_cents: cents }).eq("id", sponsor.id);
   if (error) throw error;
-  return { monthlyCents: cents };
+  return { monthlyCents: cents, giftCents };
 }
 
 async function follow(body: Record<string, unknown>) {

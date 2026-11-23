@@ -32,6 +32,28 @@ function yesNo(value, yes = "Yes", no = "No") {
   return el("span", value ? "yes" : "no", value ? yes : no);
 }
 
+/** Cover's 3% fee switch for one nonprofit (off for everyone during the pilot). New gifts only. */
+function feeSwitch(n) {
+  const box = el("span");
+  const state = yesNo(n.cover_fee_on, "On (3%)", "Off");
+  const button = el("button", "linklike", n.cover_fee_on ? "Turn off" : "Turn on");
+  button.type = "button";
+  button.style.marginLeft = "8px";
+  button.addEventListener("click", async () => {
+    const turnOn = !n.cover_fee_on;
+    const question = turnOn
+      ? `Turn on Cover's 3% fee for ${n.name}? It applies to new gifts from now on. Existing sponsors keep what they pay today.`
+      : `Turn off Cover's fee for ${n.name}? New gifts won't have it. Gifts that started with the fee keep it.`;
+    if (!confirm(question)) return;
+    button.disabled = true;
+    const { error } = await supabase.rpc("admin_set_cover_fee", { target: n.id, turn_on: turnOn });
+    if (error) alert(`That didn't work: ${error.message}`);
+    await load();
+  });
+  box.append(state, button);
+  return box;
+}
+
 function draw(data) {
   $("updated").textContent = `Updated ${new Date(data.generated_at).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}`;
   $("tiles").replaceChildren(...hqTiles(data.totals).map((tile) => {
@@ -41,7 +63,7 @@ function draw(data) {
   }));
 
   const nonprofits = data.nonprofits ?? [];
-  $("nonprofits").replaceChildren(row(["Nonprofit", "Live", "Owner", "Payouts", "Following", "Sponsors", "Monthly"], true),
+  $("nonprofits").replaceChildren(row(["Nonprofit", "Live", "Owner", "Payouts", "Following", "Sponsors", "Monthly", "Cover fee"], true),
     ...(nonprofits.length ? nonprofits.map((n) => {
       const name = el("a", "", n.name);
       name.href = `${pageUrl("give.html")}?org=${n.slug}`;
@@ -54,6 +76,7 @@ function draw(data) {
         `${n.things_to_follow} (${n.with_photos} with photos)`,
         String(n.active_sponsors),
         dollars(n.monthly_cents),
+        feeSwitch(n),
       ]);
     }) : [row(["No nonprofits yet. Create one from your dashboard."])]));
 

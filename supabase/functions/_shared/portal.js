@@ -9,6 +9,8 @@
 //   * cancel: no more charges from now on (nothing already paid is refunded)
 
 // Same limits as a nonprofit's own gift amount (see the nonprofits table).
+import { coveredTotalCents, giftFromCoveredTotal } from "./fees.js";
+
 export const MIN_MONTHLY_CENTS = 500;
 export const MAX_MONTHLY_CENTS = 100000;
 export const PAYMENTS_SHOWN = 12;
@@ -122,6 +124,15 @@ export function cardSession(customerId, configurationId, returnUrl) {
 }
 
 /** One gift as the page shows it. stripe = { subscription, invoices } or null when Stripe couldn't be reached. */
+/**
+ * What a new monthly gift charges. A donor who chose to cover Cover's fee keeps covering it:
+ * they type the gift ($30) and are charged enough that the nonprofit still gets all of it ($30.93).
+ */
+export function chargeForGift(giftCents, sponsor) {
+  const percent = Number(sponsor?.fee_percent) || 0;
+  return sponsor?.covers_fee === true && percent > 0 ? coveredTotalCents(giftCents, percent) : giftCents;
+}
+
 export function giftView({ sponsor, nonprofit, item, choices, stripe }) {
   const page = nonprofit?.page ?? {};
   const subscription = stripe?.subscription ?? null;
@@ -132,6 +143,11 @@ export function giftView({ sponsor, nonprofit, item, choices, stripe }) {
     canChange: canChange(sponsor.status),
     startedAt: sponsor.created_at,
     monthlyCents: typeof priceCents === "number" ? priceCents : sponsor.monthly_cents,
+    // When the donor covers Cover's fee: the gift they chose, and the extra on top of it.
+    coversFee: sponsor.covers_fee === true && Number(sponsor.fee_percent) > 0,
+    giftCents: sponsor.covers_fee === true && Number(sponsor.fee_percent) > 0
+      ? giftFromCoveredTotal(typeof priceCents === "number" ? priceCents : sponsor.monthly_cents, Number(sponsor.fee_percent))
+      : (typeof priceCents === "number" ? priceCents : sponsor.monthly_cents),
     updatesOff: sponsor.updates_off,
     onWall: sponsor.show_name,
     nonprofit: {

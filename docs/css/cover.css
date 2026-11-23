@@ -291,3 +291,7 @@ body.dog-open main > :not(#dog-view) { display: none; }
   .dog-about h1 { font-size: 40px; }
   .dog-others-row { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* Cover's fee line and "cover it" box in the sponsor pop-up (only when the fee is switched on) */
+.fee-box { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 12px; }
+.fee-line { font-size: 14px; color: var(--body); margin-bottom: 8px; }
