@@ -6,7 +6,7 @@
 
 import { STRIPE_PUBLISHABLE_KEY } from "./config.js";
 import {
-  DEFAULT_FOCUS, MORE_PHOTOS_MAX, PHOTO_MAX_BYTES, checklist, clampFocus, countsByItem, fitWithin, focusFromClick, followedMost,
+  amountLabel, DEFAULT_FOCUS, FACT_PICKS, MORE_PHOTOS_MAX, PHOTO_MAX_BYTES, checklist, validateItemExtras, validateSponsorSettings, clampFocus, countsByItem, fitWithin, focusFromClick, followedMost,
   finishSummary, greeting, monthStats, nameFromFile, newestSponsors, objectPosition, photoPath, photoProblem, postSummary, slugify,
   sponsorName, statusLabel, updateAudience, validateItem, validatePage, validateSignup, wallName, wallStatus, welcomeCandidates,
   welcomeCaption, welcomeFileName, welcomeHeadline, whenText,
@@ -17,6 +17,8 @@ import { canvasToPng, drawWelcome } from "./welcome-image.js";
 import { applyBrand, BRAND_SWATCHES, normalizeHex, safeImageUrl, validateLook } from "./brand.js";
 import { money } from "./sponsor.js";
 import { drawQr, qrFileName, shareLink, signLink } from "./share.js";
+import { ICON_LABELS, ICON_NAMES } from "./icons.js";
+import { MONTH_SHORT, pageSettings, TEMPLATES } from "./templates.js";
 import { callServer, pageUrl, supabase } from "./supabase.js";
 
 const LOGO_LONG_SIDE = 512; // logos are small on screen; this keeps them sharp on phones
@@ -79,7 +81,7 @@ async function loadNonprofit(nonprofitId) {
     supabase.from("nonprofits").select("*").eq("id", nonprofitId).single(),
     supabase.from("follow_items").select("*").eq("nonprofit_id", nonprofitId).order("sort_order").order("created_at"),
     supabase.from("sponsors")
-      .select("id, item_id, first_name, last_initial, email, business_name, monthly_cents, status, updates_off, show_name, wall_hidden, created_at")
+      .select("id, item_id, first_name, last_initial, email, business_name, monthly_cents, amount_cents, interval, status, updates_off, show_name, wall_hidden, created_at")
       .eq("nonprofit_id", nonprofitId)
       .order("created_at", { ascending: false }),
   ]);
@@ -231,7 +233,7 @@ function sponsorRow(row, index, full) {
   statusCell.append(el("span", `status s-${badge.tone}`, badge.text));
   tr.append(whoCell);
   if (full) tr.append(el("td", "", row.email));
-  tr.append(el("td", "", row.following), el("td", "", money(row.monthly_cents / 100)), statusCell);
+  tr.append(el("td", "", row.following), el("td", "", amountLabel(row)), statusCell);
   if (full) tr.append(wallCell(row));
   return tr;
 }
@@ -431,6 +433,7 @@ function openItem(item) {
   $("i-story-count").textContent = form.elements.story.value.length;
   state.morePhotos = [...(item?.more_photos ?? [])];
   drawMorePhotos();
+  drawItemExtras(item);
   showCropEditor(item?.photo_url ?? "");
   $("item-save").disabled = false;
   $("item-dialog").showModal();
@@ -564,6 +567,12 @@ $("item-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   const form = event.target;
   const result = validateItem({ name: form.elements.name.value, badge: form.elements.badge.value, note: form.elements.note.value, story: form.elements.story.value });
+  const extras = validateItemExtras(readItemExtras());
+  if (!extras.ok) {
+    showErrors("ie-", { ...result.errors, ...extras.errors });
+    $("i-extras").open = true;
+    return;
+  }
   const file = form.elements.photo.files?.[0];
   const photoError = photoProblem(file);
   showErrors("ie-", { ...result.errors, ...(photoError ? { photo: photoError } : {}) });
@@ -577,6 +586,11 @@ $("item-form").addEventListener("submit", async (event) => {
       note: result.values.note || null,
       story: result.values.story || null,
       more_photos: state.morePhotos.slice(0, MORE_PHOTOS_MAX),
+      facts: extras.values.facts,
+      is_group: extras.values.isGroup,
+      why: extras.values.why || null,
+      loves: extras.values.loves || null,
+      dislikes: extras.values.dislikes || null,
       photo_focus_x: state.focus.x,
       photo_focus_y: state.focus.y,
     };
@@ -596,6 +610,57 @@ $("item-form").addEventListener("submit", async (event) => {
     $("item-save").textContent = "Save";
   }
 });
+
+// ---------- facts, groups and the profile's extra lines (new sponsor pages, Nov 23) ----------
+
+/** This nonprofit's new-page settings (template defaults plus whatever the owner saved). */
+const sponsorSettings = () => pageSettings({ kind: state.nonprofit.kind, ...(state.nonprofit.page ?? {}) });
+
+/** One box per fact the nonprofit chose (Age, Breed, Sex...), with tap-to-fill answers where common. */
+function drawItemExtras(item) {
+  const settings = sponsorSettings();
+  const facts = item?.facts ?? {};
+  $("i-facts").replaceChildren(...settings.factFields.map((field) => {
+    const group = el("div", "field-group");
+    const label = el("label", "", field);
+    const input = el("input");
+    Object.assign(input, { maxLength: 40, value: facts[field] ?? "" });
+    input.dataset.fact = field;
+    input.id = `i-fact-${field.replace(/\W+/g, "-")}`;
+    label.htmlFor = input.id;
+    group.append(label, input);
+    const picks = FACT_PICKS[field];
+    if (picks) {
+      const row = el("div", "fact-picks");
+      const mark = () => [...row.children].forEach((b) => b.setAttribute("aria-pressed", String(b.textContent === input.value)));
+      row.append(...picks.map((pick) => {
+        const b = el("button", "", pick);
+        b.type = "button";
+        b.addEventListener("click", () => {
+          input.value = input.value === pick ? "" : pick;
+          mark();
+        });
+        return b;
+      }));
+      input.addEventListener("input", mark);
+      mark();
+      group.append(row);
+    }
+    return group;
+  }));
+  $("i-group").checked = item?.is_group === true;
+  $("i-group-label").textContent = `This is a group (like "Golden Oldies"), not just one ${settings.one}`;
+  $("i-why").value = item?.why ?? "";
+  $("i-loves").value = item?.loves ?? "";
+  $("i-dislikes").value = item?.dislikes ?? "";
+  $("i-extras").open = Boolean(item?.why || item?.loves || item?.dislikes || item?.is_group);
+}
+
+function readItemExtras() {
+  const facts = {};
+  for (const input of $("i-facts").querySelectorAll("input[data-fact]")) facts[input.dataset.fact] = input.value;
+  return { facts, isGroup: $("i-group").checked, why: $("i-why").value, loves: $("i-loves").value, dislikes: $("i-dislikes").value };
+}
 
 // ---------- more photos and the longer story (each one's own page, Nov 22) ----------
 
@@ -833,6 +898,7 @@ function fillPageForm() {
   state.look = { logo: safeImageUrl(np.page?.logo), coverPhoto: safeImageUrl(np.page?.coverPhoto) };
   drawLookPreviews();
   drawSwatches();
+  drawSponsorSettings(sponsorSettings());
 }
 
 /** Show the chosen logo and cover photo (or the empty boxes). */
@@ -905,8 +971,10 @@ $("page-form").addEventListener("submit", async (event) => {
   const fields = Object.fromEntries(new FormData(form));
   const result = validatePage(fields);
   const look = validateLook(fields);
-  showErrors("pe-", { ...result.errors, ...look.errors });
-  if (!result.ok || !look.ok) {
+  const sponsor = validateSponsorSettings(readSponsorSettings(), Object.keys(TEMPLATES));
+  const sponsorError = Object.values(sponsor.errors)[0] ?? "";
+  showErrors("pe-", { ...result.errors, ...look.errors, ...(sponsorError ? { sponsor: sponsorError } : {}) });
+  if (!result.ok || !look.ok || !sponsor.ok) {
     form.querySelector(".field-error:not(:empty)")?.scrollIntoView({ block: "center", behavior: "smooth" });
     return;
   }
@@ -916,6 +984,11 @@ $("page-form").addEventListener("submit", async (event) => {
   for (const key of ["headline", "lead", "navLabel", "everyone", "brandColor", "thanks", "website", "instagram", "facebook", "logo", "coverPhoto"]) {
     if (chosen[key]) page[key] = chosen[key];
     else delete page[key];
+  }
+  // The new sponsor page's settings (empty lists are left off, so the page skips those sections).
+  for (const [key, value] of Object.entries(sponsor.values)) {
+    if (value === null || (Array.isArray(value) && value.length === 0)) delete page[key];
+    else page[key] = value;
   }
   const { error } = await supabase.from("nonprofits")
     .update({ name: values.name, page, monthly_price_cents: values.priceCents, monthly_goal_cents: values.goalCents })
@@ -928,6 +1001,146 @@ $("page-form").addEventListener("submit", async (event) => {
   setTimeout(() => ($("page-saved").hidden = true), 2500);
   await reload();
 });
+
+// ---------- "Your new sponsor page" settings (new sponsor pages, phase 2, Nov 23) ----------
+
+const ROWS = { stats: 3, helps: 4, stories: 3, faq: 3 };
+
+function rowInput(name, value, max, placeholder, tag = "input") {
+  const input = el(tag);
+  Object.assign(input, { maxLength: max, value: value ?? "", placeholder });
+  input.dataset.name = name;
+  return input;
+}
+
+/** Fill the settings with what's saved, or the template's starting wording. */
+function drawSponsorSettings(settings) {
+  $("p-template").replaceChildren(...Object.entries(TEMPLATES).map(([key, t]) => {
+    const option = el("option", "", t.label);
+    option.value = key;
+    return option;
+  }));
+  $("p-template").value = settings.template;
+  $("p-first-person").checked = settings.firstPerson;
+  $("p-fact-fields").replaceChildren(...[0, 1, 2, 3].map((i) => {
+    const group = el("div", "field-group");
+    const input = rowInput("fact", settings.factFields[i], 30, i === 3 ? "Another (optional)" : "");
+    input.setAttribute("aria-label", `Fact ${i + 1}`);
+    group.append(input);
+    return group;
+  }));
+  growingRows("p-stats", settings.stats, ROWS.stats, "Add another number", (stat, i) => {
+    const row = el("div", "set-row stat");
+    row.append(rowInput("value", stat?.value, 24, i ? "" : "2,000+"), rowInput("label", stat?.label, 80, i ? "" : `${settings.follow.toLowerCase()} placed in homes`));
+    return row;
+  });
+  $("p-helps").replaceChildren(...[...Array(ROWS.helps)].map((_, i) => {
+    const row = el("div", "set-row help");
+    const icon = el("select");
+    icon.dataset.name = "icon";
+    icon.setAttribute("aria-label", "Icon");
+    icon.append(...ICON_NAMES.map((name) => Object.assign(el("option", "", ICON_LABELS[name] ?? name), { value: name })));
+    icon.value = settings.helps[i]?.icon ?? "heart";
+    row.append(icon, rowInput("title", settings.helps[i]?.title, 40, "Food"), rowInput("text", settings.helps[i]?.text, 80, "Good meals every day"));
+    return row;
+  }));
+  growingRows("p-stories", settings.stories, ROWS.stories, "Add another story", (story, i) => storyRow(story, i));
+  growingRows("p-faq", settings.extraFaq, ROWS.faq, "Add another question", (item, i) => {
+    const row = el("div", "set-row qa");
+    row.append(rowInput("q", item?.q, 120, i ? "Question" : "Can I visit?"), rowInput("a", item?.a, 600, "Answer", "textarea"));
+    return row;
+  });
+  const picked = new Set(settings.updateMonths ?? []);
+  $("p-months").replaceChildren(...MONTH_SHORT.map((name, i) => {
+    const label = el("label");
+    const box = el("input");
+    Object.assign(box, { type: "checkbox", value: String(i + 1), checked: picked.has(i + 1) });
+    label.append(box, name);
+    return label;
+  }));
+}
+
+/** What's saved plus one empty row, and an "Add another" link until the limit (keeps the form short). */
+function growingRows(id, saved, max, addText, makeRow) {
+  const box = $(id);
+  const rows = [...saved.slice(0, max)];
+  if (rows.length < max) rows.push(null);
+  box.replaceChildren(...rows.map((item, i) => makeRow(item, i)));
+  box.nextElementSibling?.classList.contains("add-row") && box.nextElementSibling.remove();
+  if (rows.length >= max) return;
+  const add = el("button", "add-row", `+ ${addText}`);
+  add.type = "button";
+  add.addEventListener("click", () => {
+    box.append(makeRow(null, box.children.length));
+    if (box.children.length >= max) add.remove();
+  });
+  box.after(add);
+}
+
+/** One happy ending: title, a few lines and an optional photo (shrunk and uploaded like the rest). */
+function storyRow(story, index = 0) {
+  const row = el("div", "set-row story");
+  row.dataset.photo = story?.photo ?? "";
+  const photo = el("div", "story-photo");
+  const preview = el("img");
+  preview.alt = "";
+  const pick = el("label", "btn btn-ghost", "Add a photo");
+  const file = el("input");
+  Object.assign(file, { type: "file", accept: "image/*", hidden: true });
+  pick.append(file);
+  const drawPhoto = () => {
+    preview.hidden = !row.dataset.photo;
+    if (row.dataset.photo) preview.src = row.dataset.photo;
+    pick.firstChild.textContent = row.dataset.photo ? "Change photo" : "Add a photo";
+  };
+  file.addEventListener("change", async () => {
+    const chosen = file.files?.[0];
+    file.value = "";
+    if (!chosen) return;
+    const problem = photoProblem(chosen);
+    if (problem) return ($("pe-sponsor").textContent = problem);
+    pick.firstChild.textContent = "Uploading…";
+    try {
+      row.dataset.photo = await uploadPhoto(chosen);
+    } catch (error) {
+      $("pe-sponsor").textContent = error.message;
+    }
+    drawPhoto();
+  });
+  photo.append(preview, pick);
+  row.append(rowInput("title", story?.title, 80, index ? "Title" : "Bella went home!"), rowInput("text", story?.text, 600, "A few lines about how it happened", "textarea"), photo);
+  drawPhoto();
+  return row;
+}
+
+/** Changing the kind of nonprofit refills the facts and "gift helps with" with that kind's wording. */
+$("p-template").addEventListener("change", () => {
+  const t = TEMPLATES[$("p-template").value];
+  if (!t) return;
+  const current = sponsorSettings();
+  drawSponsorSettings({ ...current, template: $("p-template").value, firstPerson: t.firstPerson, factFields: t.factFields, helps: t.helps });
+});
+
+function readRows(id) {
+  return [...$(id).children].map((row) => {
+    const values = Object.fromEntries([...row.querySelectorAll("[data-name]")].map((input) => [input.dataset.name, input.value]));
+    if (row.dataset.photo) values.photo = row.dataset.photo;
+    return values;
+  });
+}
+
+function readSponsorSettings() {
+  return {
+    template: $("p-template").value,
+    firstPerson: $("p-first-person").checked,
+    factFields: [...$("p-fact-fields").querySelectorAll("input")].map((input) => input.value),
+    stats: readRows("p-stats"),
+    helps: readRows("p-helps"),
+    stories: readRows("p-stories"),
+    faq: readRows("p-faq"),
+    updateMonths: [...$("p-months").querySelectorAll("input:checked")].map((box) => Number(box.value)),
+  };
+}
 
 // ---------- connect Stripe ----------
 

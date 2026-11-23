@@ -18,7 +18,7 @@ const item = { id: ITEM_ID, nonprofit_id: "np1", name: "Bella", status: "active"
 test("a good sign-up is cleaned up", () => {
   assert.deepEqual(readSignup(signup), {
     slug: "harbor-paws", itemId: ITEM_ID, firstName: "Sarah", email: "sarah@example.com", showName: true, lastInitial: null, businessName: null,
-    coverFee: false,
+    coverFee: false, interval: "month", amountCents: null, gift: null, returnTo: "give",
   });
 });
 

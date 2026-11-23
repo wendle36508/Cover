@@ -53,7 +53,7 @@ export const MANAGE_LINK_DAILY_CAP = 90;
 export function manageLinkFits(sentToday, cap = MANAGE_LINK_DAILY_CAP) {
   return Math.max(0, Number(sentToday) || 0) < cap;
 }
-const PURPOSES = new Set(["stop", "pick"]);
+const PURPOSES = new Set(["stop", "pick", "cert"]); // cert: the photo certificate (never expires)
 
 const encoder = new TextEncoder();
 
@@ -149,8 +149,15 @@ export function manageUrl(token) {
 const MANAGE_LINK_TEXT = "Manage my gift";
 const REPLY_FOOTER = "To change or cancel your monthly gift, just reply to this email.";
 
-/** The footer's first line: a "Manage my gift" link (card, amount, cancel), or the old reply line if there's no link. */
-function manageFooter(url) {
+/**
+ * The footer's first line: a "Manage my gift" link (card, amount, cancel), or the old reply line if there's
+ * no link. For someone who was GIVEN the sponsorship, it says who it's from instead (the giver manages it).
+ */
+function manageFooter(url, giftFrom = null) {
+  if (giftFrom) {
+    const line = `This sponsorship is a gift from ${giftFrom}.`;
+    return { text: line, html: escapeHtml(line) };
+  }
   if (!url) return { text: REPLY_FOOTER, html: escapeHtml(REPLY_FOOTER) };
   return {
     text: `${MANAGE_LINK_TEXT} (card, amount or cancel): ${url}`,
@@ -215,9 +222,9 @@ export function fromLine(nonprofitName) {
  * pickUrl is null when there's no one else on the page to pick.
  */
 export function adoptionEmail(details) {
-  const { nonprofitName, kind, firstName, finishedName, ownerNote, pickUrl, stopUrl, wallUrl, manageUrl: manage } = details;
+  const { nonprofitName, kind, firstName, finishedName, ownerNote, pickUrl, stopUrl, wallUrl, manageUrl: manage, giftFrom } = details;
   const wall = wallLink(wallUrl);
-  const footer = manageFooter(manage);
+  const footer = manageFooter(manage, giftFrom);
   const animal = kind === "animal";
   const subject = animal ? `${finishedName} went home!` : `${finishedName} has wrapped up`;
   const news = animal
@@ -274,9 +281,9 @@ export function adoptionEmail(details) {
  * photoUrl is optional and must be an https address (checked by the database too).
  */
 export function updateEmail(details) {
-  const { nonprofitName, kind, firstName, itemName, body, photoUrl, stopUrl, wallUrl, manageUrl: manage } = details;
+  const { nonprofitName, kind, firstName, itemName, body, photoUrl, stopUrl, wallUrl, manageUrl: manage, giftFrom } = details;
   const wall = wallLink(wallUrl);
-  const footer = manageFooter(manage);
+  const footer = manageFooter(manage, giftFrom);
   const animal = kind === "animal";
   const subject = `News about ${itemName}`;
   const photo = /^https:\/\/[^\s"'<>]+$/.test(String(photoUrl ?? "")) ? photoUrl : "";
@@ -314,5 +321,93 @@ export function updateEmail(details) {
     <a href="${e(stopUrl)}" style="color:#6B747C">Stop updates about ${e(itemName)}</a>${wall.html} · Sent by Cover for ${e(nonprofitName)}</p>
 </div>`;
 
+  return { subject, text, html };
+}
+
+// ---------- After signing up (phase 4, Nov 23): certificate, gifts, owner reminders ----------
+
+/** The photo certificate's address: covergiving.com/certificate.html?t=... (a signed, never-expiring link). */
+export function certificateUrl(token) {
+  return `${SITE_URL}/certificate.html?t=${encodeURIComponent(token)}`;
+}
+
+/** The shared card every after-signup email uses (same look as the other sponsor emails). */
+function afterSignupHtml({ eyebrow, heading, greeting, lines, quote, buttonText, buttonUrl, closing, footer }) {
+  const e = escapeHtml;
+  const paras = lines.map((line) => `<p style="font-size:16px;line-height:1.55;color:#4A525A;margin:0 0 14px">${e(line)}</p>`).join("\n    ");
+  return `<div style="background:#F5F7F6;padding:32px 16px;font-family:Helvetica,Arial,sans-serif">
+  <div style="max-width:520px;margin:0 auto;background:#FFFFFF;border:1px solid #E6E9EC;border-radius:16px;padding:32px">
+    <p style="font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#0B6B47;margin:0 0 12px">${e(eyebrow)}</p>
+    <h1 style="font-size:26px;line-height:1.2;color:#14181C;margin:0 0 18px">${e(heading)}</h1>
+    ${greeting ? `<p style="font-size:16px;line-height:1.55;color:#4A525A;margin:0 0 14px">${e(greeting)}</p>` : ""}
+    ${paras}
+    ${quote ? `<p style="font-size:16px;line-height:1.55;color:#14181C;margin:0 0 14px;padding:12px 16px;background:#F5F7F6;border-radius:10px">"${e(quote)}"</p>` : ""}
+    ${buttonUrl ? `<a href="${e(buttonUrl)}" style="display:inline-block;background:#22C67A;color:#14181C;font-weight:700;font-size:15px;text-decoration:none;padding:12px 20px;border-radius:10px">${e(buttonText)}</a>` : ""}
+    ${closing ? `<p style="font-size:16px;line-height:1.55;color:#4A525A;margin:24px 0 0">${e(closing[0])}<br>${e(closing[1])}</p>` : ""}
+  </div>
+  <p style="max-width:520px;margin:16px auto 0;font-size:12px;line-height:1.5;color:#6B747C;text-align:center">${footer}</p>
+</div>`;
+}
+
+/**
+ * The welcome email right after someone starts sponsoring (or gives once), with their certificate.
+ * details: { nonprofitName, kind, firstName, itemName, interval, certificateUrl, manageUrl }
+ */
+export function welcomeEmail(details) {
+  const { nonprofitName, kind, firstName, itemName, interval, certificateUrl: cert, manageUrl: manage } = details;
+  const once = interval === "once";
+  const everyone = kind === "animal" ? "every animal" : "everyone";
+  const subject = once ? `Thank you for your gift to ${nonprofitName}` : `Welcome! You're sponsoring ${itemName}`;
+  const lines = once
+    ? [`Thank you for your gift. It helps ${itemName} and ${everyone} at ${nonprofitName}.`, "Here's your photo certificate to keep or print."]
+    : [`Thank you for sponsoring ${itemName}. Your gift helps ${everyone} at ${nonprofitName}, and you'll get photos and news about ${itemName} along the way.`, "Here's your photo certificate to keep or print."];
+  const footer = once ? { text: "", html: "" } : manageFooter(manage);
+  const text = [`Hi ${firstName},`, "", ...lines.flatMap((l) => [l, ""]), `Your certificate: ${cert}`, "", `With thanks,`, `${nonprofitName}, via Cover`,
+    ...(footer.text ? ["", "---", footer.text] : [])].join("\n");
+  const html = afterSignupHtml({
+    eyebrow: nonprofitName, heading: once ? "Thank you!" : `Welcome to ${itemName}'s team`, greeting: `Hi ${firstName},`, lines,
+    buttonText: "See my certificate", buttonUrl: cert, closing: ["With thanks,", nonprofitName],
+    footer: `${footer.html ? `${footer.html}<br>` : ""}Sent by Cover for ${escapeHtml(nonprofitName)}`,
+  });
+  return { subject, text, html };
+}
+
+/**
+ * The email the person who was GIVEN a sponsorship gets on the day the giver picked.
+ * details: { nonprofitName, kind, recipientName, giverName, itemName, interval, message, certificateUrl, stopUrl }
+ */
+export function giftEmail(details) {
+  const { nonprofitName, recipientName, giverName, itemName, interval, message, certificateUrl: cert, stopUrl } = details;
+  const once = interval === "once";
+  const subject = `${giverName} sponsored ${itemName} for you`;
+  const lines = once
+    ? [`${giverName} made a gift to ${nonprofitName} in your name, for ${itemName}.`, "Here's your photo certificate to keep or print."]
+    : [`${giverName} sponsored ${itemName} at ${nonprofitName} for you. You'll get photos and news about ${itemName} along the way.`, "Here's your photo certificate to keep or print."];
+  const text = [`Hi ${recipientName},`, "", ...lines.flatMap((l) => [l, ""]), ...(message ? [`"${message}" (${giverName})`, ""] : []),
+    `Your certificate: ${cert}`, "", `With thanks,`, `${nonprofitName}, via Cover`, ...(once ? [] : ["", "---", `Stop these updates: ${stopUrl}`])].join("\n");
+  const html = afterSignupHtml({
+    eyebrow: nonprofitName, heading: `A gift from ${giverName}`, greeting: `Hi ${recipientName},`, lines, quote: message || null,
+    buttonText: "See my certificate", buttonUrl: cert, closing: ["With thanks,", nonprofitName],
+    footer: `${once ? "" : `<a href="${escapeHtml(stopUrl)}" style="color:#6B747C">Stop these updates</a> · `}Sent by Cover for ${escapeHtml(nonprofitName)}`,
+  });
+  return { subject, text, html };
+}
+
+/**
+ * The reminder an owner gets a week before a scheduled update.
+ * details: { nonprofitName, followLabel, dueLabel, dashboardUrl, sponsorCount }
+ */
+export function reminderEmail(details) {
+  const { nonprofitName, followLabel, dueLabel, dashboardUrl, sponsorCount } = details;
+  const subject = `Time for your ${dueLabel} update to sponsors`;
+  const lines = [
+    `Your sponsors are expecting their ${dueLabel} update from ${nonprofitName}. A photo and one line about each of your ${followLabel.toLowerCase()} is plenty.`,
+    `${sponsorCount === 1 ? "1 sponsor" : `${sponsorCount} sponsors`} will get it. Open your dashboard, go to ${followLabel}, and tap "Post update" on each one.`,
+  ];
+  const text = ["Hi,", "", ...lines.flatMap((l) => [l, ""]), `Your dashboard: ${dashboardUrl}`, "", "Cover"].join("\n");
+  const html = afterSignupHtml({
+    eyebrow: "Cover", heading: `Your ${dueLabel} update is coming up`, greeting: "Hi,", lines,
+    buttonText: "Open my dashboard", buttonUrl: dashboardUrl, closing: null, footer: "Sent by Cover. You get this because you run a sponsor page.",
+  });
   return { subject, text, html };
 }

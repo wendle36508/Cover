@@ -8,7 +8,7 @@ import { pageUrl, supabase } from "./supabase.js";
 
 const $ = (id) => document.getElementById(id);
 const REFRESH_MS = 60000;
-const STATUS_TEXT = { active: "Active", pending: "Waiting on payment", past_due: "Card failed", canceled: "Canceled" };
+const STATUS_TEXT = { active: "Active", pending: "Waiting on payment", past_due: "Card failed", canceled: "Canceled", gave_once: "Gave once" };
 
 function el(tag, className, text) {
   const node = document.createElement(tag);

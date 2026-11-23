@@ -38,7 +38,7 @@ async function askStripe(stripe: ReturnType<typeof stripeClient>, sponsor: Spons
     if (sponsor.status === "pending" && sponsor.stripe_checkout_session_id) {
       const session = await stripe.checkout.sessions.retrieve(sponsor.stripe_checkout_session_id, {}, { stripeAccount: account });
       const subscription = typeof session.subscription === "string" ? session.subscription : session.subscription?.id ?? null;
-      return { sessionStatus: session.status, paymentStatus: session.payment_status, subscriptionId: subscription };
+      return { sessionStatus: session.status, paymentStatus: session.payment_status, subscriptionId: subscription, mode: session.mode };
     }
     return null;
   } catch (error) {

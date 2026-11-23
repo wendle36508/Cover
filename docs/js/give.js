@@ -286,6 +286,8 @@ globalThis.addEventListener("popstate", () => {
 function openDogFromLink() {
   const item = findItemBySlug(org.items, params.get("dog"));
   if (item) openDog(item, false);
+  // From the new sponsor pages (sponsor.html): open the sign-up pop-up for that dog straight away.
+  if (item && params.get("sponsor") === "1") openDialog(item.name);
 }
 
 function drawItems() {

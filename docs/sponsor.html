@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Sponsor | Cover</title>
+<link rel="icon" href="brand/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/cover.css">
+<link rel="stylesheet" href="css/sponsor.css">
+<script src="https://js.stripe.com/endive/stripe.js"></script>
+</head>
+<body>
+<!-- The new sponsor pages (phase 1, Nov 23, 2026): home, browse list and profiles, Dogs Trust-style,
+     for any nonprofit. Not linked from anywhere yet; give.html stays the live page until Tanner switches. -->
+<nav class="sp-nav">
+  <div class="container">
+    <a class="sp-org" id="org-link"><img id="org-logo" alt="" hidden><span class="brand-mark" id="org-initials"></span><span id="org-name"></span></a>
+    <div class="sp-links" id="nav-links"></div>
+    <a class="btn btn-primary" id="nav-cta"></a>
+  </div>
+</nav>
+<main id="main"><p class="sp-loading">Loading…</p></main>
+<footer class="sp-foot"><div class="container"><span id="foot-name"></span><span class="powered-by">Powered by<img src="brand/logo.svg" alt="Cover"></span></div></footer>
+<!-- The new checkout (phase 3): any amount; Monthly, Yearly or One time; gift (phase 4); Cover's fee when on. -->
+<dialog class="sponsor-dialog" id="checkout" aria-labelledby="co-title">
+  <div class="dialog-head">
+    <img id="co-photo" alt="">
+    <div><h2 id="co-title"></h2><p id="co-sub"></p></div>
+    <button class="dialog-close" type="button" id="co-close" aria-label="Close">×</button>
+  </div>
+  <div class="dialog-body">
+    <form class="flow-step" id="co-form" novalidate>
+      <p class="co-label">How often</p>
+      <div class="co-seg" id="co-freq"></div>
+      <label class="co-label" for="co-amount" id="co-amount-label">How much a month</label>
+      <div class="co-amount"><span>$</span><input id="co-amount" name="amount" inputmode="decimal" autocomplete="off" placeholder="25" aria-describedby="co-amount-note"><em id="co-per">a month</em></div>
+      <p class="co-note" id="co-amount-note"></p>
+      <div class="field-error" id="co-amount-error"></div>
+      <div id="co-who-wrap" hidden>
+        <p class="co-label">Who it's for</p>
+        <div class="co-seg two" id="co-who"><button type="button" data-key="me">For me</button><button type="button" data-key="gift">As a gift</button></div>
+        <div id="co-gift" hidden>
+          <div class="field-group"><label for="co-gift-name">Their name</label><input id="co-gift-name" maxlength="80"></div>
+          <div class="field-group"><label for="co-gift-email">Their email</label><input id="co-gift-email" type="email" maxlength="254"></div>
+          <div class="field-group"><label for="co-gift-message">A short message <span class="optional">(optional)</span></label><textarea id="co-gift-message" maxlength="300" rows="2"></textarea></div>
+          <div class="field-group"><label for="co-send-on">Arrives on</label><input id="co-send-on" type="date"></div>
+          <div class="field-error" id="co-e-gift"></div>
+        </div>
+      </div>
+      <p class="co-label">You</p>
+      <div class="field-group"><label for="co-first">First name</label><input id="co-first" name="firstName" autocomplete="given-name" maxlength="40"><div class="field-error" id="co-e-firstName"></div></div>
+      <div class="field-group"><label for="co-email">Email</label><input id="co-email" name="email" type="email" autocomplete="email" maxlength="254"><div class="field-error" id="co-e-email"></div></div>
+      <div id="co-wall-row">
+        <label class="toggle"><input type="checkbox" name="showName" id="co-show-name"> <span>Show my name on their thank-you wall</span></label>
+        <div class="field-group" id="co-initial-group" hidden><label for="co-initial">Last initial <span class="optional">(optional)</span></label><input id="co-initial" name="lastInitial" maxlength="2"><div class="field-error" id="co-e-lastInitial"></div></div>
+      </div>
+      <label class="toggle"><input type="checkbox" name="isBusiness" id="co-is-business"> I'm giving as a business</label>
+      <div class="field-group" id="co-business-group" hidden><label for="co-business">Business name</label><input id="co-business" name="businessName" maxlength="80"><div class="field-error" id="co-e-businessName"></div></div>
+      <div class="fee-box" id="co-fee" hidden>
+        <p class="fee-line">Fees: 3% + card processing</p>
+        <label class="toggle"><input type="checkbox" id="co-cover-fee"> <span id="co-cover-text"></span></label>
+      </div>
+      <div class="turnstile" id="co-turnstile"></div>
+      <button class="btn btn-primary btn-lg btn-block" type="submit" id="co-submit">Continue</button>
+      <p class="fine" id="co-fine"></p>
+      <p class="fine">By giving, you agree to Cover's <a href="terms.html" target="_blank" style="text-decoration:underline">terms</a> and <a href="privacy.html" target="_blank" style="text-decoration:underline">privacy policy</a>.</p>
+    </form>
+    <div class="flow-step" id="co-pay" hidden>
+      <p class="pay-status" id="co-pay-status" role="status">Loading the secure payment form…</p>
+      <div id="co-pay-mount"></div>
+      <button class="link-btn" type="button" id="co-back">Go back</button>
+    </div>
+    <div class="flow-step done" id="co-done" hidden>
+      <div class="note"><h3 id="co-thanks-title"></h3><p id="co-thanks-body"></p><div class="sig" id="co-thanks-sig"></div></div>
+      <button class="btn btn-dark btn-lg btn-block" type="button" id="co-done-close">Done</button>
+      <p class="fine" id="co-done-fine"></p>
+    </div>
+  </div>
+</dialog>
+<script type="module" src="js/sponsor-page.js"></script>
+</body>
+</html>

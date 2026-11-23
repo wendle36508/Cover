@@ -18,16 +18,25 @@
 //   { action: "post", itemId, text, photoUrl }   (signed-in team) sends now, or schedules it for
 //     the next free morning (max one update email per dog per day, Eastern time)
 //   { action: "send_due" }   (the database's 15-minute job, with the x-cron-secret header)
-//     sends every scheduled update whose time has come
+//     sends every scheduled update whose time has come, plus welcome emails (with the photo
+//     certificate) and gift emails whose day has come
+//   { action: "reminders" }  (a daily job, same header) emails owners a week before each update
+//     month they picked in their settings
+//
+// The photo certificate page: { action: "certificate", token } (a "cert" link) returns what it shows.
+//
+// Gifts: until the gift email reaches the person it's for, nobody gets that sponsorship's updates.
+// From then on, updates and adoption notes go to them, not the giver (the giver still manages billing).
 //
 // Money never moves: every gift goes to the nonprofit's general fund. Only the follow changes.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 import { adminDatabase, json, requireSetting } from "../_shared/clients.ts";
+import { certificateView, recipientFor, remindersDue } from "../_shared/after-signup.js";
 import {
-  adoptionEmail, fitsEmailBudget, fromLine, linkUrl, makeManageToken, makeToken, manageUrl, nextBudgetDay, readToken, REPLY_TO, updateEmail,
-  utcDayStart,
+  adoptionEmail, certificateUrl, fitsEmailBudget, fromLine, giftEmail, linkUrl, makeManageToken, makeToken, manageUrl, nextBudgetDay, readToken,
+  reminderEmail, REPLY_TO, SITE_URL, SPONSOR_EMAIL_DAILY_BUDGET, updateEmail, utcDayStart, welcomeEmail,
 } from "../_shared/email.js";
 import { corsHeaders, parseList } from "../_shared/sponsorship.js";
 
@@ -65,10 +74,9 @@ async function sendAll(emails: Outgoing[]): Promise<(string | null)[]> {
         subject: email.subject,
         html: email.html,
         text: email.text,
-        headers: {
-          "List-Unsubscribe": `<${oneClickUrl(email.stopUrl)}>`,
-          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-        },
+        headers: email.stopUrl
+          ? { "List-Unsubscribe": `<${oneClickUrl(email.stopUrl)}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" }
+          : undefined, // owner reminders have no unsubscribe link
       }))),
     });
     const body = await response.json().catch(() => ({}));
@@ -158,19 +166,24 @@ async function finish(request: Request, body: Record<string, unknown>) {
   const canPick = (active?.length ?? 0) > 0;
 
   const sponsors = (moved ?? []) as { sponsor_id: string; first_name: string; email: string; updates_off: boolean }[];
-  const toEmail = sponsors.filter((s) => !s.updates_off);
+  const gifts = await giftDetails(sponsors.map((s) => s.sponsor_id));
+  // Each note goes to whoever gets this sponsorship's emails: the sponsor, or the person it was given to.
+  const toEmail = sponsors.filter((s) => !s.updates_off)
+    .map((s) => ({ ...s, to: recipientFor({ ...s, ...gifts.get(s.sponsor_id) }) }))
+    .filter((s) => s.to);
   const onWall = await onTheWall(toEmail.map((s) => s.sponsor_id));
   const secret = requireSetting("EMAIL_LINK_SECRET");
   const outgoing: Outgoing[] = await Promise.all(toEmail.map(async (s) => {
+    const to = s.to!;
     const stopToken = await makeToken(secret, s.sponsor_id, "stop");
     const stopUrl = linkUrl("stop", stopToken);
     const pickUrl = canPick ? linkUrl("pick", await makeToken(secret, s.sponsor_id, "pick")) : null;
     const email = adoptionEmail({
-      nonprofitName: nonprofit.name, kind: nonprofit.kind, firstName: s.first_name, finishedName: item.name,
-      ownerNote: note, pickUrl, stopUrl, wallUrl: onWall.has(s.sponsor_id) ? linkUrl("wall", stopToken) : null,
-      manageUrl: await manageLinkFor(secret, s.email),
+      nonprofitName: nonprofit.name, kind: nonprofit.kind, firstName: to.firstName, finishedName: item.name,
+      ownerNote: note, pickUrl, stopUrl, wallUrl: !to.giftFrom && onWall.has(s.sponsor_id) ? linkUrl("wall", stopToken) : null,
+      manageUrl: to.giftFrom ? null : await manageLinkFor(secret, s.email), giftFrom: to.giftFrom,
     });
-    return { sponsorId: s.sponsor_id, to: s.email, from: fromLine(nonprofit.name), stopUrl, ...email };
+    return { sponsorId: s.sponsor_id, to: to.to, from: fromLine(nonprofit.name), stopUrl, ...email };
   }));
   const emailsOn = Boolean(Deno.env.get("RESEND_API_KEY"));
   // Over today's email budget? The notes are written now and wait for tomorrow morning.
@@ -186,8 +199,9 @@ async function finish(request: Request, body: Record<string, unknown>) {
   }
   const ids = await sendAll(outgoing);
 
+  const emailedIds = new Set(toEmail.map((s) => s.sponsor_id));
   const log = [
-    ...sponsors.filter((s) => s.updates_off).map((s) => ({ sponsor_id: s.sponsor_id, status: "skipped", provider_id: null })),
+    ...sponsors.filter((s) => !emailedIds.has(s.sponsor_id)).map((s) => ({ sponsor_id: s.sponsor_id, status: "skipped", provider_id: null })),
     ...outgoing.map((email, i) => ({ sponsor_id: email.sponsorId, status: ids[i] ? "sent" : emailsOn ? "failed" : "skipped", provider_id: ids[i] })),
   ].map((row) => ({ ...row, nonprofit_id: nonprofit.id, item_id: itemId, kind: "adopted" }));
   await logEmails(log);
@@ -199,6 +213,16 @@ async function finish(request: Request, body: Record<string, unknown>) {
     failed: emailsOn ? ids.filter((id) => !id).length : 0,
     emailsOn,
   };
+}
+
+/** Gift details for these sponsors (who it's for, and whether their gift email has arrived yet). */
+async function giftDetails(sponsorIds: string[]) {
+  const found = new Map<string, { gift_name: string | null; gift_email: string | null; gift_sent_at: string | null }>();
+  if (!sponsorIds.length) return found;
+  const { data, error } = await adminDatabase().from("sponsors").select("id, gift_name, gift_email, gift_sent_at").in("id", sponsorIds);
+  if (error) throw error;
+  for (const row of data ?? []) found.set(row.id, row);
+  return found;
 }
 
 // ---------- Owner updates ----------
@@ -230,30 +254,33 @@ async function sendUpdate(updateId: string) {
   const [{ data: item }, { data: nonprofit }, { data: sponsors, error: sponsorError }] = await Promise.all([
     db.from("follow_items").select("name").eq("id", claimed.item_id).single(),
     db.from("nonprofits").select("name, kind").eq("id", claimed.nonprofit_id).single(),
-    db.from("sponsors").select("id, first_name, email, show_name").eq("item_id", claimed.item_id)
+    db.from("sponsors").select("id, first_name, email, show_name, gift_name, gift_email, gift_sent_at").eq("item_id", claimed.item_id)
       .in("status", ["active", "past_due"]).eq("updates_off", false),
   ]);
   if (sponsorError) throw sponsorError;
+  // A gift's updates wait until its gift email has arrived, then go to the person it's for.
+  const readers = (sponsors ?? []).map((s) => ({ ...s, to: recipientFor(s) })).filter((s) => s.to);
 
   // Keep room for sign-in emails: if today's budget can't fit this update, hold it for tomorrow morning.
-  if (!fitsEmailBudget(await sentToday(), sponsors?.length ?? 0)) {
+  if (!fitsEmailBudget(await sentToday(), readers.length)) {
     const deferredTo = nextBudgetDay().toISOString();
     const { error: holdError } = await db.from("item_updates").update({ status: "queued", send_after: deferredTo }).eq("id", claimed.id);
     if (holdError) throw holdError;
-    return { emailed: 0, sponsors: sponsors?.length ?? 0, emailsOn: true, deferredTo };
+    return { emailed: 0, sponsors: readers.length, emailsOn: true, deferredTo };
   }
 
   const secret = requireSetting("EMAIL_LINK_SECRET");
-  const outgoing: Outgoing[] = await Promise.all((sponsors ?? []).map(async (s) => {
+  const outgoing: Outgoing[] = await Promise.all(readers.map(async (s) => {
+    const to = s.to!;
     const stopToken = await makeToken(secret, s.id, "stop");
     const stopUrl = linkUrl("stop", stopToken);
     const email = updateEmail({
-      nonprofitName: nonprofit?.name ?? "", kind: nonprofit?.kind ?? "program", firstName: s.first_name,
+      nonprofitName: nonprofit?.name ?? "", kind: nonprofit?.kind ?? "program", firstName: to.firstName,
       itemName: item?.name ?? "", body: claimed.body, photoUrl: claimed.photo_url, stopUrl,
-      wallUrl: s.show_name ? linkUrl("wall", stopToken) : null,
-      manageUrl: await manageLinkFor(secret, s.email),
+      wallUrl: !to.giftFrom && s.show_name ? linkUrl("wall", stopToken) : null,
+      manageUrl: to.giftFrom ? null : await manageLinkFor(secret, s.email), giftFrom: to.giftFrom,
     });
-    return { sponsorId: s.id, to: s.email, from: fromLine(nonprofit?.name ?? ""), stopUrl, ...email };
+    return { sponsorId: s.id, to: to.to, from: fromLine(nonprofit?.name ?? ""), stopUrl, ...email };
   }));
   const ids = await sendAll(outgoing);
   const emailsOn = Boolean(Deno.env.get("RESEND_API_KEY"));
@@ -270,11 +297,16 @@ async function sendUpdate(updateId: string) {
   return { emailed, sponsors: outgoing.length, emailsOn };
 }
 
-/** The database's 15-minute job: send every scheduled update whose time has come. */
-async function sendDue(request: Request) {
+/** Only the database's scheduled jobs may call send_due and reminders. */
+function requireCron(request: Request) {
   const expected = Deno.env.get("CRON_SECRET") ?? "";
   const given = request.headers.get("x-cron-secret") ?? "";
   if (expected.length < 32 || given !== expected) throw new Problem("Not allowed.", 403);
+}
+
+/** The database's 15-minute job: scheduled updates, then welcome and gift emails, then waiting adoption notes. */
+async function sendDue(request: Request) {
+  requireCron(request);
   const { data: due, error } = await adminDatabase().from("item_updates")
     .select("id").eq("status", "queued").lte("send_after", new Date().toISOString()).order("send_after").limit(50);
   if (error) throw error;
@@ -287,7 +319,141 @@ async function sendDue(request: Request) {
       console.error("Couldn't send update", row.id, failure);
     }
   }
-  return { sent, adoptionNotes: await sendQueuedNotes() };
+  const welcomes = await sendAfterSignup("welcome");
+  const gifts = await sendAfterSignup("gift");
+  return { sent, welcomes, gifts, adoptionNotes: await sendQueuedNotes() };
+}
+
+type SignupRow = {
+  id: string; nonprofit_id: string; item_id: string | null; first_name: string; email: string; interval: string | null;
+  gift_name: string | null; gift_email: string | null; gift_message: string | null;
+};
+
+/**
+ * Welcome emails (with the certificate) to new sponsors, or gift emails to the people gifts are for.
+ * Each sponsor is claimed first (the sent_at time is set), so two runs never send the same one twice.
+ */
+async function sendAfterSignup(kind: "welcome" | "gift"): Promise<number> {
+  const db = adminDatabase();
+  const { data: due, error } = await db.rpc(kind === "welcome" ? "welcome_emails_due" : "gift_emails_due", { max_rows: 40 });
+  if (error) throw error;
+  // Only as many as fit in what's left of today's email budget; the rest go in a later run.
+  let rows = ((due ?? []) as SignupRow[]).slice(0, Math.max(0, SPONSOR_EMAIL_DAILY_BUDGET - await sentToday()));
+  if (!rows.length) return 0;
+
+  const column = kind === "welcome" ? "certificate_sent_at" : "gift_sent_at";
+  const { data: claimed, error: claimError } = await db.from("sponsors").update({ [column]: new Date().toISOString() })
+    .in("id", rows.map((r) => r.id)).is(column, null).select("id");
+  if (claimError) throw claimError;
+  const mine = new Set((claimed ?? []).map((r) => r.id));
+  rows = rows.filter((r) => mine.has(r.id));
+  if (!rows.length) return 0;
+
+  const [{ data: nonprofits }, { data: items }] = await Promise.all([
+    db.from("nonprofits").select("id, name, kind").in("id", [...new Set(rows.map((r) => r.nonprofit_id))]),
+    db.from("follow_items").select("id, name").in("id", rows.map((r) => r.item_id).filter(Boolean) as string[]),
+  ]);
+  const npById = new Map((nonprofits ?? []).map((n) => [n.id, n]));
+  const itemById = new Map((items ?? []).map((i) => [i.id, i]));
+  const secret = requireSetting("EMAIL_LINK_SECRET");
+
+  const outgoing: Outgoing[] = await Promise.all(rows.map(async (r) => {
+    const np = npById.get(r.nonprofit_id) ?? { name: "", kind: "program" };
+    const itemName = (r.item_id && itemById.get(r.item_id)?.name) || np.name;
+    const cert = certificateUrl(await makeToken(secret, r.id, "cert"));
+    const stopUrl = linkUrl("stop", await makeToken(secret, r.id, "stop"));
+    const email = kind === "welcome"
+      ? welcomeEmail({ nonprofitName: np.name, kind: np.kind, firstName: r.first_name, itemName, interval: r.interval, certificateUrl: cert,
+        manageUrl: await manageLinkFor(secret, r.email) })
+      : giftEmail({ nonprofitName: np.name, kind: np.kind, recipientName: r.gift_name ?? "", giverName: r.first_name, itemName, interval: r.interval,
+        message: r.gift_message, certificateUrl: cert, stopUrl });
+    return { sponsorId: r.id, to: kind === "welcome" ? r.email : r.gift_email ?? "", from: fromLine(np.name), stopUrl, ...email };
+  }));
+  const ids = await sendAll(outgoing);
+  const emailsOn = Boolean(Deno.env.get("RESEND_API_KEY"));
+  await logEmails(rows.map((r, i) => ({
+    sponsor_id: r.id, nonprofit_id: r.nonprofit_id, item_id: r.item_id, kind,
+    status: ids[i] ? "sent" : emailsOn ? "failed" : "skipped", provider_id: ids[i],
+  })));
+  return ids.filter(Boolean).length;
+}
+
+// ---------- Owner reminders before each scheduled update ----------
+
+/** Today's date in Eastern time, "YYYY-MM-DD" (where Cover's pilots are). */
+function easternToday(now = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+}
+
+/** The daily job: a week before each update month an owner picked, email them a reminder (once). */
+async function reminders(request: Request) {
+  requireCron(request);
+  const db = adminDatabase();
+  const today = easternToday();
+  const { data: nonprofits, error } = await db.from("nonprofits").select("id, name, follow_label, page").eq("is_test", false);
+  if (error) throw error;
+  let sent = 0;
+  for (const np of nonprofits ?? []) {
+    const page = (np.page ?? {}) as Record<string, unknown>;
+    for (const due of remindersDue(page.updateMonths, today)) {
+      try {
+        if (await remindOwners(np, due)) sent += 1;
+      } catch (failure) {
+        console.error("Couldn't send reminder", np.id, failure);
+      }
+    }
+  }
+  return { sent };
+}
+
+async function remindOwners(np: { id: string; name: string; follow_label: string | null }, due: { dueOn: string; label: string }) {
+  const db = adminDatabase();
+  // Claim this reminder first: if it's already in the table, it was sent.
+  const { data: claimed, error: claimError } = await db.from("update_reminders")
+    .upsert({ nonprofit_id: np.id, due_on: due.dueOn }, { onConflict: "nonprofit_id,due_on", ignoreDuplicates: true }).select("nonprofit_id");
+  if (claimError) throw claimError;
+  if (!claimed?.length) return false;
+
+  const [{ data: staff, error: staffError }, { count }] = await Promise.all([
+    db.from("staff").select("user_id, role").eq("nonprofit_id", np.id),
+    db.from("sponsors").select("id", { count: "exact", head: true }).eq("nonprofit_id", np.id).in("status", ["active", "past_due"]).eq("updates_off", false),
+  ]);
+  if (staffError) throw staffError;
+  const owners = (staff ?? []).filter((s) => s.role === "owner");
+  const people = owners.length ? owners : staff ?? [];
+  const emails = (await Promise.all(people.map(async (s) => (await db.auth.admin.getUserById(s.user_id)).data.user?.email ?? null)))
+    .filter((e): e is string => Boolean(e));
+  if (!emails.length || !count) return false; // no one to remind, or no sponsors to write to
+  if (!fitsEmailBudget(await sentToday(), emails.length)) {
+    await db.from("update_reminders").delete().eq("nonprofit_id", np.id).eq("due_on", due.dueOn); // try again tomorrow
+    return false;
+  }
+  const email = reminderEmail({
+    nonprofitName: np.name, followLabel: np.follow_label || "Programs", dueLabel: due.label, dashboardUrl: `${SITE_URL}/dashboard.html`, sponsorCount: count,
+  });
+  const ids = await sendAll(emails.map((to) => ({ sponsorId: "", to, from: fromLine("Cover"), stopUrl: "", ...email })));
+  await logEmails(emails.map((_, i) => ({ sponsor_id: null, nonprofit_id: np.id, item_id: null, kind: "reminder", status: ids[i] ? "sent" : "failed", provider_id: ids[i] })));
+  return ids.some(Boolean);
+}
+
+// ---------- The photo certificate page ----------
+
+async function certificate(body: Record<string, unknown>) {
+  const link = await readToken(requireSetting("EMAIL_LINK_SECRET"), body.token, ["cert"]);
+  if (!link) throw new Problem("This certificate link isn't valid. Open the link in your email again.", 403);
+  const db = adminDatabase();
+  const { data: sponsor, error } = await db.from("sponsors")
+    .select("id, first_name, last_initial, business_name, gift_name, interval, created_at, nonprofit_id, item_id, status")
+    .eq("id", link.sponsorId).maybeSingle();
+  if (error) throw error;
+  if (!sponsor || sponsor.status === "pending") throw new Problem("We couldn't find that certificate.", 404);
+  const [{ data: nonprofit }, { data: item }] = await Promise.all([
+    db.from("nonprofits").select("name, kind, page").eq("id", sponsor.nonprofit_id).single(),
+    sponsor.item_id
+      ? db.from("follow_items").select("name, photo_url, photo_focus_x, photo_focus_y").eq("id", sponsor.item_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  return certificateView({ sponsor, nonprofit, item });
 }
 
 /** Adoption notes that waited for today's budget: send the ones that are due, if they fit. */
@@ -394,6 +560,8 @@ Deno.serve(async (request) => {
       case "finish": return json(await finish(request, body), 200, cors);
       case "post": return json(await post(request, body), 200, cors);
       case "send_due": return json(await sendDue(request), 200, cors);
+      case "reminders": return json(await reminders(request), 200, cors);
+      case "certificate": return json(await certificate(body), 200, cors);
       case "lookup": return json(await lookup(body), 200, cors);
       case "stop": return json(await setUpdates(body.token, true), 200, cors);
       case "resume": return json(await setUpdates(body.token, false), 200, cors);

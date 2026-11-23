@@ -9,7 +9,7 @@
 import { adminDatabase, json, requireSetting, stripeClient } from "../_shared/clients.ts";
 import { checkNotABot, fingerprint } from "../_shared/guards.ts";
 import {
-  BadRequest, checkReady, checkoutRequest, clientIp, corsHeaders, parseList, rateLimitMessage, readSignup,
+  BadRequest, checkReady, checkoutRequest, clientIp, corsHeaders, monthlyEquivalent, parseList, rateLimitMessage, readSignup,
 } from "../_shared/sponsorship.js";
 import { chargePlan } from "../_shared/fees.js";
 
@@ -62,7 +62,9 @@ Deno.serve(async (request) => {
     if (!item) throw new BadRequest("That one can't be sponsored right now.");
     checkReady(nonprofit, item);
     // Cover's 3% fee: only when this nonprofit's switch is on (off for everyone during the pilot).
-    const plan = chargePlan({ giftCents: nonprofit.monthly_price_cents, feeOn: nonprofit.cover_fee_on, coverFee: signup.coverFee });
+    // The gift: the donor's amount (new checkout) or the nonprofit's price (old page), and how often.
+    const giftCents = signup.amountCents ?? nonprofit.monthly_price_cents;
+    const plan = { ...chargePlan({ giftCents, feeOn: nonprofit.cover_fee_on, coverFee: signup.coverFee }), giftCents, interval: signup.interval };
 
     const { data: sponsor, error: insertError } = await db
       .from("sponsors")
@@ -74,9 +76,15 @@ Deno.serve(async (request) => {
         show_name: signup.showName,
         last_initial: signup.lastInitial,
         business_name: signup.businessName,
-        monthly_cents: plan.chargedCents,
+        monthly_cents: monthlyEquivalent(plan.chargedCents, plan.interval), // what totals add up
+        amount_cents: plan.chargedCents,
+        interval: plan.interval,
         fee_percent: plan.feePercent,
         covers_fee: plan.coversFee,
+        gift_name: signup.gift?.name ?? null,
+        gift_email: signup.gift?.email ?? null,
+        gift_message: signup.gift?.message ?? null,
+        gift_send_on: signup.gift?.sendOn ?? null,
         status: "pending",
       })
       .select("id")

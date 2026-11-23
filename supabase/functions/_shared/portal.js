@@ -13,18 +13,27 @@ import { coveredTotalCents, giftFromCoveredTotal } from "./fees.js";
 
 export const MIN_MONTHLY_CENTS = 500;
 export const MAX_MONTHLY_CENTS = 100000;
+export const MAX_YEARLY_CENTS = 1200000; // $12,000 a year (same as the new checkout)
 export const PAYMENTS_SHOWN = 12;
 
 export class BadInput extends Error {}
 
 /** Dollars typed by a sponsor ("30", "30.50", 30) as whole cents, within Cover's limits. */
-export function readAmountCents(value) {
+export function readAmountCents(value, interval = "month") {
   const text = String(value ?? "").trim().replace(/^\$/, "");
   if (!/^\d{1,6}(\.\d{1,2})?$/.test(text)) throw new BadInput("Type an amount in dollars, like 25.");
   const cents = Math.round(Number(text) * 100);
-  if (cents < MIN_MONTHLY_CENTS) throw new BadInput(`The smallest monthly gift is $${MIN_MONTHLY_CENTS / 100}.`);
-  if (cents > MAX_MONTHLY_CENTS) throw new BadInput(`The largest monthly gift here is $${(MAX_MONTHLY_CENTS / 100).toLocaleString("en-US")}.`);
+  const yearly = interval === "year";
+  const max = yearly ? MAX_YEARLY_CENTS : MAX_MONTHLY_CENTS;
+  const word = yearly ? "yearly" : "monthly";
+  if (cents < MIN_MONTHLY_CENTS) throw new BadInput(`The smallest ${word} gift is $${MIN_MONTHLY_CENTS / 100}.`);
+  if (cents > max) throw new BadInput(`The largest ${word} gift here is $${(max / 100).toLocaleString("en-US")}.`);
   return cents;
+}
+
+/** How often a subscription charges ("month" or "year"), from its price. */
+export function subscriptionInterval(subscription) {
+  return giftItem(subscription)?.price?.recurring?.interval === "year" ? "year" : "month";
 }
 
 /** Gifts worth showing: anything Stripe set up. A "pending" row with no subscription is a card form someone closed. */
@@ -92,7 +101,8 @@ export function amountChange(subscription, cents) {
   const product = idOf(item?.price?.product);
   if (!item?.id || !product) throw new BadInput("This gift can't be changed here. Email hello@covergiving.com and we'll help.");
   return {
-    items: [{ id: item.id, price_data: { currency: "usd", product, unit_amount: cents, recurring: { interval: "month" } } }],
+    // Same product and the same how-often (a yearly gift stays yearly); only the amount changes.
+    items: [{ id: item.id, price_data: { currency: "usd", product, unit_amount: cents, recurring: { interval: subscriptionInterval(subscription) } } }],
     proration_behavior: "none",
   };
 }

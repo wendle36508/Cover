@@ -193,6 +193,32 @@
           <div class="field-group"><label for="p-goal">Monthly goal ($)</label><input id="p-goal" name="goal" type="number" min="1" step="1"><div class="field-error" id="pe-goal"></div></div>
         </div>
         </div>
+        <div class="panel sponsor-settings" style="margin-bottom:22px">
+          <h2>Your new sponsor page</h2>
+          <p class="look-hint" style="margin:-8px 0 14px">For the new page layout. It starts filled in for your kind of nonprofit; change anything. Empty boxes are left off the page.</p>
+          <div class="form-grid">
+            <div class="field-group"><label for="p-template">Kind of nonprofit</label><select id="p-template" name="template"></select><div class="hint">Sets the starting wording below.</div></div>
+            <div class="field-group"><label class="toggle" style="margin-top:28px"><input type="checkbox" id="p-first-person" name="firstPerson"> <span id="p-first-person-label">Profiles speak for themselves ("Hi, I'm Burt")</span></label></div>
+          </div>
+          <h3 class="sub">Facts on each card</h3>
+          <p class="look-hint">Like Age, Breed and Sex. You fill them in for each one in its Edit box.</p>
+          <div class="form-grid four" id="p-fact-fields"></div>
+          <h3 class="sub">Your numbers <span class="optional">(optional)</span></h3>
+          <p class="look-hint">Up to 3, like "2,000+" and "dogs placed in homes".</p>
+          <div class="rows" id="p-stats"></div>
+          <h3 class="sub">Your gift helps with</h3>
+          <div class="rows" id="p-helps"></div>
+          <h3 class="sub">Happy endings <span class="optional">(optional)</span></h3>
+          <p class="look-hint">Up to 3 short stories of ones who found a home or finished their program.</p>
+          <div class="rows" id="p-stories"></div>
+          <h3 class="sub">Your own questions <span class="optional">(optional)</span></h3>
+          <p class="look-hint">Shown after Cover's questions (who else sponsors, where the money goes, how to cancel).</p>
+          <div class="rows" id="p-faq"></div>
+          <h3 class="sub">When you send updates <span class="optional">(optional)</span></h3>
+          <p class="look-hint">Pick the months you'll send a photo update. Your page tells sponsors how often, and Cover emails you a reminder a week before each one.</p>
+          <div class="months" id="p-months" role="group" aria-label="Update months"></div>
+          <div class="field-error" id="pe-sponsor"></div>
+        </div>
         <button class="btn btn-primary btn-lg" type="submit" id="page-save">Save changes</button><span class="saved-note" id="page-saved" hidden>Saved</span>
         <div class="field-error" id="pe-form" role="alert"></div>
       </form>
@@ -247,6 +273,8 @@
   <div class="dialog-head"><div><h2 id="item-dialog-title"></h2><p id="item-dialog-sub"></p></div><button class="dialog-close" type="button" id="item-close" aria-label="Close">×</button></div>
   <form class="dialog-body" id="item-form" novalidate>
     <div class="field-group"><label for="i-name">Name</label><input id="i-name" name="name" maxlength="80"><div class="field-error" id="ie-name"></div></div>
+    <div class="facts-fields" id="i-facts"></div>
+    <div class="field-error" id="ie-facts"></div>
     <div class="field-group">
       <label for="i-photo">Photo</label>
       <div class="crop-wrap" id="crop-wrap" hidden>
@@ -268,6 +296,15 @@
       <div class="hint">Up to 6. They show under the main photo on their own page.</div>
       <div class="field-error" id="ie-more"></div>
     </div>
+    <details class="extras" id="i-extras">
+      <summary>More for their own page (optional)</summary>
+      <label class="toggle"><input type="checkbox" name="isGroup" id="i-group"> <span id="i-group-label">This is a group, not just one</span></label>
+      <div class="field-group"><label for="i-why" id="i-why-label">Why they need sponsoring</label><textarea id="i-why" name="why" maxlength="600" rows="3"></textarea><div class="field-error" id="ie-why"></div></div>
+      <div class="form-grid">
+        <div class="field-group"><label for="i-loves" id="i-loves-label">Loves</label><input id="i-loves" name="loves" maxlength="120" placeholder="Car rides"><div class="field-error" id="ie-loves"></div></div>
+        <div class="field-group"><label for="i-dislikes" id="i-dislikes-label">Not a fan of</label><input id="i-dislikes" name="dislikes" maxlength="120" placeholder="Squirrels"><div class="field-error" id="ie-dislikes"></div></div>
+      </div>
+    </details>
     <button class="btn btn-primary btn-lg btn-block" type="submit" id="item-save">Save</button>
     <div class="field-error" id="ie-form" role="alert"></div>
   </form>

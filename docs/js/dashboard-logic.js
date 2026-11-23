@@ -39,6 +39,8 @@ export function statusLabel(status) {
       return { text: "Card failed", tone: "late" };
     case "canceled":
       return { text: "Canceled", tone: "off" };
+    case "gave_once":
+      return { text: "Gave once", tone: "active" };
     default:
       return { text: "Waiting on payment", tone: "new" };
   }
@@ -346,4 +348,84 @@ export function postSummary(name, result, now = new Date()) {
   if (result.emailsOn === false) return `Update saved. Emails aren't switched on yet, so no one was emailed.`;
   if (!result.sponsors) return `Update saved. ${name} has no sponsors with updates on yet, so no one was emailed.`;
   return `Update sent to ${result.emailed} sponsor${result.emailed === 1 ? "" : "s"}.`;
+}
+
+// ---------- New sponsor pages, phase 2: what owners fill in (Nov 23) ----------
+
+/** Quick-pick answers for common facts, so owners tap instead of typing. */
+export const FACT_PICKS = { Sex: ["Male", "Female"] };
+
+const LIMITS2 = { factField: 30, fact: 40, why: 600, love: 120, statValue: 24, statLabel: 80, helpTitle: 40, helpText: 80, storyTitle: 80, storyText: 600, q: 120, a: 600 };
+const clean2 = (value) => (typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "");
+
+/**
+ * The extra boxes in a dog's Edit box: facts, group, why, loves, not a fan of.
+ * Empty facts are dropped (a missing fact never shows as a blank on the page).
+ */
+export function validateItemExtras(form) {
+  const facts = {};
+  const errors = {};
+  for (const [field, value] of Object.entries(form?.facts ?? {})) {
+    const v = clean2(value);
+    if (!v) continue;
+    if (v.length > LIMITS2.fact) errors.facts = `Keep each fact under ${LIMITS2.fact} characters.`;
+    facts[clean2(field).slice(0, LIMITS2.factField)] = v.slice(0, LIMITS2.fact);
+  }
+  const values = { facts, isGroup: form?.isGroup === true, why: clean2(form?.why), loves: clean2(form?.loves), dislikes: clean2(form?.dislikes) };
+  if (values.why.length > LIMITS2.why) errors.why = `Keep this under ${LIMITS2.why} characters.`;
+  if (values.loves.length > LIMITS2.love) errors.loves = `Keep this under ${LIMITS2.love} characters.`;
+  if (values.dislikes.length > LIMITS2.love) errors.dislikes = `Keep this under ${LIMITS2.love} characters.`;
+  return { ok: Object.keys(errors).length === 0, errors, values };
+}
+
+/** Rows of two boxes ("2,000+" / "dogs placed"): empty rows dropped, half-filled rows flagged. */
+function pairRows(rows, max, [k1, n1, max1], [k2, n2, max2], label) {
+  const kept = [];
+  let error = "";
+  for (const row of (Array.isArray(rows) ? rows : []).slice(0, max)) {
+    const a = clean2(row?.[k1]);
+    const b = clean2(row?.[k2]);
+    if (!a && !b) continue;
+    if (!a || !b) error = `Fill in both boxes for each ${label}, or leave both empty.`;
+    else if (a.length > max1) error = `Keep the ${n1} under ${max1} characters.`;
+    else if (b.length > max2) error = `Keep the ${n2} under ${max2} characters.`;
+    else kept.push({ ...row, [k1]: a, [k2]: b });
+  }
+  return { kept, error };
+}
+
+/**
+ * The "Your new sponsor page" settings. Returns { ok, errors, values } where values is what goes into
+ * the nonprofit's page settings: template, firstPerson, factFields, stats, helps, stories, faq, updateMonths.
+ */
+export function validateSponsorSettings(form, templateKeys) {
+  const errors = {};
+  const template = (templateKeys ?? []).includes(form?.template) ? form.template : null;
+  const factFields = [...new Set((form?.factFields ?? []).map(clean2).filter(Boolean))].slice(0, 4);
+  if (factFields.some((f) => f.length > LIMITS2.factField)) errors.factFields = `Keep each fact name under ${LIMITS2.factField} characters.`;
+  const stats = pairRows(form?.stats, 3, ["value", "number", LIMITS2.statValue], ["label", "words", LIMITS2.statLabel], "number");
+  const helps = pairRows(form?.helps, 6, ["title", "title", LIMITS2.helpTitle], ["text", "short line", LIMITS2.helpText], "\"gift helps with\" item");
+  const stories = pairRows(form?.stories, 3, ["title", "title", LIMITS2.storyTitle], ["text", "story", LIMITS2.storyText], "happy ending");
+  const faq = pairRows(form?.faq, 6, ["q", "question", LIMITS2.q], ["a", "answer", LIMITS2.a], "question");
+  for (const [key, result] of Object.entries({ stats, helps, stories, faq })) if (result.error) errors[key] = result.error;
+  const values = {
+    template,
+    firstPerson: form?.firstPerson === true,
+    factFields,
+    stats: stats.kept.map(({ value, label }) => ({ value, label })),
+    helps: helps.kept.map(({ icon, title, text }) => ({ icon: typeof icon === "string" ? icon : "heart", title, text })),
+    stories: stories.kept.map(({ title, text, photo }) => ({ title, text, ...(typeof photo === "string" && /^https:\/\/[^\s"'<>]+$/.test(photo) ? { photo } : {}) })),
+    faq: faq.kept.map(({ q, a }) => ({ q, a })),
+    updateMonths: [...new Set((Array.isArray(form?.updateMonths) ? form.updateMonths : []).map(Number).filter((m) => Number.isInteger(m) && m >= 1 && m <= 12))].sort((a, b) => a - b),
+  };
+  return { ok: Object.keys(errors).length === 0, errors, values };
+}
+
+/** A sponsor's amount as owners read it: "$25" monthly, "$200/yr" yearly, "$50 once" for a one-time gift. */
+export function amountLabel(sponsor) {
+  const cents = sponsor?.amount_cents ?? sponsor?.monthly_cents ?? 0;
+  const dollars = `$${(cents / 100).toLocaleString("en-US", { minimumFractionDigits: cents % 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
+  if (sponsor?.interval === "year") return `${dollars}/yr`;
+  if (sponsor?.interval === "once") return `${dollars} once`;
+  return dollars;
 }

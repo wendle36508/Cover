@@ -167,3 +167,38 @@ body { background: var(--soft); }
 .share-qr canvas { width: 128px; height: 128px; border-radius: 8px; background: #fff; flex: none; image-rendering: pixelated; }
 .share-qr p { color: var(--body); font-size: 14px; margin: 4px 0 10px; }
 #share-dialog .btn-block { margin-top: 10px; }
+
+/* New sponsor pages: dog facts and extras (Edit box), and the Sponsor page settings */
+.facts-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px; align-items: start; }
+.facts-fields .field-group { margin: 0 0 12px; min-width: 0; }
+.facts-fields input { width: 100%; box-sizing: border-box; }
+.fact-picks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.fact-picks button { font: inherit; font-size: 13px; font-weight: 650; border: 1.5px solid var(--line); border-radius: 999px; padding: 5px 11px; background: #fff; cursor: pointer; }
+.fact-picks button[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+details.extras { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin: 6px 0 16px; }
+details.extras summary { font-weight: 700; cursor: pointer; }
+details.extras[open] summary { margin-bottom: 12px; }
+details.extras .toggle { margin-bottom: 12px; }
+.sponsor-settings h3.sub { font-size: 16px; margin: 22px 0 4px; }
+.sponsor-settings .optional { color: var(--muted); font-weight: 500; font-size: 13px; }
+.form-grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.form-grid.four input { width: 100%; box-sizing: border-box; }
+.add-row { font: inherit; font-size: 14px; font-weight: 650; color: var(--green-dark); background: none; border: 0; padding: 4px 0; cursor: pointer; text-align: left; }
+.rows { display: grid; gap: 10px; margin-top: 8px; }
+.set-row { display: grid; grid-template-columns: 1fr 2fr; gap: 8px; }
+.set-row.help { grid-template-columns: 150px 1fr 2fr; }
+.set-row.story { grid-template-columns: 1fr; border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
+.set-row.qa { grid-template-columns: 1fr; border: 1px solid var(--line); border-radius: 12px; padding: 10px; }
+.set-row input, .set-row select, .set-row textarea { font: inherit; font-size: 15px; border: 1.5px solid var(--line); border-radius: 10px; padding: 9px 11px; width: 100%; background: #fff; }
+.set-row textarea { min-height: 64px; resize: vertical; }
+.months { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin-top: 8px; }
+.months label { display: flex; align-items: center; justify-content: center; gap: 6px; border: 1.5px solid var(--line); border-radius: 10px; padding: 10px 4px; font-size: 15px; font-weight: 600; cursor: pointer; background: #fff; }
+.months label:has(input:checked) { border-color: var(--green); background: var(--mint); }
+.months input { width: 18px; height: 18px; accent-color: var(--green-dark); margin: 0; }
+@media (max-width: 520px) { .months { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.story-photo { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
+.story-photo img { width: 64px; height: 48px; object-fit: cover; border-radius: 8px; }
+@media (max-width: 760px) {
+  .form-grid.four { grid-template-columns: 1fr 1fr; }
+  .set-row, .set-row.help { grid-template-columns: 1fr; }
+}

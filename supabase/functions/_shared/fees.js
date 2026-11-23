@@ -40,3 +40,8 @@ export function chargePlan({ giftCents, feeOn, coverFee }) {
   const covers = coverFee === true;
   return { chargedCents: covers ? coveredTotalCents(gift) : gift, feePercent: COVER_FEE_PERCENT, coversFee: covers };
 }
+
+/** Cover's fee on a one-time gift, in cents (Stripe takes it as a fixed amount, not a %). 0 when off. */
+export function oneTimeFeeCents(chargedCents, feePercent) {
+  return feePercent > 0 ? Math.round((Math.max(0, Number(chargedCents) || 0) * feePercent) / 100) : 0;
+}
