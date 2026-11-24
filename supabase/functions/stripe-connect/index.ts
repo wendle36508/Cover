@@ -39,6 +39,10 @@ async function createAccount(nonprofit: { id: string; name: string }, email: str
     });
     if (result.ok) return result.body.id;
     if (dashboard === DASHBOARD_FALLBACK || !shouldTryFallback(result.body)) {
+      // Which Stripe account the server's key belongs to (an account ID, not a secret), so a key from
+      // the wrong account shows up in the logs right away.
+      const me = await stripeV2("/v1/account", { method: "GET" });
+      console.error("Stripe key belongs to", me.body?.id ?? "unknown", "live:", stripeKey().includes("_live_"), "charges_enabled:", me.body?.charges_enabled);
       throw new Error(`Stripe couldn't create the account: ${result.body?.error?.message ?? "unknown error"}`);
     }
     console.warn("Stripe refused the first-choice dashboard; trying the fallback.", result.body?.error?.code);
