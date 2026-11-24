@@ -25,6 +25,19 @@ export function accountRequest(nonprofit, contactEmail, dashboard = DASHBOARD_FI
   };
 }
 
+/**
+ * Whose email Stripe uses to reach the nonprofit about its account (payout problems, ID checks): the
+ * owner who joined, else the owner who's been invited, else whoever is setting it up. An admin helping a
+ * nonprofit (like Cover setting up a pilot) shouldn't end up as the rescue's Stripe contact.
+ * @param {{ ownerEmails?: string[], invitedOwnerEmails?: string[], userEmail?: string }} [people]
+ * @returns {string}
+ */
+export function pickContactEmail(people = {}) {
+  const { ownerEmails = [], invitedOwnerEmails = [], userEmail = "" } = people;
+  const usable = (list) => (Array.isArray(list) ? list : []).find((e) => typeof e === "string" && e.includes("@"));
+  return usable(ownerEmails) ?? usable(invitedOwnerEmails) ?? userEmail ?? "";
+}
+
 /** True when Stripe refused the dashboard and fee/loss combination, so the fallback is worth trying. */
 export function shouldTryFallback(errorBody) {
   const code = errorBody?.error?.code ?? "";

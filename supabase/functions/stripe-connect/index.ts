@@ -8,7 +8,7 @@
 import { adminDatabase, json, STRIPE_API_VERSION, stripeClient, stripeKey } from "../_shared/clients.ts";
 import {
   accountRequest, cardPaymentsStatus, connectionMessage, DASHBOARD_FALLBACK, DASHBOARD_FIRST_CHOICE,
-  EMBEDDED_COMPONENTS, isMissingAccount, readAction, readNonprofitId, shouldTryFallback,
+  EMBEDDED_COMPONENTS, isMissingAccount, pickContactEmail, readAction, readNonprofitId, shouldTryFallback,
 } from "../_shared/connect.js";
 import { corsHeaders, parseList } from "../_shared/sponsorship.js";
 
@@ -59,6 +59,16 @@ async function accountIsGone(accountId: string, found: { status: number; body: u
     console.warn("Older account lookup also failed:", stripeError?.type, stripeError?.code, stripeError?.message);
     return isMissingAccount(0, { error: { code: stripeError?.code, message: stripeError?.message } });
   }
+}
+
+/** The nonprofit's owner's email for Stripe (see pickContactEmail), falling back to the person setting it up. */
+async function contactEmail(db: ReturnType<typeof adminDatabase>, nonprofitId: string, userEmail: string): Promise<string> {
+  const [{ data: owners }, { data: invites }] = await Promise.all([
+    db.from("staff").select("user_id").eq("nonprofit_id", nonprofitId).eq("role", "owner"),
+    db.from("staff_invites").select("email").eq("nonprofit_id", nonprofitId).eq("role", "owner"),
+  ]);
+  const ownerEmails = await Promise.all((owners ?? []).map(async (o) => (await db.auth.admin.getUserById(o.user_id)).data.user?.email ?? ""));
+  return pickContactEmail({ ownerEmails, invitedOwnerEmails: (invites ?? []).map((i) => i.email), userEmail });
 }
 
 Deno.serve(async (request) => {
@@ -112,7 +122,7 @@ Deno.serve(async (request) => {
     }
     if (!accountId) {
       if (action === "status") return json({ status: "not_started", live: false, message: connectionMessage("not_started") }, 200, cors);
-      accountId = await createAccount(nonprofit, user.email ?? "");
+      accountId = await createAccount(nonprofit, await contactEmail(db, nonprofit.id, user.email ?? ""));
       const { error } = await db.from("nonprofits").update({ stripe_account_id: accountId }).eq("id", nonprofit.id);
       if (error) throw error;
     }

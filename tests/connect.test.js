@@ -2,10 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import {
-  DASHBOARD_FALLBACK, DASHBOARD_FIRST_CHOICE, EMBEDDED_COMPONENTS, accountRequest, cardPaymentsStatus,
-  connectionMessage, isMissingAccount, readAction, readNonprofitId, shouldTryFallback,
-} from "../supabase/functions/_shared/connect.js";
+import { DASHBOARD_FALLBACK, DASHBOARD_FIRST_CHOICE, EMBEDDED_COMPONENTS, accountRequest, cardPaymentsStatus, connectionMessage, isMissingAccount, pickContactEmail, readAction, readNonprofitId, shouldTryFallback } from "../supabase/functions/_shared/connect.js";
 
 const nonprofit = { id: "np1", name: "Harbor Paws Rescue" };
 
@@ -76,4 +73,11 @@ test("a leftover test-mode or deleted account is spotted, other errors are not",
   assert.equal(isMissingAccount(403, { error: { message: "The provided key 'rk_live_x' does not have the required permissions for this endpoint" } }), false);
   assert.equal(isMissingAccount(401, { error: { code: "authentication_required", message: "Invalid API key" } }), false);
   assert.equal(isMissingAccount(500, undefined), false);
+});
+
+test("the rescue's Stripe contact is its owner, not an admin helping set it up", () => {
+  assert.equal(pickContactEmail({ ownerEmails: ["mom@example.com"], invitedOwnerEmails: ["other@example.com"], userEmail: "admin@example.com" }), "mom@example.com");
+  assert.equal(pickContactEmail({ ownerEmails: [], invitedOwnerEmails: ["mom@example.com"], userEmail: "admin@example.com" }), "mom@example.com", "owner invited but not signed in yet");
+  assert.equal(pickContactEmail({ ownerEmails: [""], invitedOwnerEmails: [], userEmail: "owner@example.com" }), "owner@example.com", "an owner setting up their own page");
+  assert.equal(pickContactEmail({}), "");
 });
