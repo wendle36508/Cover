@@ -20,6 +20,8 @@ import { clearSponsors, saveSponsor, sponsorsFor } from "./store.js";
 
 const CHECK_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><polyline points="5,12.5 10,17 19,7" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/></svg>';
 const params = new URLSearchParams(location.search);
+// covergiving.com/give with no nonprofit named: show the list of nonprofits on the main page instead of a sample page.
+if (!params.get("org")) location.replace("index.html#nonprofits");
 const requestedSlug = (params.get("org") ?? "rescue").toLowerCase();
 if (params.has("reset")) clearSponsors();
 

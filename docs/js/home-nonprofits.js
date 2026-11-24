@@ -1,6 +1,6 @@
-// home-nonprofits.js - the homepage's "Sponsor a local nonprofit" section. Shows every live nonprofit on
-// Cover straight from the database: one big featured card while there's one, a photo grid once there are
-// more. Stays hidden when nothing is live (never an empty or "coming soon" grid). Text is set with
+// home-nonprofits.js - the nonprofits list on covergiving.com (the donor side). Shows every live nonprofit
+// on Cover straight from the database: one big featured card while there's one, a photo grid once there
+// are more. With none live, a short "getting ready" note shows instead of an empty grid. Text is set with
 // textContent. Drawn in Cover's "Full photo" look (css/brand.css): photo edge to edge, name on a fade.
 
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "./config.js";
@@ -101,19 +101,27 @@ async function loadNonprofits() {
   return cleanNonprofits(await response.json());
 }
 
+/** No nonprofit live yet (or the list couldn't load): show the short "getting ready" note instead. */
+function showEmpty() {
+  if ($("np-empty")) $("np-empty").hidden = false;
+}
+
 async function draw() {
   let nonprofits = [];
   try {
     nonprofits = await loadNonprofits();
   } catch (error) {
-    console.warn("Couldn't load the live nonprofits; the section stays hidden.", error);
+    console.warn("Couldn't load the live nonprofits.", error);
+    showEmpty();
     return;
   }
   const layout = layoutFor(nonprofits.length);
-  if (layout === "hidden") return;
+  if (layout === "hidden") {
+    showEmpty();
+    return;
+  }
   $("np-list").className = layout === "featured" ? "" : "np-grid";
   $("np-list").replaceChildren(...(layout === "featured" ? [featured(nonprofits[0])] : nonprofits.map(card)));
-  $("nonprofits").hidden = false;
 }
 
 draw();
