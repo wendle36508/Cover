@@ -67,7 +67,7 @@ function draw(view) {
   side.append(el("p", "thanks", `Thank you from all of us at ${view.orgName}.`));
   const foot = el("p", "foot", "Powered by");
   const mark = el("img");
-  mark.src = "brand/logo.svg";
+  mark.src = "brand/logo.png";
   mark.alt = "Cover";
   foot.append(mark);
   side.append(foot);

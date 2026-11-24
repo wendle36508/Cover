@@ -79,7 +79,7 @@ async function start() {
 
   const foot = el("p", "foot", "Powered by");
   const cover = el("img");
-  cover.src = "brand/logo.svg";
+  cover.src = "brand/logo.png";
   cover.alt = "Cover";
   foot.append(cover);
   sheet.append(foot);
