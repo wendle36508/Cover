@@ -5,10 +5,11 @@
 //   { action: "status" }  -> asks Stripe whether the nonprofit can take payments, and turns their
 //                            public page on (or off) to match. Only this server code can do that.
 
+import type Stripe from "npm:stripe@23";
 import { adminDatabase, json, STRIPE_API_VERSION, stripeClient, stripeKey } from "../_shared/clients.ts";
 import {
-  accountRequest, cardPaymentsStatus, connectionMessage, DASHBOARD_FALLBACK, DASHBOARD_FIRST_CHOICE,
-  EMBEDDED_COMPONENTS, isMissingAccount, pickContactEmail, readAction, readNonprofitId, shouldTryFallback,
+  accountRequest, accountRequestV1, cardPaymentsStatus, cardPaymentsStatusV1, connectionMessage, DASHBOARD_FALLBACK, DASHBOARD_FIRST_CHOICE,
+  EMBEDDED_COMPONENTS, isMissingAccount, pickContactEmail, readAction, readNonprofitId, shouldTryFallback, shouldUseV1Fallback,
 } from "../_shared/connect.js";
 import { corsHeaders, parseList } from "../_shared/sponsorship.js";
 
@@ -38,6 +39,16 @@ async function createAccount(nonprofit: { id: string; name: string }, email: str
       idempotencyKey: `cover-account-${nonprofit.id}-${dashboard}`,
     });
     if (result.ok) return result.body.id;
+    if (shouldUseV1Fallback(result.body)) {
+      // Stripe refuses the newer way for Cover ("must be activated") even though Cover's account is
+      // fully active (Nov 24, 2026). Make the same account the older way instead.
+      console.warn("Stripe refused the newer account API; creating the account the older way.");
+      const account = await stripeClient().accounts.create(
+        accountRequestV1(nonprofit, email) as Stripe.AccountCreateParams,
+        { idempotencyKey: `cover-account-v1-${nonprofit.id}` },
+      );
+      return account.id;
+    }
     if (dashboard === DASHBOARD_FALLBACK || !shouldTryFallback(result.body)) {
       // Which Stripe account the server's key belongs to (an account ID, not a secret), so a key from
       // the wrong account shows up in the logs right away.
@@ -53,10 +64,13 @@ async function createAccount(nonprofit: { id: string; name: string }, email: str
 // True only when Stripe confirms the saved account doesn't exist for Cover's key (for example, it
 // was made in test mode before Cover went live). The newer lookup can answer "permission denied"
 // for those, so ask the older one, which plainly says "resource_missing". Any other answer keeps it.
+let olderAccount: Stripe.Account | null = null; // set when only the older lookup could find the account
+
 async function accountIsGone(accountId: string, found: { status: number; body: unknown }): Promise<boolean> {
+  olderAccount = null;
   if (isMissingAccount(found.status, found.body)) return true;
   try {
-    await stripeClient().accounts.retrieve(accountId);
+    olderAccount = await stripeClient().accounts.retrieve(accountId);
     return false;
   } catch (error) {
     const stripeError = error as { code?: string; type?: string; message?: string };
@@ -120,9 +134,10 @@ Deno.serve(async (request) => {
         if (error) throw error;
         accountId = null;
         nonprofit.is_live = false;
-      } else {
+      } else if (!olderAccount) {
         throw new Error(`Stripe couldn't look up the account: ${found.body?.error?.message ?? "unknown error"}`);
       }
+      // Otherwise it's an older-style account the newer lookup can't read yet: keep going with olderAccount.
     }
     if (!accountId) {
       if (action === "status") return json({ status: "not_started", live: false, message: connectionMessage("not_started") }, 200, cors);
@@ -136,7 +151,7 @@ Deno.serve(async (request) => {
       return json({ clientSecret: session.client_secret }, 200, cors);
     }
 
-    const status = cardPaymentsStatus(account);
+    const status = account ? cardPaymentsStatus(account) : olderAccount ? cardPaymentsStatusV1(olderAccount) : "not_started";
     const live = status === "active";
     if (live !== nonprofit.is_live) {
       const { error } = await db.from("nonprofits").update({ is_live: live }).eq("id", nonprofit.id);

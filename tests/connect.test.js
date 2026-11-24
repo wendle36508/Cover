@@ -81,3 +81,17 @@ test("the rescue's Stripe contact is its owner, not an admin helping set it up",
   assert.equal(pickContactEmail({ ownerEmails: [""], invitedOwnerEmails: [], userEmail: "owner@example.com" }), "owner@example.com", "an owner setting up their own page");
   assert.equal(pickContactEmail({}), "");
 });
+
+test("when Stripe refuses the newer way, the older way asks for the same setup", async () => {
+  const { accountRequestV1, shouldUseV1Fallback, cardPaymentsStatusV1 } = await import("../supabase/functions/_shared/connect.js");
+  assert.equal(shouldUseV1Fallback({ error: { message: "Your account must be activated in order to create accounts." } }), true);
+  assert.equal(shouldUseV1Fallback({ error: { message: "Invalid dashboard" } }), false);
+  const v1 = accountRequestV1({ id: "np1", name: "Lucky Pup Rescue" }, "mom@example.com");
+  assert.deepEqual(v1.controller, { fees: { payer: "account" }, losses: { payments: "stripe" }, requirement_collection: "stripe", stripe_dashboard: { type: "express" } });
+  assert.equal(v1.email, "mom@example.com");
+  assert.equal(v1.business_profile.name, "Lucky Pup Rescue");
+  assert.equal(cardPaymentsStatusV1({ capabilities: { card_payments: "active" } }), "active");
+  assert.equal(cardPaymentsStatusV1({ capabilities: { card_payments: "inactive" }, details_submitted: true }), "pending");
+  assert.equal(cardPaymentsStatusV1({ capabilities: { card_payments: "inactive" }, requirements: { disabled_reason: "requirements.past_due" } }), "restricted");
+  assert.equal(cardPaymentsStatusV1({}), "not_started");
+});

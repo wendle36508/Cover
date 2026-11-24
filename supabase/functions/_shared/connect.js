@@ -70,6 +70,41 @@ export function isMissingAccount(httpStatus, errorBody) {
   );
 }
 
+/**
+ * The same account, asked for the older way (Accounts v1): Stripe covers losses, fees are paid by the
+ * nonprofit, Stripe collects the ID details, and the nonprofit gets the small Express dashboard.
+ * Used only when Stripe refuses the newer way (see shouldUseV1Fallback).
+ */
+export function accountRequestV1(nonprofit, contactEmail) {
+  return {
+    country: "US",
+    email: contactEmail || undefined,
+    business_profile: { name: nonprofit.name },
+    controller: {
+      fees: { payer: "account" },
+      losses: { payments: "stripe" },
+      requirement_collection: "stripe",
+      stripe_dashboard: { type: "express" },
+    },
+    capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
+    metadata: { cover_nonprofit_id: nonprofit.id },
+  };
+}
+
+/** True when Stripe refused the newer way with its "account must be activated" answer. */
+export function shouldUseV1Fallback(errorBody) {
+  return /must be activated/i.test(errorBody?.error?.message ?? "");
+}
+
+/** Status from an older-style (v1) account, in the same words as cardPaymentsStatus. */
+export function cardPaymentsStatusV1(account) {
+  const capability = account?.capabilities?.card_payments;
+  if (capability === "active") return "active";
+  if (capability === "pending" || account?.details_submitted) return "pending";
+  if (account?.requirements?.disabled_reason) return "restricted";
+  return "not_started";
+}
+
 /** Where the nonprofit is with Stripe: "active" means they can take payments. */
 export function cardPaymentsStatus(account) {
   return account?.configuration?.merchant?.capabilities?.card_payments?.status ?? "not_started";
