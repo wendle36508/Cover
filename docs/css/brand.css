@@ -8,6 +8,10 @@
   --deep: #2F3A24; --moss: #4B5A2A; --cream: #F4EFE6; --paper: #FAF7F1; --sage: #DCE3C8; --light-sage: #B4BE93;
   --ink: #2B2A26; --ink-soft: #5D5B56; --stone: #6B6A5E; --cream-soft: #C9CDB8;
   --line: #D9D2C3; --line-deep: #56623F; --deep-lift: #3B4730;
+  /* Old names some pages still use, mapped onto the new palette (a nonprofit's own color can override
+     --green, --green-dark, --on-green and --mint on its own cards, via brand.js) */
+  --soft: var(--cream); --body: var(--ink-soft); --muted: var(--ink-soft); --mint: var(--sage);
+  --green: var(--moss); --green-dark: var(--moss); --on-green: var(--cream); --radius: 0;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 [hidden] { display: none !important; }
@@ -78,6 +82,32 @@ section { padding: 96px 0; }
 .footer img { height: 28px; width: auto; }
 .footer a { color: var(--cream-soft); text-decoration: none; margin-left: 24px; }
 .footer a:first-child { margin-left: 0; }
+
+/* Boxed pages and pop-ups (My gifts, sign in, updates): paper boxes with a thin line, square edges */
+.btn-primary { background: var(--moss); color: var(--cream); }
+.btn-dark { background: var(--deep); color: var(--cream); }
+.btn-ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn-lg { padding: 16px 24px; font-size: 16px; }
+.btn-block { width: 100%; }
+.btn:disabled { opacity: .6; cursor: default; }
+.link-btn { background: none; border: 0; color: var(--ink-soft); font: inherit; font-size: 14px; margin-top: 16px; cursor: pointer; text-decoration: underline; }
+.field-group { display: grid; gap: 8px; margin-bottom: 16px; }
+.field-group label { font-size: 14px; font-weight: 600; }
+.field-group input, .field-group textarea, .field-group select { font: inherit; font-size: 16px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 0; background: var(--paper); color: var(--ink); }
+.field-group input:focus, .field-group textarea:focus { outline: 2px solid var(--moss); outline-offset: 0; border-color: var(--moss); }
+.field-group input[aria-invalid="true"] { border-color: #B2321F; }
+.field-error { color: #B2321F; font-size: 14px; }
+.toggle { display: flex; gap: 8px; align-items: flex-start; font-size: 15px; color: var(--ink-soft); margin-bottom: 16px; cursor: pointer; }
+.toggle input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--moss); }
+.optional { color: var(--ink-soft); font-weight: 400; }
+.pill { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; padding: 4px 8px; background: var(--sage); color: var(--deep); }
+.check { width: 24px; height: 24px; color: var(--moss); display: inline-grid; place-items: center; flex: none; }
+.check svg { width: 100%; }
+.brand-text { font-family: "Space Grotesk", sans-serif; font-weight: 700; font-size: 19px; letter-spacing: -.018em; display: flex; align-items: center; gap: 8px; }
+.brand-mark { width: 32px; height: 32px; background: var(--deep); color: var(--cream); display: grid; place-items: center; font-size: 13px; font-weight: 600; flex: none; }
+.brand-logo { width: 32px; height: 32px; object-fit: contain; background: var(--paper); flex: none; }
+.powered-by { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--ink-soft); white-space: nowrap; }
+.powered-by img { height: 14px; width: auto; display: inline-block; }
 
 /* Long reading pages (privacy, terms) */
 .legal { max-width: 760px; padding: 64px 0 96px; }

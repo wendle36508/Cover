@@ -7,32 +7,35 @@
 <meta name="referrer" content="no-referrer">
 <title>My gifts | Cover</title>
 <link rel="icon" href="brand/icon-32.png" type="image/png" sizes="32x32"><link rel="apple-touch-icon" href="brand/icon-180.png">
-<link rel="stylesheet" href="css/cover.css">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600&family=Fraunces:ital,opsz,wght,SOFT@1,144,460,100&family=Space+Grotesk:wght@700&display=swap">
+<link rel="stylesheet" href="css/brand.css">
 <style>
   body { background: var(--soft); }
   .top { max-width: 760px; margin: 0 auto; padding: 22px 16px 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .top .brand-text { font-size: 18px; }
+  .top-home img { height: 28px; width: auto; }
+  .top-title { font-weight: 600; color: var(--ink-soft); margin-right: auto; padding-left: 16px; border-left: 1px solid var(--line); margin-left: 16px; }
   .top button { font: inherit; font-size: 14px; color: var(--muted); background: none; border: 0; text-decoration: underline; cursor: pointer; }
   main { max-width: 760px; margin: 0 auto; padding: 22px 16px 48px; }
-  h1 { font-size: 32px; letter-spacing: -.03em; line-height: 1.15; }
+  h1 { font-size: 32px; letter-spacing: -.018em; line-height: 1.15; }
   .lead { color: var(--body); margin-top: 8px; }
-  .panel { background: #fff; border: 1px solid var(--line); border-radius: 20px; padding: 32px; margin-top: 22px; }
+  .panel { background: var(--paper); border: 1px solid var(--line); border-radius: 0; padding: 32px; margin-top: 22px; }
   .panel.signin { max-width: 520px; margin: 40px auto 0; }
-  .gift { background: #fff; border: 1px solid var(--line); border-radius: 20px; margin-top: 22px; overflow: hidden; }
+  .gift { background: var(--paper); border: 1px solid var(--line); border-radius: 0; margin-top: 22px; overflow: hidden; }
   .gift-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 18px 24px; border-bottom: 1px solid var(--line); }
-  .org { display: flex; align-items: center; gap: 10px; font-weight: 750; font-size: 17px; min-width: 0; }
+  .org { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; min-width: 0; }
   .org span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pill.warn { background: #FFF8EC; color: #6E5214; }
   .gift-body { padding: 22px 24px 24px; }
   .follow { display: flex; align-items: center; gap: 16px; }
-  .follow img, .follow .noimg { width: 76px; height: 76px; border-radius: 14px; object-fit: cover; flex: none; background: var(--mint); }
-  .follow h2 { font-size: 22px; letter-spacing: -.02em; line-height: 1.2; }
+  .follow img, .follow .noimg { width: 76px; height: 76px; border-radius: 0; object-fit: cover; flex: none; background: var(--mint); }
+  .follow h2 { font-size: 22px; letter-spacing: -.018em; line-height: 1.2; }
   .follow p { color: var(--muted); font-size: 14px; margin-top: 2px; }
   .facts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 20px; }
-  .fact { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; min-width: 0; }
+  .fact { border: 1px solid var(--line); border-radius: 0; padding: 10px 12px; min-width: 0; }
   .fact small { display: block; font-size: 12px; color: var(--muted); }
   .fact b { display: block; font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
-  .notice { border-radius: 12px; padding: 12px 14px; font-size: 15px; margin-top: 18px; }
+  .notice { border-radius: 0; padding: 12px 14px; font-size: 15px; margin-top: 18px; }
   .notice.warn { background: #FFF8EC; color: #6E5214; }
   .notice.bad { background: #FFF1EE; color: #8A2A18; }
   .notice.ok { background: var(--mint); color: var(--green-dark); }
@@ -43,26 +46,26 @@
   .switches { display: grid; gap: 10px; margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line); }
   .switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 15px; }
   .switch input { width: 40px; height: 22px; accent-color: var(--green-dark); cursor: pointer; }
-  .box { margin-top: 18px; padding: 18px; border-radius: 14px; background: var(--soft); }
+  .box { margin-top: 18px; padding: 18px; border-radius: 0; background: var(--soft); }
   .box h3 { font-size: 17px; }
   .box p { color: var(--body); font-size: 15px; margin-top: 6px; }
   .amount-row { display: flex; gap: 10px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
   .amount-row label { position: relative; }
   .amount-row label::before { content: "$"; position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--muted); }
-  .amount-row input { font: inherit; font-size: 17px; width: 130px; padding: 11px 12px 11px 28px; border: 1.5px solid var(--line); border-radius: 10px; }
-  .amount-row input:focus { outline: none; border-color: var(--green-dark); box-shadow: 0 0 0 3px var(--mint); }
+  .amount-row input { font: inherit; font-size: 17px; width: 130px; padding: 11px 12px 11px 28px; border: 1.5px solid var(--line); border-radius: 0; }
+  .amount-row input:focus { outline: none; border-color: var(--green-dark); }
   .choices { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-top: 12px; }
-  .choice { border: 1.5px solid var(--line); border-radius: 14px; overflow: hidden; background: #fff; text-align: left; font: inherit; cursor: pointer; padding: 0; }
+  .choice { border: 1.5px solid var(--line); border-radius: 0; overflow: hidden; background: var(--paper); text-align: left; font: inherit; cursor: pointer; padding: 0; }
   .choice img, .choice .noimg { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; background: var(--mint); }
   .choice b { display: block; padding: 8px 10px 10px; font-size: 15px; }
-  .choice.current { border-color: var(--green); box-shadow: 0 0 0 2px var(--green); }
+  .choice.current { border-color: var(--green); }
   details { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px; }
-  summary { cursor: pointer; font-weight: 650; font-size: 15px; }
+  summary { cursor: pointer; font-weight: 600; font-size: 15px; }
   table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
   td { padding: 9px 0; border-top: 1px solid var(--line); }
-  td:nth-child(2) { font-weight: 650; }
+  td:nth-child(2) { font-weight: 600; }
   td:last-child { text-align: right; }
-  td a { color: var(--green-dark); font-weight: 650; }
+  td a { color: var(--green-dark); font-weight: 600; }
   .muted { color: var(--muted); }
   .error { color: #B2321F; font-size: 14px; margin-top: 8px; }
   .foot { margin-top: 28px; font-size: 13px; color: var(--muted); text-align: center; }
@@ -78,11 +81,11 @@
 </head>
 <body>
 <header class="top">
-  <span class="brand-text">My gifts</span>
+  <a class="top-home" href="index.html"><img src="brand/logo.png" alt="Cover"></a><span class="top-title">My gifts</span>
   <button type="button" id="sign-out" hidden>Sign out</button>
 </header>
 <main id="content" aria-live="polite"><p class="lead">Loading…</p></main>
-<p class="foot">Questions? Write to <a href="mailto:hello@covergiving.com">hello@covergiving.com</a> · <span class="powered-by">Powered by<img src="brand/logo.png" alt="Cover"></span></p>
+<p class="foot">Questions? Write to <a href="mailto:hello@covergiving.com">hello@covergiving.com</a></p>
 <script type="module" src="js/gifts.js"></script>
 </body>
 </html>

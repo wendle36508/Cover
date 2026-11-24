@@ -6,41 +6,47 @@
 <meta name="robots" content="noindex">
 <title>Your certificate | Cover</title>
 <link rel="icon" href="brand/icon-32.png" type="image/png" sizes="32x32"><link rel="apple-touch-icon" href="brand/icon-180.png">
-<link rel="stylesheet" href="css/cover.css">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600&family=Fraunces:ital,opsz,wght,SOFT@1,144,460,100&family=Space+Grotesk:wght@700&display=swap">
+<link rel="stylesheet" href="css/brand.css">
 <style>
-  /* A sponsor's photo certificate: one landscape letter page. The buttons at the top don't print. */
+  /* A sponsor's photo certificate: one landscape letter page, in Cover's look (like the certificate in
+     the brand kit). The buttons at the top don't print. Colors are Cover's, not the nonprofit's. */
   @page { size: letter landscape; margin: 0.4in; }
-  body { background: var(--soft); }
-  .tools { max-width: 10in; margin: 0 auto; padding: 18px 16px 0; display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
-  .tools p { color: var(--muted); font-size: 14px; }
-  .sheet { width: min(10in, calc(100% - 32px)); margin: 14px auto 40px; background: #fff; border-radius: 18px; box-shadow: 0 10px 40px rgba(20,24,28,.08);
-    display: grid; grid-template-columns: 1fr 1.15fr; overflow: hidden; border: 10px solid var(--mint); }
-  .photo { width: 100%; height: 100%; min-height: 3.5in; object-fit: cover; background: var(--mint); }
-  .words { padding: 0.55in 0.5in; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; }
-  .org { display: flex; align-items: center; gap: 10px; font-weight: 750; font-size: 18px; }
-  .org img { height: 46px; max-width: 120px; object-fit: contain; }
-  .title { font-size: 13px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--green-dark); margin-top: 26px; }
-  .intro { color: var(--body); font-size: 17px; margin-top: 18px; }
-  .holder { font-size: 44px; line-height: 1.05; letter-spacing: -.03em; margin-top: 6px; overflow-wrap: anywhere; }
-  .rule { width: 60%; height: 3px; border-radius: 3px; background: var(--green); margin: 14px 0 10px; }
-  .line { font-size: 21px; color: var(--ink); font-weight: 650; }
-  .date { color: var(--body); font-size: 16px; margin-top: 8px; }
-  .gift { color: var(--body); font-size: 15px; font-style: italic; margin-top: 4px; }
-  .thanks { color: var(--body); font-size: 15px; margin-top: 22px; max-width: 34ch; }
-  .foot { margin-top: auto; padding-top: 24px; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
-  .foot img { height: 14px; }
-  .problem { max-width: 520px; margin: 60px auto; text-align: center; color: var(--body); padding: 0 16px; }
+  body { background: var(--cream); }
+  .tools { max-width: 10in; margin: 0 auto; padding: 16px 16px 0; display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+  .tools p { color: var(--ink-soft); font-size: 14px; }
+  .sheet { position: relative; width: min(10in, calc(100% - 32px)); margin: 16px auto 48px; background: var(--paper); border: 1px solid var(--line);
+    display: grid; grid-template-columns: 1fr 1.15fr; overflow: hidden; }
+  .sheet .photo { position: static; width: 100%; height: 100%; min-height: 3.5in; object-fit: cover; background: var(--sage); }
+  .sheet .words { padding: 0.5in 0.5in 0.4in; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; }
+  .org { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 17px; }
+  .org img { height: 48px; max-width: 120px; object-fit: contain; }
+  .title { font-family: "Space Grotesk", sans-serif; font-weight: 700; letter-spacing: -.018em; font-size: 22px; color: var(--ink); margin-top: 24px; }
+  .intro { color: var(--ink-soft); font-size: 16px; margin-top: 16px; }
+  .holder { font-family: "Fraunces", serif; font-style: italic; font-weight: 460; font-variation-settings: "opsz" 144, "SOFT" 100; letter-spacing: 0;
+    font-size: 56px; line-height: 1.05; color: var(--moss); margin-top: 8px; overflow-wrap: anywhere; }
+  .sheet .rule { width: 60%; height: 2px; border: 0; background: var(--moss); margin: 16px 0 8px; }
+  .line { font-size: 20px; color: var(--ink); font-weight: 600; }
+  .date { color: var(--ink-soft); font-size: 16px; margin-top: 8px; }
+  .gift { color: var(--ink-soft); font-size: 15px; font-style: italic; margin-top: 4px; }
+  .thanks { color: var(--ink-soft); font-size: 15px; margin-top: 24px; max-width: 34ch; }
+  .foot { margin-top: auto; padding-top: 24px; font-size: 12px; color: var(--ink-soft); display: flex; align-items: center; gap: 8px; }
+  .foot img { height: 16px; width: auto; }
+  .sheet::after { content: ""; position: absolute; right: 0.3in; bottom: 0.3in; width: 0.95in; height: 0.95in; background: url(brand/drawings/seal.png) center / contain no-repeat; transform: rotate(-8deg); }
+  .problem { max-width: 520px; margin: 64px auto; text-align: center; color: var(--ink-soft); padding: 0 16px; }
   @media (max-width: 720px) {
-    .sheet { grid-template-columns: 1fr; border-width: 6px; }
-    .photo { min-height: 0; aspect-ratio: 4 / 3; }
-    .words { padding: 28px 20px; }
-    .holder { font-size: 34px; }
+    .sheet { grid-template-columns: 1fr; }
+    .sheet .photo { min-height: 0; aspect-ratio: 4 / 3; }
+    .sheet .words { padding: 24px 16px 96px; }
+    .holder { font-size: 40px; }
+    .sheet::after { width: 64px; height: 64px; right: 16px; bottom: 16px; }
   }
   @media print {
     body { background: #fff; }
     .tools { display: none; }
-    .sheet { margin: 0 auto; box-shadow: none; width: 100%; height: 7.6in; grid-template-columns: 1fr 1.15fr; }
-    .photo { min-height: 0; aspect-ratio: auto; }
+    .sheet { margin: 0 auto; width: 100%; height: 7.6in; grid-template-columns: 1fr 1.15fr; }
+    .sheet .photo { min-height: 0; aspect-ratio: auto; }
     * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
 </style>
