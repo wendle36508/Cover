@@ -14,6 +14,12 @@
 //   { action: "updates" | "wall", token, sponsorId, on }   emails or the thank-you wall on/off
 //   { action: "cancel", token, sponsorId }             no more charges from now on
 //
+// Signing in on a computer by opening the email on a phone (Nov 25, 2026):
+//   request_link may carry { waitSecret } from the computer; the answer then has { wait, code }
+//   { action: "wait_info", token, wait }               on the phone: the number to compare
+//   { action: "approve_wait", token, wait }            on the phone: "yes, sign in my computer"
+//   { action: "check_wait", wait, secret }             on the computer, every few seconds: a token once approved
+//
 // The token names an email address; every change checks the gift belongs to that address.
 // This function is separate from checkout on purpose: nothing here can stop new gifts.
 
@@ -22,6 +28,7 @@ import {
   certificateUrl, fromLine, makeToken, manageLinkEmail, manageLinkFits, manageUrl, makeManageToken, normalizeEmail, readManageToken, REPLY_TO, utcDayStart,
 } from "../_shared/email.js";
 import { checkNotABot, fingerprint } from "../_shared/guards.ts";
+import { cleanWaitId, cleanWaitSecret, linkWithWait, newWaitCode, sameText, sha256Hex, waitState } from "../_shared/link-wait.js";
 import {
   amountChange, BadInput, canChange, cardSession, chargeForGift, giftView, PAYMENTS_SHOWN, portalConfiguration, readAmountCents, visibleSponsorships,
 } from "../_shared/portal.js";
@@ -112,14 +119,27 @@ async function requestLink(request: Request, body: Record<string, unknown>) {
   const tooMany = rateLimitMessage(verdict);
   if (tooMany) throw new Problem(tooMany, 429);
 
-  if (!visibleSponsorships(await giftsFor(email)).length) return LINK_SENT; // nobody to email; same answer either way
+  // A computer that wants to sign itself in once the link is opened on another device (phone).
+  // Made either way, so the answer never shows whether this email gives through Cover.
+  const waitSecret = cleanWaitSecret(body.waitSecret);
+  let wait: { id: string; code: string } | null = null;
+  if (waitSecret) {
+    await db.from("sign_in_waits").delete().lt("created_at", new Date(Date.now() - 86400000).toISOString()); // old ones
+    const { data: made, error: waitError } = await db.from("sign_in_waits")
+      .insert({ email, secret_hash: await sha256Hex(waitSecret), code: newWaitCode() }).select("id, code").single();
+    if (waitError) throw waitError;
+    wait = made;
+  }
+  const answer = wait ? { ...LINK_SENT, wait: wait.id, code: wait.code } : LINK_SENT;
+
+  if (!visibleSponsorships(await giftsFor(email)).length) return answer; // nobody to email; same answer either way
 
   const apiKey = Deno.env.get("RESEND_API_KEY");
   if (!apiKey) throw new Problem("Emails are off right now. Write to hello@covergiving.com and we'll help.", 503);
   if (!manageLinkFits(await sponsorEmailsSentToday())) {
     throw new Problem("We've sent a lot of emails today. Please try again tomorrow, or write to hello@covergiving.com.", 503);
   }
-  const message = manageLinkEmail(manageUrl(await makeManageToken(requireSetting("EMAIL_LINK_SECRET"), email)));
+  const message = manageLinkEmail(linkWithWait(manageUrl(await makeManageToken(requireSetting("EMAIL_LINK_SECRET"), email)), wait?.id ?? null));
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
@@ -135,7 +155,55 @@ async function requestLink(request: Request, body: Record<string, unknown>) {
     console.error("Resend refused the My gifts email", response.status, sent?.message ?? sent?.name);
     throw new Problem("We couldn't send the email just now. Please try again in a minute.", 502);
   }
-  return LINK_SENT;
+  return answer;
+}
+
+// ---------- Sign in on the computer from the phone ----------
+
+type Wait = { id: string; email: string; secret_hash: string; code: string; created_at: string; approved_at: string | null; used_at: string | null };
+
+async function findWait(value: unknown): Promise<Wait | null> {
+  const id = cleanWaitId(value);
+  if (!id) return null;
+  const { data, error } = await adminDatabase().from("sign_in_waits").select("*").eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data as Wait | null;
+}
+
+/** On the phone: a waiting sign-in for this link's email, still open. */
+async function ownWait(body: Record<string, unknown>): Promise<Wait> {
+  const email = await emailFromToken(body.token);
+  const wait = await findWait(body.wait);
+  if (!wait || normalizeEmail(wait.email) !== email || waitState(wait) !== "waiting") {
+    throw new Problem("That computer sign-in has expired. Ask for a new link on the computer.", 404);
+  }
+  return wait;
+}
+
+async function waitInfo(body: Record<string, unknown>) {
+  const wait = await ownWait(body);
+  return { code: wait.code, requestedAt: wait.created_at };
+}
+
+async function approveWait(body: Record<string, unknown>) {
+  const wait = await ownWait(body);
+  const { error } = await adminDatabase().from("sign_in_waits").update({ approved_at: new Date().toISOString() }).eq("id", wait.id).is("approved_at", null);
+  if (error) throw error;
+  return { approved: true };
+}
+
+/** On the computer: with its secret, a My sponsorships token once the phone said yes (handed out once). */
+async function checkWait(body: Record<string, unknown>) {
+  const secret = cleanWaitSecret(body.secret);
+  const wait = await findWait(body.wait);
+  if (!secret || !wait || !sameText(await sha256Hex(secret), wait.secret_hash)) return { status: "expired" };
+  const state = waitState(wait);
+  if (state !== "approved") return { status: state === "waiting" ? "waiting" : "expired" };
+  const { data: claimed, error } = await adminDatabase().from("sign_in_waits").update({ used_at: new Date().toISOString() })
+    .eq("id", wait.id).is("used_at", null).select("id");
+  if (error) throw error;
+  if (!claimed?.length) return { status: "expired" }; // another check already picked it up
+  return { status: "signed_in", token: await makeManageToken(requireSetting("EMAIL_LINK_SECRET"), wait.email) };
 }
 
 // ---------- The page ----------
@@ -292,6 +360,9 @@ Deno.serve(async (request) => {
       case "updates": return json(await toggle(body, "updates_off"), 200, cors);
       case "wall": return json(await toggle(body, "show_name"), 200, cors);
       case "cancel": return json(await cancel(body), 200, cors);
+      case "wait_info": return json(await waitInfo(body), 200, cors);
+      case "approve_wait": return json(await approveWait(body), 200, cors);
+      case "check_wait": return json(await checkWait(body), 200, cors);
       default: throw new Problem("Unknown action.");
     }
   } catch (error) {

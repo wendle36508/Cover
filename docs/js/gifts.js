@@ -98,6 +98,108 @@ function forgetToken() {
   }
 }
 
+// ---------- Sign in on this computer by opening the email on a phone (Nov 25, 2026) ----------
+// The computer keeps a secret and shows a 4-digit number. The emailed link asks the phone "Does your computer
+// show 4821?"; after a yes, this page picks up its sign-in by itself (it checks every few seconds).
+
+const WAIT_KEY = "cover-gifts-wait"; // { wait, secret } for this browser, so a link opened here needs no question
+const POLL_MS = 3000;
+const WAIT_MS = 15 * 60000;
+let waitRun = 0; // bumped whenever the page moves on, so an old check stops
+
+function newSecret() {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function rememberWait(value) {
+  try {
+    if (value) localStorage.setItem(WAIT_KEY, JSON.stringify(value));
+    else localStorage.removeItem(WAIT_KEY);
+  } catch {
+    // storage blocked: the number question still works
+  }
+}
+
+function rememberedWait() {
+  try {
+    return JSON.parse(localStorage.getItem(WAIT_KEY) ?? "null");
+  } catch {
+    return null;
+  }
+}
+
+/** On the computer: check every few seconds until the phone says yes, then sign in here. */
+async function waitForPhone(wait, secret, status) {
+  const run = ++waitRun;
+  const started = Date.now();
+  while (run === waitRun && Date.now() - started < WAIT_MS) {
+    await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+    if (run !== waitRun) return;
+    let result;
+    try {
+      result = await call("check_wait", { wait, secret });
+    } catch {
+      continue; // a blip: try again on the next check
+    }
+    if (result.status === "signed_in" && result.token) {
+      rememberWait(null);
+      token = result.token;
+      try {
+        sessionStorage.setItem(TOKEN_KEY, token);
+      } catch {
+        // storage blocked: signed in for this visit
+      }
+      data = await call("overview");
+      drawGifts();
+      return;
+    }
+    if (result.status === "expired") break;
+  }
+  if (run === waitRun) status.textContent = "This sign-in timed out. Open the link from your email on this computer, or ask for a new one.";
+}
+
+/** On the phone (or any other device) that opened the link: ask before signing the other computer in. */
+async function offerOtherComputer(wait) {
+  const mine = rememberedWait();
+  if (mine?.wait === wait) {
+    // Opened in the same browser that asked: sign that tab in too, no question needed.
+    call("approve_wait", { wait }).catch(() => {});
+    rememberWait(null);
+    return;
+  }
+  let info;
+  try {
+    info = await call("wait_info", { wait });
+  } catch {
+    return; // expired or not for this email: nothing to ask
+  }
+  const box = el("section", "wrap wait-ask");
+  const when = new Date(info.requestedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const yes = button("Yes, sign in my computer", "btn btn-moss", async () => {
+    yes.disabled = true;
+    try {
+      await call("approve_wait", { wait });
+      box.replaceChildren(el("p", "notice ok", "Done. Your computer is signing in now. You can close this."));
+    } catch (failure) {
+      box.replaceChildren(el("p", "notice bad", failure.message));
+    }
+  });
+  const no = button("No, that wasn't me", "btn btn-ghost", () => {
+    box.replaceChildren(el("p", "notice ok", "Okay. Nothing happens on that computer."));
+  });
+  const actions = el("div", "actions");
+  actions.append(yes, no);
+  box.append(
+    el("h2", "", "Sign in on your computer too?"),
+    el("p", "", `Someone asked to see your sponsorships on a computer at ${when}. If that was you, check your computer shows this number:`),
+    el("p", "wait-code", info.code),
+    actions,
+    el("p", "small", "Only say yes if you asked on that computer yourself."),
+  );
+  document.body.insertBefore(box, $("content"));
+}
+
 // ---------- Sign in (no link yet, or an old one) ----------
 
 const TURNSTILE_SCRIPT = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
@@ -157,8 +259,9 @@ function showSignIn(message = "") {
     send.disabled = true;
     send.textContent = "Sending…";
     try {
-      await call("request_link", { email: input.value, turnstileToken: await waitForTurnstile() });
-      showLinkSent(input.value.trim());
+      const secret = newSecret();
+      const sent = await call("request_link", { email: input.value, turnstileToken: await waitForTurnstile(), waitSecret: secret });
+      showLinkSent(input.value.trim(), sent, secret);
     } catch (failure) {
       error.textContent = failure.message;
       send.disabled = false;
@@ -182,14 +285,29 @@ function showSignIn(message = "") {
   startTurnstile();
 }
 
-function showLinkSent(email) {
+function showLinkSent(email, sent = {}, secret = "") {
   const panel = el("section", "panel signin");
   panel.append(
     el("h1", "", "Check your email"),
     el("p", "lead", `If ${email} gives through Cover, a link to your sponsorships is on its way. It can take a minute, and it works for 60 days.`),
-    button("Use a different email", "linklike", () => showSignIn()),
   );
-  panel.lastChild.style.marginTop = "18px";
+  if (sent.wait && sent.code && secret) {
+    // Open the email anywhere: this page signs itself in once the link is opened and okayed.
+    rememberWait({ wait: sent.wait, secret });
+    const status = el("p", "small", "Waiting for you to open the link…");
+    panel.append(
+      el("p", "wait-note", "Opening it on your phone? It will ask you to check this number, then this page signs in by itself:"),
+      el("p", "wait-code", sent.code),
+      status,
+    );
+    waitForPhone(sent.wait, secret, status);
+  }
+  const other = button("Use a different email", "linklike", () => {
+    waitRun += 1;
+    showSignIn();
+  });
+  other.style.marginTop = "18px";
+  panel.append(other);
   show(panel);
 }
 
@@ -533,6 +651,7 @@ async function start() {
     // storage blocked: the link still works for this visit
   }
   const picked = pickToken(location.search, stored);
+  const waitFromLink = new URLSearchParams(location.search).get("w"); // a computer waiting for this link's okay
   token = picked.token;
   if (picked.fromLink) {
     try {
@@ -546,6 +665,7 @@ async function start() {
   try {
     data = await call("overview");
     drawGifts();
+    if (waitFromLink && picked.fromLink && !demo) offerOtherComputer(waitFromLink);
   } catch (failure) {
     if (failure.status === 403) return showSignIn(failure.message);
     const panel = el("section", "panel signin");
