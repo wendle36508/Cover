@@ -63,3 +63,12 @@ test("the sponsor page uses their theme, tints Cover's drawings and shows their 
   assert.match(html, /css\/sponsor\.css\?v=/, "returning visitors get the new styles");
   assert.match(html, /js\/sponsor-page\.js\?v=/);
 });
+
+test("photo shading and the pop-up backdrop use the page's own dark color, never a fixed green", () => {
+  const sponsor = readFileSync(new URL("../docs/css/sponsor.css", import.meta.url), "utf8");
+  assert.match(sponsor, /\.sp-card \.fade \{[^}]*color-mix\(in srgb, var\(--deep\) 92%, transparent\)/, "dog cards");
+  assert.match(sponsor, /\.sponsor-dialog::backdrop \{[^}]*color-mix\(in srgb, var\(--deep, #2F3A24\) 72%, transparent\)/, "checkout backdrop");
+  const brand = readFileSync(new URL("../docs/css/brand.css", import.meta.url), "utf8");
+  assert.equal((brand.match(/\.photo \.fade[^{]*\{[^}]*color-mix\(in srgb, var\(--deep\)/g) ?? []).length, 3, "full-photo shading");
+});
+
