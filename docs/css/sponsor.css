@@ -155,6 +155,13 @@
 .co-seg.two { grid-template-columns: 1fr 1fr; }
 .co-seg button { font: inherit; font-weight: 600; border: 1px solid var(--line); padding: 12px 8px; background: var(--paper); color: var(--ink); cursor: pointer; }
 .co-seg button[aria-pressed="true"] { border-color: var(--deep); background: var(--deep); color: var(--cream); }
+/* How often: Monthly is the big main choice ("Most helpful"); Yearly and One time are smaller options
+   underneath, so a one-time gift is never picked by accident (Tanner, Nov 25, 2026). */
+#co-freq { grid-template-columns: 1fr 1fr; }
+#co-freq button[data-key="month"] { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; padding: 16px; font-size: 18px; }
+#co-freq button[data-key="month"]::after { content: "Most helpful"; font-size: 13px; font-weight: 600; padding: 4px 8px; background: var(--sage); color: var(--deep); }
+#co-freq button:not([data-key="month"]) { font-size: 14px; padding: 8px; background: transparent; color: var(--ink-soft); }
+#co-freq button:not([data-key="month"])[aria-pressed="true"] { background: var(--deep); color: var(--cream); }
 .co-amount { display: flex; align-items: baseline; gap: 8px; border: 1px solid var(--line); background: var(--paper); padding: 8px 16px; }
 .co-amount:focus-within { outline: 2px solid var(--moss); outline-offset: 0; border-color: var(--moss); }
 .co-amount span { font-family: "Space Grotesk", sans-serif; font-size: 28px; font-weight: 700; color: var(--ink-soft); }
