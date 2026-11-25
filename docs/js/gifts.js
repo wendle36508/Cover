@@ -139,7 +139,7 @@ function showSignIn(message = "") {
   const form = el("form");
   form.noValidate = true;
   const group = el("div", "field-group");
-  const label = el("label", "", "Your email");
+  const label = el("label", "", "The email you give with");
   label.htmlFor = "email";
   const input = el("input");
   Object.assign(input, { id: "email", type: "email", autocomplete: "email", required: true, placeholder: "you@email.com" });
@@ -165,11 +165,18 @@ function showSignIn(message = "") {
       if (globalThis.turnstile) globalThis.turnstile.reset("#turnstile");
     }
   });
-  panel.append(el("h1", "", "See your sponsorships"),
+  panel.append(el("h1", "", "Sign in to My sponsorships"),
     el("p", "lead", "Everyone you sponsor, their updates, your certificates and receipts. Enter the email you give with and we'll send you a secure link. No password needed."));
   if (message) panel.append(el("p", "notice warn", message));
   form.style.marginTop = "20px";
   panel.append(form);
+  // The one bridge across: owners sign in somewhere else.
+  const owner = el("p", "small", "Run a nonprofit? ");
+  const ownerLink = el("a", "", "Owner sign-in");
+  ownerLink.href = "signin.html";
+  owner.append(ownerLink, " is here.");
+  owner.style.marginTop = "16px";
+  panel.append(owner);
   show(panel);
   startTurnstile();
 }

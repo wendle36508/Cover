@@ -8,7 +8,7 @@
 <link rel="icon" href="brand/icon-32.png" type="image/png" sizes="32x32"><link rel="apple-touch-icon" href="brand/icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600&family=Fraunces:ital,opsz,wght,SOFT@1,144,460,100&family=Space+Grotesk:wght@700&display=swap">
-<link rel="stylesheet" href="css/brand.css">
+<link rel="stylesheet" href="css/brand.css?v=20261125">
 <style>
   /* covergiving.com is the donor side (Tanner, Nov 24, 2026): the nonprofits first, how sponsoring
      works, and a way for nonprofits to sign up. The nonprofit pitch lives at nonprofits.html. */
@@ -80,11 +80,12 @@
 </head>
 <body>
 
-<nav class="nav"><div class="wrap">
+<nav class="nav split"><div class="wrap">
   <a class="logo" href="index.html"><img src="brand/logo.png" alt="Cover"></a>
-  <div class="links"><a href="#nonprofits">Nonprofits</a><a href="#how">How it works</a><a href="gifts.html">My sponsorships</a></div>
-  <div class="right"><a class="signin" href="signin.html">Sign in</a><a class="btn btn-moss" href="nonprofits.html">For nonprofits</a></div>
+  <div class="links"><a href="index.html#nonprofits">Find someone to sponsor</a><a href="index.html#how">How it works</a><a href="gifts.html">My sponsorships</a></div>
+  <div class="right"><a class="bridge" href="nonprofits.html">For nonprofits</a><a class="btn btn-moss" href="gifts.html">Sign in</a><button class="menu-btn" type="button" aria-expanded="false" aria-controls="phone-menu">Menu</button></div>
 </div></nav>
+<div class="phone-menu" id="phone-menu"><a href="index.html#nonprofits">Find someone to sponsor</a><a href="index.html#how">How it works</a><a href="gifts.html">My sponsorships</a><a class="btn btn-moss" href="gifts.html">Sign in</a><a class="bridge" href="nonprofits.html">For nonprofits</a></div>
 
 <header class="photo dark hero">
   <img src="photos/lucky-pup/falkor-hook.jpg" alt="Falkor, a dog at Lucky Pup Rescue">
@@ -166,7 +167,7 @@
 
 <footer class="dark footer"><div class="wrap">
   <img src="brand/logo-cream.png" alt="Cover">
-  <div><a href="nonprofits.html">For nonprofits</a><a href="gifts.html">My sponsorships</a><a href="signin.html">Sign in</a><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a></div>
+  <div><a href="index.html#nonprofits">Find someone to sponsor</a><a href="gifts.html">My sponsorships</a><a href="privacy.html">Privacy</a><a href="terms.html">Terms</a><a href="nonprofits.html">Run a nonprofit? Cover for nonprofits</a></div>
 </div></footer>
 
 <script type="module" src="js/home-nonprofits.js"></script>
@@ -176,5 +177,6 @@
     location.replace("dashboard.html" + location.search + location.hash);
   }
 </script>
+<script type="module" src="js/menu.js"></script>
 </body>
 </html>

@@ -8,10 +8,10 @@
 <link rel="icon" href="brand/icon-32.png" type="image/png" sizes="32x32"><link rel="apple-touch-icon" href="brand/icon-180.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600&family=Fraunces:ital,opsz,wght,SOFT@1,144,460,100&family=Space+Grotesk:wght@700&display=swap">
-<link rel="stylesheet" href="css/brand.css">
+<link rel="stylesheet" href="css/brand.css?v=20261125">
 <style>
   body { background: var(--soft); }
-  .wrap { min-height: 100vh; display: grid; place-items: center; padding: 32px 16px; }
+  .center { min-height: calc(100vh - 80px); display: grid; place-items: center; padding: 32px 16px; }
   .box { background: var(--paper); border: 1px solid var(--line); border-radius: 0; padding: 36px 32px; width: min(640px, 100%); }
   .org { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; margin-bottom: 26px; }
   .box h1 { font-size: 30px; letter-spacing: -.018em; line-height: 1.15; }
@@ -30,7 +30,13 @@
 </style>
 </head>
 <body>
-<div class="wrap">
+<nav class="nav split"><div class="wrap">
+  <a class="logo" href="index.html"><img src="brand/logo.png" alt="Cover"></a>
+  <div class="links"><a href="index.html#nonprofits">Find someone to sponsor</a><a href="index.html#how">How it works</a><a href="gifts.html">My sponsorships</a></div>
+  <div class="right"><a class="bridge" href="nonprofits.html">For nonprofits</a><a class="btn btn-moss" href="gifts.html">Sign in</a><button class="menu-btn" type="button" aria-expanded="false" aria-controls="phone-menu">Menu</button></div>
+</div></nav>
+<div class="phone-menu" id="phone-menu"><a href="index.html#nonprofits">Find someone to sponsor</a><a href="index.html#how">How it works</a><a href="gifts.html">My sponsorships</a><a class="btn btn-moss" href="gifts.html">Sign in</a><a class="bridge" href="nonprofits.html">For nonprofits</a></div>
+<div class="center">
   <main class="box">
     <div class="org" id="org" hidden><span class="brand-mark" id="org-initials"></span><img class="brand-logo" id="org-logo" alt="" hidden><span id="org-name"></span></div>
     <div id="content" role="status" aria-live="polite"><p>Loading…</p></div>
@@ -38,5 +44,6 @@
   </main>
 </div>
 <script type="module" src="js/updates.js"></script>
+<script type="module" src="js/menu.js"></script>
 </body>
 </html>

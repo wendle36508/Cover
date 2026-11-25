@@ -58,6 +58,14 @@ h3 { font-size: 24px; line-height: 1.2; }
 .nav .right { display: flex; align-items: center; gap: 24px; font-size: 15px; font-weight: 600; }
 .nav .right .signin { text-decoration: none; }
 .nav .btn { padding: 12px 16px; font-size: 15px; }
+/* Site split (Nov 25, 2026): donor and nonprofit headers, the bridge link across, and the phone menu. */
+.nav .logo { display: inline-flex; align-items: baseline; text-decoration: none; }
+.np-tag { font-family: "Fraunces", serif; font-style: italic; font-weight: 460; font-variation-settings: "opsz" 144, "SOFT" 100; font-size: 19px; color: var(--moss); margin-left: 8px; }
+.nav .bridge { font-size: 14px; font-weight: 400; color: var(--ink-soft); text-decoration: none; }
+.nav .links a[aria-current="page"] { color: var(--ink); font-weight: 600; }
+.nav .menu-btn { display: none; font: inherit; font-size: 15px; font-weight: 600; background: none; border: 0; color: var(--ink); cursor: pointer; padding: 8px 0; }
+.phone-menu { display: none; }
+@media print { .nav, .phone-menu { display: none !important; } }
 
 /* Full photo: the photo fills the section; words sit on a deep moss fade, on the quiet side */
 .photo { position: relative; overflow: hidden; background: var(--deep); color: var(--cream); }
@@ -128,6 +136,13 @@ section { padding: 96px 0; }
   .nav .right { gap: 16px; }
   .nav .right .signin { display: none; }
   .nav .btn { padding: 8px 16px; font-size: 14px; }
+  .nav.split .right .bridge, .nav.split .right .btn, .nav.split .right .signin { display: none; }
+  .nav.split .menu-btn { display: inline-block; }
+  .np-tag { font-size: 15px; }
+  .phone-menu.open { display: grid; gap: 16px; padding: 16px 24px 24px; border-bottom: 1px solid var(--line); background: var(--cream); position: sticky; top: 64px; z-index: 5; }
+  .phone-menu a { color: var(--ink); text-decoration: none; font-size: 17px; }
+  .phone-menu .btn { color: var(--cream); justify-content: center; }
+  .phone-menu .bridge { font-size: 15px; color: var(--ink-soft); }
   .cols { grid-template-columns: 1fr !important; }
   .cols > * { padding: 24px 0; border-left: 0; border-top: 1px solid var(--line); }
   .cols > *:first-child { border-top: 0; padding-top: 0; }
