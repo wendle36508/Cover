@@ -64,7 +64,7 @@ function showErrors(prefix, errors) {
 
 const label = () => state.nonprofit.page?.navLabel || "Things to follow";
 const singular = () => label().replace(/s$/i, "") || "one";
-const publicUrl = () => `${pageUrl("give.html")}?org=${state.nonprofit.slug}`;
+const publicUrl = () => `${pageUrl(state.nonprofit.new_page ? "sponsor.html" : "give.html")}?org=${state.nonprofit.slug}`;
 const linkSharedKey = () => `cover.linkShared.${state.nonprofit.id}`;
 function linkShared() {
   try {

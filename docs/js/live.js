@@ -133,6 +133,13 @@ export function orgFromRows(nonprofit, items, counts = [], coveredCents = 0, rec
 }
 
 /** The live page for a nonprofit, or null if it isn't in the database (or isn't live yet). */
+/** Does this nonprofit use the new sponsor page? One small request, so the old page can forward right away. */
+export async function usesNewPage(slug) {
+  if (!SLUG_PATTERN.test(slug ?? "")) return false;
+  const [row] = await get(`nonprofits?slug=eq.${slug}&select=new_page`);
+  return row?.new_page === true;
+}
+
 export async function loadLiveOrg(slug) {
   if (!SLUG_PATTERN.test(slug ?? "")) return null;
   const [nonprofit] = await get(

@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sponsor page | Cover</title>
 <link rel="icon" href="brand/icon-32.png" type="image/png" sizes="32x32"><link rel="apple-touch-icon" href="brand/icon-180.png">
+<!-- Hidden until give.js knows whether this nonprofit uses the new sponsor page, so visitors on their
+     way there never see this old page flash by. Shown again after at most 3 seconds, whatever happens. -->
+<style id="cover-wait">html { background: #F4EFE6; } body { visibility: hidden; }</style>
+<script>setTimeout(function () { var s = document.getElementById("cover-wait"); if (s) s.remove(); }, 3000);</script>
 <link rel="stylesheet" href="css/cover.css">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&display=swap">
 <!-- Stripe.js must load from Stripe's own site (required for card security rules). -->
@@ -221,6 +225,6 @@
   </div>
 </dialog>
 
-<script type="module" src="js/give.js"></script>
+<script type="module" src="js/give.js?v=20261125c"></script>
 </body>
 </html>

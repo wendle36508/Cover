@@ -8,7 +8,7 @@
 import { applyBrand, pageLinks, safeImageUrl } from "./brand.js";
 import { STRIPE_PUBLISHABLE_KEY } from "./config.js";
 import { coveredTotalCents, formatCents } from "./fees.js";
-import { loadLiveOrg, startSponsorship } from "./live.js";
+import { loadLiveOrg, startSponsorship, usesNewPage } from "./live.js?v=20261125c";
 import { newPageLink } from "./sponsor-page-logic.js";
 import { TURNSTILE_SITE_KEY } from "./config.js";
 import { ORGS, SHARED_FAQ } from "./orgs.js";
@@ -624,15 +624,33 @@ function showReturnThanks() {
 
 // ---------- Start ----------
 
+/** Show this page (it starts hidden, see give.html). */
+function reveal() {
+  document.getElementById("cover-wait")?.remove();
+}
+
 async function start() {
+  // This nonprofit uses the new sponsor page: send the visitor there (same nonprofit, same dog) before
+  // anything of this page shows. Not after a checkout on this page (session_id), so the thank-you shows here.
+  if (!params.has("session_id")) {
+    let forward = false;
+    try {
+      forward = await usesNewPage(requestedSlug);
+    } catch {
+      forward = false; // can't tell: show this page as before
+    }
+    if (forward) {
+      location.replace(newPageLink(location.search));
+      return;
+    }
+  }
+  reveal();
   let live = null;
   try {
     live = await loadLiveOrg(requestedSlug);
   } catch (error) {
     console.warn("Couldn't load the live page; showing the demo instead.", error);
   }
-  // This nonprofit uses the new sponsor page: send the visitor there (same nonprofit, same dog).
-  // Not after a checkout on this page (session_id), so the thank-you still shows here.
   if (live?.newPage && !params.has("session_id")) {
     location.replace(newPageLink(location.search));
     return;
