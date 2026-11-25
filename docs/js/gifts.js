@@ -107,7 +107,8 @@ async function startTurnstile() {
   if (!TURNSTILE_SITE_KEY || demo) return;
   try {
     await new Promise((resolve, reject) => {
-      if (globalThis.turnstile) return resolve();
+      // The real bot check, not just something named "turnstile" (a box with that id shows up under the same name).
+      if (typeof globalThis.turnstile?.render === "function") return resolve();
       const script = el("script");
       script.src = TURNSTILE_SCRIPT;
       script.async = true;
@@ -116,7 +117,7 @@ async function startTurnstile() {
       document.head.append(script);
     });
     turnstileToken = "";
-    globalThis.turnstile.render("#turnstile", {
+    globalThis.turnstile.render("#gifts-turnstile", {
       sitekey: TURNSTILE_SITE_KEY,
       appearance: "interaction-only",
       callback: (value) => (turnstileToken = value),
@@ -145,7 +146,7 @@ function showSignIn(message = "") {
   Object.assign(input, { id: "email", type: "email", autocomplete: "email", required: true, placeholder: "you@email.com" });
   const error = el("p", "field-error");
   const bot = el("div", "turnstile");
-  bot.id = "turnstile";
+  bot.id = "gifts-turnstile";
   const send = el("button", "btn btn-primary btn-block", "Email me a link");
   send.type = "submit";
   group.append(label, input, error);
@@ -162,7 +163,7 @@ function showSignIn(message = "") {
       error.textContent = failure.message;
       send.disabled = false;
       send.textContent = "Email me a link";
-      if (globalThis.turnstile) globalThis.turnstile.reset("#turnstile");
+      if (typeof globalThis.turnstile?.reset === "function") globalThis.turnstile.reset("#gifts-turnstile");
     }
   });
   panel.append(el("h1", "", "Sign in to My sponsorships"),

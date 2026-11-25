@@ -1,6 +1,7 @@
 // Tests for docs/js/gifts-logic.js (the My gifts page's formatting, checks and demo). Run with: npm test
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { readFileSync } from "node:fs";
 
 import {
   demoGifts, followLine, helpsLine, money, monthYear, pickToken, readDollars, shortDate, statusInfo,
@@ -90,4 +91,11 @@ test("My sponsorships: time together, amounts, and the updates and receipts list
   assert.equal(updatesFeed(gifts)[0].fallbackPhoto, "https://x/f.jpg");
   assert.deepEqual(paymentsFeed(gifts).map((p) => p.name), ["Lucky Pup Rescue", "Falkor"]);
   assert.equal(updatesFeed(gifts, 1).length, 1);
+});
+
+test("the sign-in's robot check really loads (its box isn't named 'turnstile', which hid the real check)", () => {
+  const js = readFileSync(new URL("../docs/js/gifts.js", import.meta.url), "utf8");
+  assert.match(js, /bot\.id = "gifts-turnstile";/);
+  assert.match(js, /if \(typeof globalThis\.turnstile\?\.render === "function"\) return resolve\(\);/);
+  assert.doesNotMatch(js, /bot\.id = "turnstile"/);
 });
