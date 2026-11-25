@@ -1,7 +1,7 @@
 // hq.js - Cover HQ: live numbers for Cover admins. Refreshes every minute.
 // The database only answers admins (admin_overview), so this page shows nothing to anyone else.
 
-import { whenText } from "./dashboard-logic.js";
+import { amountLabel, whenText } from "./dashboard-logic.js";
 import { dollars, einCheckText, eventLabel, healthItems, hqAlerts, hqTiles, sourceRow, syncIssueText, validateBenchmark } from "./hq-logic.js";
 import { SUPABASE_URL } from "./config.js";
 import { pageUrl, supabase } from "./supabase.js";
@@ -85,7 +85,7 @@ function draw(data) {
   }));
 
   const nonprofits = data.nonprofits ?? [];
-  $("nonprofits").replaceChildren(row(["Nonprofit", "Live", "Owner", "Payouts", "Following", "Sponsors", "Monthly", "Cover fee", "Page"], true),
+  $("nonprofits").replaceChildren(row(["Nonprofit", "Live", "Owner", "Payouts", "Following", "Sponsors", "Monthly", "One-time (30 days)", "Cover fee", "Page"], true),
     ...(nonprofits.length ? nonprofits.map((n) => {
       const name = el("a", "", n.name);
       name.href = `${pageUrl("give.html")}?org=${n.slug}`;
@@ -98,18 +98,19 @@ function draw(data) {
         `${n.things_to_follow} (${n.with_photos} with photos)`,
         String(n.active_sponsors),
         dollars(n.monthly_cents),
+        `${n.one_time_30d ?? 0} (${dollars(n.one_time_cents_30d)})`,
         feeSwitch(n),
         pageSwitch(n),
       ]);
     }) : [row(["No nonprofits yet. Create one from your dashboard."])]));
 
   const sponsors = data.recent_sponsors ?? [];
-  $("sponsors").replaceChildren(row(["Sponsor", "Nonprofit", "Following", "Monthly", "Status", "When"], true),
+  $("sponsors").replaceChildren(row(["Sponsor", "Nonprofit", "Following", "Gift", "Status", "When"], true),
     ...(sponsors.length ? sponsors.map((s) => row([
       `${s.name}${s.business ? " (business)" : ""}`,
       s.nonprofit,
       s.following ?? "—",
-      dollars(s.monthly_cents),
+      amountLabel(s), // "$25", "$300/yr" or "$10 once"
       STATUS_TEXT[s.status] ?? s.status,
       whenText(s.created_at),
     ])) : [row(["No sponsors yet."])]));

@@ -15,6 +15,8 @@ test("tiles show the headline numbers and flag problems in amber", () => {
   assert.equal(tiles.filter((t) => t.warn).length, 0);
   assert.equal(hqTiles({ ...base, card_failed: 2, needs_review: 1 }).filter((t) => t.warn).length, 2);
   assert.equal(hqTiles(undefined)[0].value, "0 of 0");
+  assert.equal(hqTiles({ ...base, one_time_30d: 2, one_time_cents_30d: 3500 }).find((t) => t.label === "One-time gifts (30 days)").value, "2 ($35)");
+  assert.equal(hqTiles(undefined).find((t) => t.label === "One-time gifts (30 days)").value, "0 ($0)");
 });
 
 test("alerts walk each nonprofit through setup, worst first", () => {

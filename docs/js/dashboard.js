@@ -9,7 +9,7 @@ import {
   amountLabel, DEFAULT_FOCUS, FACT_PICKS, MORE_PHOTOS_MAX, PHOTO_MAX_BYTES, checklist, validateItemExtras, validateSponsorSettings, clampFocus, countsByItem, fitWithin, focusFromClick, followedMost,
   finishSummary, greeting, monthStats, nameFromFile, newestSponsors, objectPosition, photoPath, photoProblem, postSummary, slugify,
   sponsorName, statusLabel, updateAudience, validateItem, validatePage, validateSignup, wallName, wallStatus, welcomeCandidates,
-  welcomeCaption, welcomeFileName, welcomeHeadline, whenText,
+  welcomeCaption, welcomeFileName, welcomeHeadline, whenText, listedSponsors
 } from "./dashboard-logic.js";
 import { finishSignInFromLink } from "./auth-link.js";
 import { recordTermsAgreement } from "./terms.js";
@@ -166,6 +166,8 @@ function drawOverview() {
   $("t-biz").textContent = stats.businesses;
   $("t-biz-new").textContent = stats.businessesNew ? `+${stats.businessesNew} this month` : "";
   $("t-new").textContent = stats.newThisMonth;
+  $("t-once").textContent = stats.oneTimeCount;
+  $("t-once-sum").textContent = stats.oneTimeCount ? `${money(stats.oneTimeCents / 100)} this month` : "none yet this month";
 
   const rows = newestSponsors(state.sponsors, state.items, 5);
   const table = $("newest");
@@ -174,7 +176,7 @@ function drawOverview() {
     table.firstChild.append(el("td", "empty", "No sponsors yet. Share your page link to get your first one."));
   } else {
     const head = el("tr");
-    ["Sponsor", "Following", "Monthly", "Status"].forEach((h) => head.append(el("th", "", h)));
+    ["Sponsor", "Following", "Gift", "Status"].forEach((h) => head.append(el("th", "", h)));
     table.replaceChildren(head, ...rows.map((row, i) => sponsorRow(row, i, false)));
   }
   $("attention").replaceChildren();
@@ -343,7 +345,7 @@ async function copyWelcomeCaption() {
 function drawSponsors() {
   drawWelcomeList();
   const names = new Map(state.items.map((item) => [item.id, item.name]));
-  const rows = state.sponsors.map((s) => ({ ...s, following: names.get(s.item_id) ?? "—" }));
+  const rows = listedSponsors(state.sponsors).map((s) => ({ ...s, following: names.get(s.item_id) ?? "—" }));
   const table = $("all-sponsors");
   if (!rows.length) {
     const tr = el("tr");
@@ -352,7 +354,7 @@ function drawSponsors() {
     return;
   }
   const head = el("tr");
-  ["Sponsor", "Email", "Following", "Monthly", "Status", "Thank-you wall"].forEach((h) => head.append(el("th", "", h)));
+  ["Sponsor", "Email", "Following", "Gift", "Status", "Thank-you wall"].forEach((h) => head.append(el("th", "", h)));
   table.replaceChildren(head, ...rows.map((row, i) => sponsorRow(row, i, true)));
 }
 

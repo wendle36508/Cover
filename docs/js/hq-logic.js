@@ -10,6 +10,7 @@ export function hqTiles(totals) {
     { label: "Active sponsors", value: String(t.active_sponsors ?? 0) },
     { label: "Monthly giving", value: dollars(t.monthly_cents) },
     { label: "New sponsors (7 days)", value: String(t.new_sponsors_7d ?? 0) },
+    { label: "One-time gifts (30 days)", value: `${t.one_time_30d ?? 0} (${dollars(t.one_time_cents_30d)})` },
     { label: "Cards failed", value: String(t.card_failed ?? 0), warn: (t.card_failed ?? 0) > 0 },
     { label: "Disputes / refunds to review", value: String(t.needs_review ?? 0), warn: (t.needs_review ?? 0) > 0 },
     { label: "Owners invited, not joined", value: String(t.pending_invites ?? 0), warn: (t.pending_invites ?? 0) > 0 },

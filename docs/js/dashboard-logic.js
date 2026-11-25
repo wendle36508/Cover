@@ -126,12 +126,27 @@ export function welcomeFileName(greet, itemName) {
   return `welcome-${[part(greet), part(itemName)].filter(Boolean).join("-") || "sponsor"}.png`;
 }
 
-/** This month's numbers from the sponsor list. Money in whole dollars. */
+/** A checkout someone left open longer than this isn't a sponsor (they closed the card form). */
+export const STALE_PENDING_MS = 60 * 60 * 1000;
+
+/** Sponsors worth listing: not canceled, and not a card form someone closed over an hour ago. */
+export function listedSponsors(sponsors, now = new Date()) {
+  return (sponsors ?? []).filter((s) => s.status !== "canceled"
+    && !(s.status === "pending" && now.getTime() - new Date(s.created_at).getTime() > STALE_PENDING_MS));
+}
+
+/**
+ * This month's numbers from the sponsor list. Money in whole dollars.
+ * Monthly sponsors (covered, the goal) and one-time gifts (oneTime*) are kept apart, so a one-time
+ * gift never looks like money that comes every month.
+ */
 export function monthStats(sponsors, goalCents, now = new Date()) {
   const active = sponsors.filter((s) => s.status === "active");
   const coveredCents = active.reduce((sum, s) => sum + (Number(s.monthly_cents) || 0), 0);
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const newThisMonth = active.filter((s) => new Date(s.created_at) >= startOfMonth);
+  const onceThisMonth = sponsors.filter((s) => s.status === "gave_once" && new Date(s.created_at) >= startOfMonth);
+  const onceCents = onceThisMonth.reduce((sum, s) => sum + (Number(s.amount_cents ?? s.monthly_cents) || 0), 0);
   const goal = Math.max(0, Math.round((Number(goalCents) || 0) / 100));
   const covered = Math.round(coveredCents / 100);
   const typicalGift = active.length ? coveredCents / active.length / 100 : 25;
@@ -146,14 +161,15 @@ export function monthStats(sponsors, goalCents, now = new Date()) {
     businessesNew: newThisMonth.filter((s) => s.business_name).length,
     sponsorsToGoal: remaining > 0 ? Math.ceil(remaining / typicalGift) : 0,
     needsAttention: sponsors.filter((s) => s.status === "past_due").length,
+    oneTimeCount: onceThisMonth.length,
+    oneTimeCents: onceCents,
   };
 }
 
 /** The newest sponsors, with what they follow, for the overview table. */
-export function newestSponsors(sponsors, items, count = 5) {
+export function newestSponsors(sponsors, items, count = 5, now = new Date()) {
   const names = new Map(items.map((item) => [item.id, item.name]));
-  return [...sponsors]
-    .filter((s) => s.status !== "canceled")
+  return listedSponsors(sponsors, now)
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
     .slice(0, count)
     .map((s) => ({ ...s, name: sponsorName(s), following: names.get(s.item_id) ?? "—", label: statusLabel(s.status) }));

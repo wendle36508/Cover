@@ -53,7 +53,7 @@ test("this month's numbers count active sponsors only", () => {
 test("monthly numbers handle no sponsors, no goal, and goals already reached", () => {
   assert.deepEqual(
     { ...monthStats([], 0, NOW) },
-    { covered: 0, goal: 0, percent: 0, activeCount: 0, newThisMonth: 0, businesses: 0, businessesNew: 0, sponsorsToGoal: 0, needsAttention: 0 },
+    { covered: 0, goal: 0, percent: 0, activeCount: 0, newThisMonth: 0, businesses: 0, businessesNew: 0, sponsorsToGoal: 0, needsAttention: 0, oneTimeCount: 0, oneTimeCents: 0 },
   );
   assert.equal(monthStats([], 200000, NOW).sponsorsToGoal, 80); // assumes $25 gifts with no history
   const big = monthStats([{ status: "active", monthly_cents: 900000, created_at: "2026-11-01" }], 200000, NOW);
@@ -62,7 +62,7 @@ test("monthly numbers handle no sponsors, no goal, and goals already reached", (
 });
 
 test("newest sponsors leave out cancellations and show what they follow", () => {
-  const rows = newestSponsors(sponsors, items, 3);
+  const rows = newestSponsors(sponsors, items, 3, NOW);
   assert.deepEqual(rows.map((r) => [r.name, r.following, r.label.text]), [
     ["Pat", "Bella", "Waiting on payment"],
     ["Sarah", "Bella", "Active"],
@@ -248,4 +248,26 @@ test("download file names are safe", () => {
   assert.equal(welcomeFileName("Sarah", "Bella"), "welcome-sarah-bella.png");
   assert.equal(welcomeFileName("Corner Café!", "Art Studio"), "welcome-corner-cafe-art-studio.png");
   assert.equal(welcomeFileName("../..", ""), "welcome-sponsor.png");
+});
+
+// ---------- one-time gifts (bug found by Tanner, Nov 25, 2026) ----------
+
+test("one-time gifts are counted on their own, never as monthly money", async () => {
+  const { listedSponsors } = await import("../docs/js/dashboard-logic.js");
+  const withOnce = [
+    ...sponsors,
+    { item_id: "i1", status: "gave_once", interval: "once", amount_cents: 1000, monthly_cents: 1000, created_at: "2026-11-20T12:00:00", first_name: "Tanner" },
+    { item_id: "i1", status: "gave_once", interval: "once", amount_cents: 5000, monthly_cents: 5000, created_at: "2026-10-20T12:00:00", first_name: "Old" },
+  ];
+  const stats = monthStats(withOnce, 200000, NOW);
+  assert.equal(stats.oneTimeCount, 1, "only this month's");
+  assert.equal(stats.oneTimeCents, 1000);
+  assert.equal(stats.covered, 150, "monthly money is unchanged by one-time gifts");
+  assert.equal(stats.activeCount, 3);
+  const rows = newestSponsors(withOnce, items, 2, NOW);
+  assert.deepEqual(rows.map((r) => [r.name, r.label.text]), [["Pat", "Waiting on payment"], ["Tanner", "Gave once"]]);
+  const later = new Date("2026-11-20T16:30:00");
+  assert.ok(!listedSponsors(withOnce, later).some((s) => s.first_name === "Pat"), "a card form closed over an hour ago isn't a sponsor");
+  assert.ok(listedSponsors(withOnce, later).some((s) => s.first_name === "Tanner"));
+  assert.ok(!listedSponsors(withOnce, later).some((s) => s.status === "canceled"));
 });

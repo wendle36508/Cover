@@ -96,6 +96,19 @@ test("HQ numbers: admins only, counts and names, no emails", async () => {
   assert.equal(hq.recent_sponsors[0].name, "Sam");
   assert.equal(hq.review_events[0].type, "charge.dispute.created");
   assert.ok(!JSON.stringify(hq).includes("sam@example.com"), "HQ never includes sponsor emails");
+  // One-time gifts show on their own, never in monthly giving; card forms closed long ago are left out.
+  await db.query(`insert into public.sponsors (nonprofit_id, item_id, first_name, email, monthly_cents, amount_cents, interval, status)
+    select $1, id, 'Tanner', 't@example.com', 1000, 1000, 'once', 'gave_once' from public.follow_items where name = 'Bella'`, [rescueId]);
+  await db.query(`insert into public.sponsors (nonprofit_id, item_id, first_name, email, monthly_cents, status, created_at)
+    select $1, id, 'Closed', 'c@example.com', 2500, 'pending', now() - interval '3 hours' from public.follow_items where name = 'Bella'`, [rescueId]);
+  const after = (await as(TANNER, "select public.admin_overview() as hq")).rows[0].hq;
+  assert.equal(after.totals.one_time_30d, 1);
+  assert.equal(Number(after.totals.one_time_cents_30d), 1000);
+  assert.equal(Number(after.totals.monthly_cents), 2500, "monthly giving leaves one-time gifts out");
+  assert.equal(after.nonprofits.find((n) => n.slug === "harbor-paws").one_time_30d, 1);
+  assert.equal(after.recent_sponsors[0].name, "Tanner");
+  assert.equal(after.recent_sponsors[0].interval, "once");
+  assert.ok(!after.recent_sponsors.some((s) => s.name === "Closed"));
   await assert.rejects(as(MARIA, "select public.admin_overview()"), /Only Cover admins/);
   await assert.rejects(runAs(db, "anon", null, "select public.admin_overview()"), /permission denied/);
 });

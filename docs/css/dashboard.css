@@ -23,7 +23,7 @@ body { background: var(--soft); }
   .month .big small { font-size: 18px; color: var(--muted); font-weight: 500; letter-spacing: 0; }
   .month .bar { height: 14px; margin: 18px 0 10px; }
   .month .meta { display: flex; justify-content: space-between; font-size: 14px; color: var(--muted); }
-  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 22px; }
+  .tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-top: 22px; } /* 2 x 2: monthly sponsors, businesses, new, one-time gifts */
   .tile { background: var(--soft); border-radius: 12px; padding: 14px 16px; }
   .tile span { font-size: 13px; color: var(--muted); }
   .tile b { display: block; font-size: 26px; letter-spacing: -.02em; margin-top: 2px; }
