@@ -90,6 +90,39 @@ export function browseList(items, filterKey, sortKey, options) {
   return (items ?? []).filter(filter.test).sort(sort.compare);
 }
 
+/**
+ * The hero headline from a nonprofit's own words: the first sentence, with its last few words as the
+ * one italic accent ("Not every pup is lucky enough to have / a forever home."), and any other
+ * sentences returned as `rest`. Null when they wrote nothing.
+ */
+export function heroWords(headline) {
+  const text = String(headline ?? "").replace(/\s+/g, " ").trim();
+  if (!text) return null;
+  const match = /^(.+?[.!?])(\s+.*)?$/.exec(text);
+  const first = match ? match[1] : text;
+  const rest = match && match[2] ? match[2].trim() : "";
+  const words = first.split(" ");
+  const accentCount = words.length >= 6 ? 3 : words.length >= 4 ? 2 : 0;
+  return {
+    main: words.slice(0, words.length - accentCount).join(" "),
+    accent: accentCount ? words.slice(-accentCount).join(" ") : "",
+    rest,
+  };
+}
+
+/** A short version of the nonprofit's intro for the hero: whole sentences, up to about `max` characters. */
+export function shortIntro(text, max = 200) {
+  const clean = String(text ?? "").replace(/\s+/g, " ").trim();
+  if (clean.length <= max) return clean;
+  const sentences = clean.match(/[^.!?]+[.!?]+(\s|$)/g) ?? [clean];
+  let out = "";
+  for (const sentence of sentences) {
+    if ((out + sentence).trim().length > max) break;
+    out += sentence;
+  }
+  return (out || sentences[0]).trim();
+}
+
 /** How a profile introduces itself: "Hi, I'm Burt" for animals (when first person is on), else the name. */
 export function profileHeading(item, settings) {
   if (settings.firstPerson && !item.isGroup) return { title: `Hi, I'm ${item.name}`, tagline: "Will you be my sponsor?" };

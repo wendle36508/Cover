@@ -65,6 +65,46 @@ export function brandColors(input) {
   };
 }
 
+const CREAM = "#F4EFE6";
+const THEME_VARS = ["--moss", "--deep", "--deep-lift", "--line-deep", "--light-sage", "--sage"];
+
+/**
+ * A nonprofit's own colors in Cover's new look (sponsor pages, Nov 25, 2026). From one brand color:
+ *   --moss        buttons, links and the accent words: the brand color, darkened until cream text
+ *                 on it (and it on cream) reads easily
+ *   --deep        the dark sections: a very deep shade of the brand
+ *   --deep-lift / --line-deep   a slightly lighter deep shade and the thin lines on dark sections
+ *   --light-sage  labels and accent words on the dark sections: a pale tint that reads on --deep
+ *   --sage        pale backgrounds (pills): a light tint
+ * Returns null for a bad color (the page keeps Cover's moss and cream).
+ */
+export function orgTheme(input) {
+  const color = normalizeHex(input);
+  if (!color) return null;
+  let moss = color;
+  for (let step = 0; contrast(moss, CREAM) < READABLE && step < 30; step += 1) moss = mix(moss, "#000000", 0.06);
+  const deep = mix(color, "#000000", 0.78);
+  let light = mix(color, WHITE, 0.55);
+  for (let step = 0; contrast(light, deep) < READABLE && step < 20; step += 1) light = mix(light, WHITE, 0.15);
+  return {
+    "--moss": moss,
+    "--deep": deep,
+    "--deep-lift": mix(deep, WHITE, 0.08),
+    "--line-deep": mix(deep, WHITE, 0.25),
+    "--light-sage": light,
+    "--sage": mix(color, WHITE, 0.82),
+  };
+}
+
+/** Put a nonprofit's own colors on its sponsor page, or take them off for a bad color. */
+export function applyTheme(element, input) {
+  const theme = orgTheme(input);
+  for (const name of THEME_VARS) {
+    if (theme) element.style.setProperty(name, theme[name]);
+    else element.style.removeProperty(name);
+  }
+}
+
 /** Put the brand colors on an element (usually the page), or take them off for a bad color. */
 export function applyBrand(element, input) {
   const colors = brandColors(input);

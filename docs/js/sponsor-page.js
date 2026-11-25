@@ -5,11 +5,11 @@
 // Everything a nonprofit typed is shown as plain text (textContent), never as HTML.
 // Until the new checkout (phase 3), the Sponsor buttons open the current checkout on give.html.
 
-import { applyBrand, safeImageUrl } from "./brand.js";
+import { applyBrand, applyTheme, safeImageUrl } from "./brand.js?v=20261125b";
 import { openCheckout, setUpCheckout, showReturnThanks } from "./checkout.js";
-import { loadLiveOrg } from "./live.js";
+import { loadLiveOrg } from "./live.js?v=20261125b";
 import { shareLink } from "./share.js";
-import { browseList, factChips, filterOptions, profileHeading, profileLabels, readView, SORTS, viewLink } from "./sponsor-page-logic.js";
+import { browseList, factChips, filterOptions, heroWords, profileHeading, profileLabels, readView, shortIntro, SORTS, viewLink } from "./sponsor-page-logic.js?v=20261125b";
 import { midSentence, storyParagraphs } from "./sponsor.js";
 import { faqList, pageSettings, receiveList } from "./templates.js";
 
@@ -77,14 +77,21 @@ function helpsGrid(helps, four = false) {
   const grid = el("div", `sp-helps${four ? " four" : ""}`);
   for (const help of helps) {
     const card = el("div", "sp-help");
-    const icon = el("img", "ic");
-    icon.src = drawingFor(help.icon);
-    icon.alt = "";
+    const icon = tinted("ic", drawingFor(help.icon)); // drawn in the nonprofit's color
     card.append(icon, el("b", "", help.title));
     if (help.text) card.append(el("span", "", help.text));
     grid.append(card);
   }
   return grid;
+}
+
+/** One of Cover's drawings, painted in the page's color (so it matches a nonprofit's own color). */
+function tinted(className, src) {
+  const span = el("span", `${className} tint`);
+  // A full address: inside the stylesheet, a short one would be read from the css/ folder.
+  span.style.setProperty("--src", `url("${new URL(src, document.baseURI).href}")`);
+  span.setAttribute("aria-hidden", "true");
+  return span;
 }
 
 function ticks(lines) {
@@ -98,6 +105,7 @@ function ticks(lines) {
 function drawChrome(page) {
   document.title = `Sponsor a ${settings.one} | ${org.name}`;
   applyBrand(document.body, org.brandColor);
+  applyTheme(document.body, org.brandColor); // their color across the new look (buttons, dark sections, drawings)
   $("org-link").href = viewLink(org.slug, "home");
   $("org-name").textContent = org.name;
   $("foot-name").textContent = org.name;
@@ -131,19 +139,28 @@ function drawHome() {
   heroImg.src = safeImageUrl(org.heroPhotoWide) || org.items[0]?.photo || "photos/dog-smile.jpg";
   heroImg.alt = "";
   const words = el("div", "dark sp-hero-words");
-  const h1 = el("h1", "", "Sponsor ");
-  h1.append(el("span", "accent", `a ${settings.one}.`));
+  // Their own headline and intro when they wrote them; otherwise "Sponsor a dog."
+  const own = heroWords(org.ownHeadline);
+  const h1 = el("h1", own ? "own" : "", own ? `${own.main} ` : "Sponsor ");
+  h1.append(el("span", "accent", own ? own.accent : `a ${settings.one}.`));
   words.append(el("div", "sp-eyebrow", org.name), h1);
+  const intro = [own?.rest, shortIntro(org.ownLead)].filter(Boolean).join(" ");
+  if (intro) words.append(el("p", "sp-intro", intro));
   const price = el("p", "sp-price");
   price.append(el("b", "", "Any amount"), ", monthly or one time.");
   const cta = link("btn btn-cream btn-lg", `Choose a ${settings.one} to sponsor`, viewLink(org.slug, "browse"));
-  const arrow = el("img");
-  arrow.src = "brand/drawings/arrow-moss.png";
-  arrow.alt = "";
-  cta.append(arrow);
+  cta.append(tinted("arrow", "brand/drawings/arrow-moss.png"));
   words.append(price, cta);
   hero.append(heroImg, words);
   main.append(hero);
+
+  // Their dogs, right on the home page (the ones waiting longest first).
+  if (org.items.length) {
+    const meet = el("div", "sp-grid sp-meet");
+    meet.append(...browseList(org.items, "all", "waiting", []).slice(0, 6).map(card));
+    const all = link("textlink", `See all ${org.items.length} ${settings.follow.toLowerCase()}`, viewLink(org.slug, "browse"));
+    main.append(section("", heading(`Our ${settings.follow.toLowerCase()}`, "Meet the ones", "", "waiting for you."), meet, all));
+  }
 
   if (settings.stats.length) {
     const stats = el("div", "sp-stats");

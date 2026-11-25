@@ -29,7 +29,7 @@
 .sp-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .sp-ticks { list-style: none; margin-top: 32px; border-top: 1px solid var(--line); }
 .sp-ticks li { display: flex; gap: 16px; align-items: flex-start; padding: 16px 0; border-bottom: 1px solid var(--line); }
-.sp-ticks li::before { content: ""; flex: none; width: 24px; height: 24px; margin-top: 1px; background: url(../brand/drawings/check-moss.png) center / contain no-repeat; }
+.sp-ticks li::before { content: ""; flex: none; width: 24px; height: 24px; margin-top: 1px; background: var(--moss); -webkit-mask: url(../brand/drawings/check-moss.png) center / contain no-repeat; mask: url(../brand/drawings/check-moss.png) center / contain no-repeat; }
 
 /* Home: the photo beside a deep moss panel (words never sit on a face) */
 .sp-hero { display: grid; grid-template-columns: 1.1fr 1fr; min-height: 560px; background: var(--deep); }
@@ -52,7 +52,14 @@
 .sp-help { padding: 24px 24px 24px 0; border-bottom: 1px solid var(--line); }
 .sp-helps:not(.four) .sp-help:nth-child(even) { padding-left: 24px; border-left: 1px solid var(--line); }
 .sp-helps.four .sp-help + .sp-help { padding-left: 24px; border-left: 1px solid var(--line); }
-.sp-help .ic { height: 48px; width: auto; margin-bottom: 16px; }
+.sp-help .ic { display: block; height: 48px; width: 56px; margin-bottom: 16px; }
+/* Cover's drawings, painted in the page's color: the nonprofit's own when it has one (Nov 25, 2026). */
+.tint { background: var(--moss); -webkit-mask: var(--src) left center / contain no-repeat; mask: var(--src) left center / contain no-repeat; }
+.btn .tint.arrow { display: inline-block; width: 24px; height: 14px; }
+.sp-intro { font-size: 18px; line-height: 1.55; margin-top: 16px; color: var(--cream-soft); max-width: 32em; }
+.sp-hero h1.own { font-size: 48px; line-height: 1.08; }
+.sp-meet { margin: 32px 0 24px; }
+@media (max-width: 820px) { .sp-hero h1.own { font-size: 34px; } .sp-intro { font-size: 16px; } }
 .sp-help b { display: block; }
 .sp-help span { color: var(--ink-soft); font-size: 15px; }
 .sp-pool { margin-top: 24px; color: var(--ink-soft); font-size: 15px; }

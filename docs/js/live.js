@@ -102,6 +102,9 @@ export function orgFromRows(nonprofit, items, counts = [], coveredCents = 0, rec
     covered: Math.round(Number(coveredCents) / 100),
     headline: page.headline ?? `Sponsor ${nonprofit.name} for $${price} a month.`,
     lead: page.lead ?? `Your monthly gift keeps ${nonprofit.name} running.`,
+    // What the nonprofit wrote themselves (null when they didn't), for the new sponsor page's hero.
+    ownHeadline: typeof page.headline === "string" && page.headline.trim() ? page.headline.trim() : null,
+    ownLead: typeof page.lead === "string" && page.lead.trim() ? page.lead.trim() : null,
     trust: page.trust ?? "Cancel anytime.",
     recent,
     wall: wall.map((row) => row.display_name).filter((name) => typeof name === "string" && name.trim()),
