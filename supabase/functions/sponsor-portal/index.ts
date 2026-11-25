@@ -6,7 +6,8 @@
 //     who sponsors. Rate limited, and counts toward the daily email budget.
 //
 // With a signed "My gifts" token (from that email, or the "Manage my gift" link in Cover's emails):
-//   { action: "overview", token }                      every gift for the token's email, with Stripe details
+//   { action: "overview", token }                      every gift for the token's email, with Stripe details, its
+//                                                      photo certificate link and the updates sent about who it follows
 //   { action: "card", token, sponsorId }               a Stripe link that opens straight on "update your card"
 //   { action: "amount", token, sponsorId, amount }     new monthly amount in dollars, from the next charge on
 //   { action: "follow", token, sponsorId, itemId }     follow someone else at the same nonprofit
@@ -18,7 +19,7 @@
 
 import { adminDatabase, json, requireSetting, stripeClient } from "../_shared/clients.ts";
 import {
-  fromLine, manageLinkEmail, manageLinkFits, manageUrl, makeManageToken, normalizeEmail, readManageToken, REPLY_TO, utcDayStart,
+  certificateUrl, fromLine, makeToken, manageLinkEmail, manageLinkFits, manageUrl, makeManageToken, normalizeEmail, readManageToken, REPLY_TO, utcDayStart,
 } from "../_shared/email.js";
 import { checkNotABot, fingerprint } from "../_shared/guards.ts";
 import {
@@ -34,10 +35,12 @@ class Problem extends Error {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SPONSOR_COLUMNS = "id, nonprofit_id, item_id, email, status, monthly_cents, amount_cents, interval, fee_percent, covers_fee, updates_off, show_name, created_at, stripe_customer_id, stripe_subscription_id";
+const UPDATES_SHOWN = 12; // per gift, newest first
 const LINK_SENT = { sent: true, message: "If that email gives through Cover, a link is on its way. It can take a minute." };
 
 type Sponsor = {
   id: string; nonprofit_id: string; item_id: string | null; email: string; status: string; monthly_cents: number; fee_percent: number; covers_fee: boolean;
+  first_name?: string; last_initial?: string | null; business_name?: string | null; gift_name?: string | null;
   amount_cents: number | null; interval: string;
   updates_off: boolean; show_name: boolean; created_at: string; stripe_customer_id: string | null; stripe_subscription_id: string | null;
 };
@@ -157,16 +160,24 @@ async function overview(body: Record<string, unknown>) {
   const email = await emailFromToken(body.token);
   const db = adminDatabase();
   const sponsors = visibleSponsorships(await giftsFor(email)) as Sponsor[];
-  if (!sponsors.length) return { email, gifts: [] };
+  if (!sponsors.length) return { email, firstName: null, gifts: [] };
 
   const nonprofitIds = [...new Set(sponsors.map((s) => s.nonprofit_id))];
   const [{ data: nonprofits, error: npError }, { data: items, error: itemError }] = await Promise.all([
     db.from("nonprofits").select("id, name, slug, kind, page, stripe_account_id").in("id", nonprofitIds),
-    db.from("follow_items").select("id, nonprofit_id, name, photo_url, status, sort_order, created_at").in("nonprofit_id", nonprofitIds)
+    db.from("follow_items").select("id, nonprofit_id, name, photo_url, photo_focus_x, photo_focus_y, status, sort_order, created_at").in("nonprofit_id", nonprofitIds)
       .order("sort_order").order("created_at"),
   ]);
   if (npError) throw npError;
   if (itemError) throw itemError;
+  // The updates sent about who each gift follows (the page's updates feed).
+  const followed = [...new Set(sponsors.map((s) => s.item_id).filter(Boolean))] as string[];
+  const { data: updates, error: updateError } = followed.length
+    ? await db.from("item_updates").select("item_id, body, photo_url, sent_at").in("item_id", followed).eq("status", "sent")
+      .order("sent_at", { ascending: false }).limit(100)
+    : { data: [], error: null };
+  if (updateError) throw updateError;
+  const secret = requireSetting("EMAIL_LINK_SECRET");
   const byNonprofit = new Map((nonprofits ?? []).map((np) => [np.id, np]));
   const byItem = new Map((items ?? []).map((item) => [item.id, item]));
 
@@ -178,9 +189,11 @@ async function overview(body: Record<string, unknown>) {
       item: sponsor.item_id ? byItem.get(sponsor.item_id) ?? null : null,
       choices: (items ?? []).filter((item) => item.nonprofit_id === sponsor.nonprofit_id && item.status === "active"),
       stripe: await stripeDetails(sponsor, nonprofit?.stripe_account_id ?? null),
+      certificateUrl: sponsor.status === "pending" ? null : certificateUrl(await makeToken(secret, sponsor.id, "cert")),
+      updates: (updates ?? []).filter((u) => u.item_id === sponsor.item_id && new Date(u.sent_at) >= new Date(sponsor.created_at)).slice(0, UPDATES_SHOWN),
     });
   }));
-  return { email, gifts };
+  return { email, firstName: sponsors[0].first_name ?? null, gifts };
 }
 
 // ---------- Changes ----------

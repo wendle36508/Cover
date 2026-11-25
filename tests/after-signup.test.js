@@ -81,7 +81,7 @@ test("the certificate's words", () => {
 test("the welcome email thanks them and links the certificate", () => {
   const monthly = welcomeEmail({ nonprofitName: "Lucky Pup Rescue", kind: "animal", firstName: "Sarah", itemName: "Burt", interval: "month",
     certificateUrl: "https://covergiving.com/certificate.html?t=abc", manageUrl: "https://covergiving.com/gifts.html?t=m" });
-  assert.equal(monthly.subject, "Welcome! You're sponsoring Burt");
+  assert.equal(monthly.subject, "Welcome to Burt's team, Sarah");
   assert.match(monthly.text, /certificate\.html\?t=abc/);
   assert.match(monthly.html, /See my certificate/);
   assert.match(monthly.text, /Manage my gift/);

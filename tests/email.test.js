@@ -88,9 +88,10 @@ test("anything a nonprofit or sponsor typed can't inject HTML into the email", (
 test("owner update email: photo, the line, and the stop link", async () => {
   const { updateEmail } = await import("../supabase/functions/_shared/email.js");
   const details = { nonprofitName: "Harbor Paws", kind: "animal", firstName: "Sarah", itemName: "Bella", body: "Bella learned to sit today!",
-    photoUrl: "https://x.supabase.co/storage/v1/object/public/photos/a.jpg", stopUrl: "https://covergiving.com/updates.html?a=stop&t=s" };
+    photoUrl: "https://x.supabase.co/storage/v1/object/public/photos/a.jpg", stopUrl: "https://covergiving.com/updates.html?a=stop&t=s",
+    helps: ["Food", "Vet care"] };
   const email = updateEmail(details);
-  assert.equal(email.subject, "News about Bella");
+  assert.match(email.subject, /^Bella's [A-Z][a-z]+ update$/);
   for (const part of ["Hi Sarah,", "Bella learned to sit today!", "every animal at Harbor Paws", "reply to this email", "Stop updates about Bella"]) {
     assert.ok(email.text.includes(part) && email.html.includes(part), part);
   }
@@ -99,7 +100,7 @@ test("owner update email: photo, the line, and the stop link", async () => {
   assert.ok(!updateEmail({ ...details, photoUrl: 'javascript:alert(1)' }).html.includes("<img"));
   const sneaky = updateEmail({ ...details, body: "<b>hi</b>", itemName: '"><script>' });
   assert.ok(!sneaky.html.includes("<script>") && !sneaky.html.includes("<b>hi"));
-  assert.match(updateEmail({ ...details, kind: "program" }).text, /helps everything at Harbor Paws/);
+  assert.match(updateEmail({ ...details, kind: "program" }).text, /food and vet care at Harbor Paws\./);
 });
 
 test("the 'take my name off the wall' link only shows for sponsors on the wall", () => {

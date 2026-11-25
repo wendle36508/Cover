@@ -10,6 +10,8 @@
 //     not one sponsorship, so one link shows every gift that email gives. They last 60 days; the page
 //     can email a fresh one.
 
+import { amountPhrase, dollars, easternMonthName, helpsList, howOften, nameList, pageBasics, togetherLabel } from "./pack.js";
+
 export const SITE_URL = "https://covergiving.com";
 export const FROM_ADDRESS = "hello@covergiving.com";
 export const REPLY_TO = "hello@covergiving.com"; // Tanner's call: replies (like cancel requests) come to Cover
@@ -146,8 +148,103 @@ export function manageUrl(token) {
   return `${SITE_URL}/gifts.html?t=${encodeURIComponent(token)}`;
 }
 
+
+// ---------- The look: Cover's brand (moss and cream), shared by every email ----------
+// Full photo, square edges, thin lines, no boxes or shadows. Fonts fall back to Helvetica and Georgia
+// in email apps that don't load web fonts. Everything anyone typed goes through escapeHtml.
+
+const INK = "#2B2A26";
+const INK_SOFT = "#5D5B56";
+const MOSS = "#4B5A2A";
+const DEEP = "#2F3A24";
+const CREAM = "#F4EFE6";
+const PAPER = "#FAF7F1";
+const LINE = "#D9D2C3";
+const LIGHT_SAGE = "#B4BE93";
+const OUTSIDE = "#E9E3D7";
+const SANS = "'DM Sans',Helvetica,Arial,sans-serif";
+const HEADLINE = "'Space Grotesk',Helvetica,Arial,sans-serif";
+const SERIF = "'Fraunces',Georgia,'Times New Roman',serif";
+const FONTS = '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600&amp;family=Fraunces:ital,wght@1,460&amp;family=Space+Grotesk:wght@700&amp;display=swap">';
+const GAP = "&nbsp;&nbsp;&nbsp;"; // between footer links (the brand uses no dot separators)
+
 const MANAGE_LINK_TEXT = "Manage my gift";
 const REPLY_FOOTER = "To change or cancel your monthly gift, just reply to this email.";
+const WALL_LINK_TEXT = "Take my name off the thank-you wall";
+
+/** Make text safe to put inside an email's HTML. */
+export function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
+}
+
+const e = escapeHtml;
+const safePhoto = (url) => (/^https:\/\/[^\s"'<>]+$/.test(String(url ?? "")) ? url : "");
+const capitalize = (text) => (text ? text[0].toUpperCase() + text.slice(1) : "");
+
+function para(html, { size = 16, color = INK_SOFT, margin = "0 0 16px" } = {}) {
+  return `<p style="margin:${margin};font-family:${SANS};font-size:${size}px;line-height:1.6;color:${color}">${html}</p>`;
+}
+
+function smallLabel(text) {
+  return `<p style="margin:0 0 8px;font-family:${SANS};font-size:14px;font-weight:600;color:${MOSS}">${e(text)}</p>`;
+}
+
+/** The one italic accent phrase a heading may have. */
+function accent(text, color = MOSS) {
+  return `<span style="font-family:${SERIF};font-style:italic;font-weight:460;color:${color}">${e(text)}</span>`;
+}
+
+function buttonHtml(text, url) {
+  return `<a href="${e(url)}" style="display:inline-block;background:${MOSS};color:${CREAM};font-family:${SANS};font-weight:600;font-size:15px;text-decoration:none;padding:12px 20px">${e(text)}</a>`;
+}
+
+function quoteHtml(text) {
+  return `<p style="margin:0 0 16px;padding:16px 0 16px 16px;border-left:2px solid ${MOSS};font-family:${SANS};font-size:19px;line-height:1.5;color:${INK}">"${e(text)}"</p>`;
+}
+
+function photoHtml(url, alt, height, focus = "50% 38%") {
+  const src = safePhoto(url);
+  if (!src) return "";
+  return `<img src="${e(src)}" alt="${e(alt)}" width="600" style="display:block;width:100%;height:${height}px;object-fit:cover;object-position:${e(focus)}">`;
+}
+
+/** A thin-lined section inside the email's body. */
+function block(inner, last = false) {
+  return `<div style="border-top:1px solid ${LINE};padding:24px 0${last ? " 0" : ""}">${inner}</div>`;
+}
+
+function sentBy(nonprofitName) {
+  return nonprofitName ? `Sent by Cover for ${e(nonprofitName)}.` : "Sent by Cover.";
+}
+
+/**
+ * Every email's frame. dark: the heading sits on a deep moss band under the photo (the welcome pack);
+ * otherwise the heading comes first and the photo under it (updates).
+ */
+function emailShell({ eyebrow, titleHtml, photo = "", dark = false, body, footer }) {
+  const head = dark
+    ? `<div style="background:${DEEP};padding:32px">
+      <p style="margin:0 0 8px;font-family:${SANS};font-size:14px;font-weight:600;color:${LIGHT_SAGE}">${e(eyebrow)}</p>
+      <h1 style="margin:0;font-family:${HEADLINE};font-weight:700;font-size:34px;line-height:1.1;letter-spacing:-0.018em;color:${CREAM}">${titleHtml}</h1>
+    </div>`
+    : `<div style="padding:32px 32px ${photo ? "24px" : "0"}">
+      <p style="margin:0 0 8px;font-family:${SANS};font-size:14px;font-weight:600;color:${MOSS}">${e(eyebrow)}</p>
+      <h1 style="margin:0;font-family:${HEADLINE};font-weight:700;font-size:30px;line-height:1.15;letter-spacing:-0.018em;color:${INK}">${titleHtml}</h1>
+    </div>`;
+  const top = dark ? `${photo}${head}` : `${head}${photo}`;
+  return `${FONTS}<div style="background:${OUTSIDE};padding:24px 12px;font-family:${SANS}">
+  <div style="max-width:600px;margin:0 auto;background:${CREAM}">
+    ${top}
+    <div style="padding:${photo || dark ? "32px" : "24px 32px 32px"}">${body}</div>
+    <div style="padding:24px 32px;border-top:1px solid ${LINE};font-family:${SANS};font-size:12px;line-height:1.6;color:${INK_SOFT};text-align:center">${footer.filter(Boolean).join("<br>")}</div>
+  </div>
+</div>`;
+}
+
+/** Join an email's plain-text lines, never leaving two blank lines in a row or one at the end. */
+function textLines(lines) {
+  return lines.filter((line, i, all) => line !== "" || all[i - 1] !== "").join("\n").trimEnd();
+}
 
 /**
  * The footer's first line: a "Manage my gift" link (card, amount, cancel), or the old reply line if there's
@@ -156,13 +253,19 @@ const REPLY_FOOTER = "To change or cancel your monthly gift, just reply to this 
 function manageFooter(url, giftFrom = null) {
   if (giftFrom) {
     const line = `This sponsorship is a gift from ${giftFrom}.`;
-    return { text: line, html: escapeHtml(line) };
+    return { text: line, html: e(line) };
   }
-  if (!url) return { text: REPLY_FOOTER, html: escapeHtml(REPLY_FOOTER) };
+  if (!url) return { text: REPLY_FOOTER, html: e(REPLY_FOOTER) };
   return {
     text: `${MANAGE_LINK_TEXT} (card, amount or cancel): ${url}`,
-    html: `<a href="${escapeHtml(url)}" style="color:#0B6B47;font-weight:700">${MANAGE_LINK_TEXT}</a> (card, amount or cancel)`,
+    html: `<a href="${e(url)}" style="color:${INK_SOFT}">${MANAGE_LINK_TEXT}</a> (card, amount or cancel)`,
   };
+}
+
+/** The extra footer link for sponsors on the thank-you wall (text and HTML). Empty when there's no link. */
+function wallLink(wallUrl) {
+  if (!wallUrl) return { text: "", html: "" };
+  return { text: `${WALL_LINK_TEXT}: ${wallUrl}`, html: `${GAP}<a href="${e(wallUrl)}" style="color:${INK_SOFT}">${WALL_LINK_TEXT}</a>` };
 }
 
 /**
@@ -181,30 +284,14 @@ export function manageLinkEmail(url) {
     `The link works for ${MANAGE_LINK_DAYS} days. If you didn't ask for it, you can ignore this email.`,
     "Cover",
   ].join("\n");
-  const e = escapeHtml;
-  const html = `<div style="background:#F5F7F6;padding:32px 16px;font-family:Helvetica,Arial,sans-serif">
-  <div style="max-width:520px;margin:0 auto;background:#FFFFFF;border:1px solid #E6E9EC;border-radius:16px;padding:32px">
-    <p style="font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#0B6B47;margin:0 0 12px">Cover</p>
-    <h1 style="font-size:26px;line-height:1.2;color:#14181C;margin:0 0 18px">Manage your gifts</h1>
-    <p style="font-size:16px;line-height:1.55;color:#4A525A;margin:0 0 18px">Update your card, change the amount, switch who you follow, or cancel.</p>
-    <a href="${e(url)}" style="display:inline-block;background:#22C67A;color:#14181C;font-weight:700;font-size:15px;text-decoration:none;padding:12px 20px;border-radius:10px">Open my gifts</a>
-    <p style="font-size:13px;line-height:1.55;color:#6B747C;margin:24px 0 0">The link works for ${MANAGE_LINK_DAYS} days. If you didn't ask for it, you can ignore this email.</p>
-  </div>
-</div>`;
+  const html = emailShell({
+    eyebrow: "Cover",
+    titleHtml: `Your ${accent("sponsorships")}`,
+    body: para("See everyone you sponsor and their updates. Update your card, change the amount, switch who you follow, or cancel.")
+      + buttonHtml("Open my sponsorships", url),
+    footer: [`The link works for ${MANAGE_LINK_DAYS} days. If you didn't ask for it, you can ignore this email.`, sentBy("")],
+  });
   return { subject, text, html };
-}
-
-const WALL_LINK_TEXT = "Take my name off the thank-you wall";
-
-/** The extra footer line for sponsors on the thank-you wall (text and HTML). Empty when there's no link. */
-function wallLink(wallUrl) {
-  if (!wallUrl) return { text: "", html: "" };
-  return { text: `${WALL_LINK_TEXT}: ${wallUrl}`, html: ` · <a href="${escapeHtml(wallUrl)}" style="color:#6B747C">${WALL_LINK_TEXT}</a>` };
-}
-
-/** Make text safe to put inside an email's HTML. */
-export function escapeHtml(value) {
-  return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
 }
 
 /** "Harbor Paws via Cover <hello@covergiving.com>", with characters that could break the header removed. */
@@ -237,7 +324,7 @@ export function adoptionEmail(details) {
     : `There's no one else on their page right now, so we'll keep you posted with news from the whole ${whole}.`;
   const button = animal ? "Pick a new buddy" : "Pick what to follow";
 
-  const text = [
+  const text = textLines([
     `Hi ${firstName},`,
     "",
     news,
@@ -253,131 +340,261 @@ export function adoptionEmail(details) {
     footer.text,
     `Stop these updates: ${stopUrl}`,
     wall.text,
-  ].filter((line, i, all) => line !== "" || all[i - 1] !== "").join("\n").trimEnd();
+  ]);
 
-  const e = escapeHtml;
-  const html = `<div style="background:#F5F7F6;padding:32px 16px;font-family:Helvetica,Arial,sans-serif">
-  <div style="max-width:520px;margin:0 auto;background:#FFFFFF;border:1px solid #E6E9EC;border-radius:16px;padding:32px">
-    <p style="font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#0B6B47;margin:0 0 12px">${e(nonprofitName)}</p>
-    <h1 style="font-size:26px;line-height:1.2;color:#14181C;margin:0 0 18px">${e(subject)}</h1>
-    <p style="font-size:16px;line-height:1.55;color:#4A525A;margin:0 0 14px">Hi ${e(firstName)},</p>
-    <p style="font-size:16px;line-height:1.55;color:#4A525A;margin:0 0 14px">${e(news)}</p>
-    ${ownerNote ? `<p style="font-size:16px;line-height:1.55;color:#14181C;margin:0 0 14px;padding:12px 16px;background:#F5F7F6;border-radius:10px">"${e(ownerNote)}"</p>` : ""}
-    <p style="font-size:16px;line-height:1.55;color:#4A525A;margin:0 0 14px">${e(gift)}</p>
-    <p style="font-size:16px;line-height:1.55;color:#4A525A;margin:0 0 18px">${e(ask)}</p>
-    ${pickUrl ? `<a href="${e(pickUrl)}" style="display:inline-block;background:#22C67A;color:#14181C;font-weight:700;font-size:15px;text-decoration:none;padding:12px 20px;border-radius:10px">${e(button)}</a>` : ""}
-    <p style="font-size:16px;line-height:1.55;color:#4A525A;margin:24px 0 0">Thank you for being a sponsor.<br>${e(nonprofitName)}</p>
-  </div>
-  <p style="max-width:520px;margin:16px auto 0;font-size:12px;line-height:1.5;color:#6B747C;text-align:center">${footer.html}<br>
-    <a href="${e(stopUrl)}" style="color:#6B747C">Stop these updates</a>${wall.html} · Sent by Cover for ${e(nonprofitName)}</p>
-</div>`;
+  const html = emailShell({
+    eyebrow: nonprofitName,
+    titleHtml: animal ? `${e(finishedName)} ${accent("went home!")}` : `${e(finishedName)} ${accent("has wrapped up")}`,
+    body: [
+      para(`Hi ${e(firstName)},`, { color: INK, size: 17 }),
+      para(e(news)),
+      ownerNote ? quoteHtml(ownerNote) : "",
+      para(e(gift)),
+      para(e(ask), { margin: "0 0 24px" }),
+      pickUrl ? buttonHtml(button, pickUrl) : "",
+      para(`Thank you for being a sponsor.<br>${e(nonprofitName)}`, { margin: "24px 0 0" }),
+    ].join("\n"),
+    footer: [footer.html, `<a href="${e(stopUrl)}" style="color:${INK_SOFT}">Stop these updates</a>${wall.html}`, sentBy(nonprofitName)],
+  });
 
   return { subject, text, html };
 }
 
 /**
- * An owner's update about one dog or program, sent to its sponsors.
- * details: { nonprofitName, kind, firstName, itemName, body, photoUrl, stopUrl, wallUrl, manageUrl }
- * photoUrl is optional and must be an https address (checked by the database too).
+ * What a gift helps with, for the update email's "this month" line:
+ * { title: "This month, your $25 helped with", text: "Food, vet care... for every dog at Lucky Pup Rescue." }
+ */
+function giftHelpsLines({ nonprofitName, kind, one, helps, amountCents, interval, giftFrom }) {
+  const amount = amountPhrase(amountCents, interval);
+  const title = giftFrom ? `${giftFrom}'s gift helps with`
+    : amount && interval === "year" ? `Your ${amount} helps with`
+    : amount && interval !== "once" ? `This month, your ${dollars(amountCents)} helped with`
+    : "Your gift helps with";
+  const animal = kind === "animal";
+  const who = animal ? `every ${one || "animal"} at ${nonprofitName}` : nonprofitName;
+  const list = helpsList(helps);
+  const text = list ? `${capitalize(list)} ${animal ? "for" : "at"} ${who}.` : animal ? `${capitalize(who)}.` : `Everything at ${nonprofitName}.`;
+  return { title, text };
+}
+
+/**
+ * An owner's update about one dog or program, sent to its sponsors (the monthly update, Nov 25 design).
+ * details: { nonprofitName, kind, firstName, itemName, body, photoUrl, photoFocus, stopUrl, wallUrl, manageUrl, giftFrom,
+ *            startedAt, amountCents, interval, helps, one, sentAt }
+ * photoUrl is optional and must be an https address (checked by the database too). The "2 months together"
+ * and "your $25 helped with" lines show when startedAt and amountCents are given.
  */
 export function updateEmail(details) {
-  const { nonprofitName, kind, firstName, itemName, body, photoUrl, stopUrl, wallUrl, manageUrl: manage, giftFrom } = details;
+  const { nonprofitName, firstName, itemName, body, photoUrl, photoFocus, stopUrl, wallUrl, manageUrl: manage, giftFrom,
+    startedAt, sentAt } = details;
   const wall = wallLink(wallUrl);
   const footer = manageFooter(manage, giftFrom);
-  const animal = kind === "animal";
-  const subject = `News about ${itemName}`;
-  const photo = /^https:\/\/[^\s"'<>]+$/.test(String(photoUrl ?? "")) ? photoUrl : "";
-  const thanks = `Thanks for sponsoring ${itemName}. Your monthly gift helps ${animal ? "every animal" : "everything"} at ${nonprofitName}.`;
+  const month = easternMonthName(sentAt ? new Date(sentAt) : new Date());
+  const subject = `${itemName}'s ${month} update`;
+  const photo = safePhoto(photoUrl);
+  const together = togetherLabel(startedAt, sentAt ? new Date(sentAt) : new Date());
+  const helps = giftHelpsLines(details);
+  const allUpdates = manage && !giftFrom ? manage : null; // My sponsorships shows every update
 
-  const text = [
+  const text = textLines([
     `Hi ${firstName},`,
     "",
-    `An update on ${itemName} from ${nonprofitName}:`,
+    `${itemName}'s ${month} update from ${nonprofitName}:`,
     "",
     `"${body}"`,
     "",
     photo ? `Photo: ${photo}\n` : "",
-    thanks,
+    together ? `${together}: you and ${itemName}, together.` : "",
+    `${helps.title} ${helps.text[0].toLowerCase()}${helps.text.slice(1)}`,
+    "",
+    allUpdates ? `See all of ${itemName}'s updates: ${allUpdates}\n` : "",
+    `Thank you for being on ${itemName}'s team.`,
+    `${nonprofitName}, via Cover`,
     "",
     "---",
     footer.text,
     `Stop updates about ${itemName}: ${stopUrl}`,
     wall.text,
-  ].filter((line, i, all) => line !== "" || all[i - 1] !== "").join("\n").trimEnd();
+  ]);
 
-  const e = escapeHtml;
-  const html = `<div style="background:#F5F7F6;padding:32px 16px;font-family:Helvetica,Arial,sans-serif">
-  <div style="max-width:520px;margin:0 auto;background:#FFFFFF;border:1px solid #E6E9EC;border-radius:16px;overflow:hidden">
-    ${photo ? `<img src="${e(photo)}" alt="${e(itemName)}" width="520" style="display:block;width:100%;height:auto;max-height:420px;object-fit:cover">` : ""}
-    <div style="padding:28px 32px 32px">
-      <p style="font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#0B6B47;margin:0 0 12px">${e(nonprofitName)}</p>
-      <h1 style="font-size:26px;line-height:1.2;color:#14181C;margin:0 0 18px">${e(subject)}</h1>
-      <p style="font-size:16px;line-height:1.55;color:#4A525A;margin:0 0 14px">Hi ${e(firstName)},</p>
-      <p style="font-size:18px;line-height:1.5;color:#14181C;margin:0 0 18px">${e(body)}</p>
-      <p style="font-size:16px;line-height:1.55;color:#4A525A;margin:0">${e(thanks)}<br>${e(nonprofitName)}</p>
-    </div>
-  </div>
-  <p style="max-width:520px;margin:16px auto 0;font-size:12px;line-height:1.5;color:#6B747C;text-align:center">${footer.html}<br>
-    <a href="${e(stopUrl)}" style="color:#6B747C">Stop updates about ${e(itemName)}</a>${wall.html} · Sent by Cover for ${e(nonprofitName)}</p>
-</div>`;
+  const numbers = `<div style="border-top:1px solid ${LINE};border-bottom:1px solid ${LINE};margin:0 0 24px">
+      ${together ? `<div style="padding:16px 0;border-bottom:1px solid ${LINE}">
+        <p style="margin:0;font-family:${HEADLINE};font-weight:700;font-size:30px;letter-spacing:-0.018em;color:${INK}">${e(together)}</p>
+        <p style="margin:4px 0 0;font-family:${SANS};font-size:14px;color:${INK_SOFT}">you and ${e(itemName)}, together</p>
+      </div>` : ""}
+      <div style="padding:16px 0">
+        <p style="margin:0 0 4px;font-family:${SANS};font-weight:600;font-size:15px;color:${INK}">${e(helps.title)}</p>
+        <p style="margin:0;font-family:${SANS};font-size:14px;line-height:1.5;color:${INK_SOFT}">${e(helps.text)}</p>
+      </div>
+    </div>`;
+
+  const html = emailShell({
+    eyebrow: nonprofitName,
+    titleHtml: `${e(itemName)}'s ${accent(`${month} update`)}`,
+    photo: photoHtml(photo, itemName, 340, photoFocus),
+    body: [
+      para(`Hi ${e(firstName)},`, { color: INK, size: 17 }),
+      quoteHtml(body),
+      para(`From ${e(nonprofitName)}`, { size: 14, margin: "0 0 24px" }),
+      numbers,
+      allUpdates ? buttonHtml(`See all of ${itemName}'s updates`, allUpdates) : "",
+      para(`Thank you for being on ${e(itemName)}'s team.<br>${e(nonprofitName)}`, { margin: "24px 0 0" }),
+    ].join("\n"),
+    footer: [footer.html, `<a href="${e(stopUrl)}" style="color:${INK_SOFT}">Stop updates about ${e(itemName)}</a>${wall.html}`, sentBy(nonprofitName)],
+  });
 
   return { subject, text, html };
 }
 
-// ---------- After signing up (phase 4, Nov 23): certificate, gifts, owner reminders ----------
+// ---------- After signing up: the welcome pack, gifts, owner reminders ----------
 
 /** The photo certificate's address: covergiving.com/certificate.html?t=... (a signed, never-expiring link). */
 export function certificateUrl(token) {
   return `${SITE_URL}/certificate.html?t=${encodeURIComponent(token)}`;
 }
 
-/** The shared card every after-signup email uses (same look as the other sponsor emails). */
-function afterSignupHtml({ eyebrow, heading, greeting, lines, quote, buttonText, buttonUrl, closing, footer }) {
-  const e = escapeHtml;
-  const paras = lines.map((line) => `<p style="font-size:16px;line-height:1.55;color:#4A525A;margin:0 0 14px">${e(line)}</p>`).join("\n    ");
-  return `<div style="background:#F5F7F6;padding:32px 16px;font-family:Helvetica,Arial,sans-serif">
-  <div style="max-width:520px;margin:0 auto;background:#FFFFFF;border:1px solid #E6E9EC;border-radius:16px;padding:32px">
-    <p style="font-size:13px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#0B6B47;margin:0 0 12px">${e(eyebrow)}</p>
-    <h1 style="font-size:26px;line-height:1.2;color:#14181C;margin:0 0 18px">${e(heading)}</h1>
-    ${greeting ? `<p style="font-size:16px;line-height:1.55;color:#4A525A;margin:0 0 14px">${e(greeting)}</p>` : ""}
-    ${paras}
-    ${quote ? `<p style="font-size:16px;line-height:1.55;color:#14181C;margin:0 0 14px;padding:12px 16px;background:#F5F7F6;border-radius:10px">"${e(quote)}"</p>` : ""}
-    ${buttonUrl ? `<a href="${e(buttonUrl)}" style="display:inline-block;background:#22C67A;color:#14181C;font-weight:700;font-size:15px;text-decoration:none;padding:12px 20px;border-radius:10px">${e(buttonText)}</a>` : ""}
-    ${closing ? `<p style="font-size:16px;line-height:1.55;color:#4A525A;margin:24px 0 0">${e(closing[0])}<br>${e(closing[1])}</p>` : ""}
-  </div>
-  <p style="max-width:520px;margin:16px auto 0;font-size:12px;line-height:1.5;color:#6B747C;text-align:center">${footer}</p>
-</div>`;
+/** The shared simple email (a greeting, a few lines, one button), in the new look. */
+function afterSignupHtml({ eyebrow, heading, greeting, lines, quote, buttonText, buttonUrl, closing, footer, photo = "" }) {
+  return emailShell({
+    eyebrow,
+    titleHtml: e(heading),
+    photo,
+    body: [
+      greeting ? para(e(greeting), { color: INK, size: 17 }) : "",
+      ...lines.map((line) => para(e(line))),
+      quote ? quoteHtml(quote) : "",
+      buttonUrl ? `<div style="margin:8px 0 0">${buttonHtml(buttonText, buttonUrl)}</div>` : "",
+      closing ? para(`${e(closing[0])}<br>${e(closing[1])}`, { margin: "24px 0 0" }) : "",
+    ].join("\n"),
+    footer: [footer],
+  });
+}
+
+/** The small certificate preview in the welcome pack: the photo, their name, who they sponsor. */
+function certificatePreview({ photo, focus, holderName, itemName, once, cert }) {
+  const thumb = photo
+    ? `<img src="${e(photo)}" alt="" width="104" style="display:block;width:104px;height:64px;object-fit:cover;object-position:${e(focus)}">`
+    : "";
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="border-collapse:collapse"><tr>
+      <td style="width:120px;vertical-align:middle;padding:0 16px 0 0">
+        <div style="width:104px;background:${PAPER};border:1px solid ${LINE};padding:8px;text-align:center">
+          ${thumb}
+          <p style="margin:6px 0 0;font-family:${SERIF};font-style:italic;font-size:14px;color:${MOSS}">${e(holderName)}</p>
+          <p style="margin:0;font-family:${SANS};font-size:10px;color:${INK_SOFT}">${once ? "helped" : "sponsors"} ${e(itemName)}</p>
+        </div>
+      </td>
+      <td style="vertical-align:middle">
+        <p style="margin:0 0 4px;font-family:${SANS};font-weight:600;font-size:16px;color:${INK}">Your photo certificate</p>
+        <p style="margin:0 0 16px;font-family:${SANS};font-size:15px;line-height:1.5;color:${INK_SOFT}">With your name and ${e(itemName)}'s photo, ready to keep or print.</p>
+        ${buttonHtml("See my certificate", cert)}
+      </td>
+    </tr></table>`;
 }
 
 /**
- * The welcome email right after someone starts sponsoring (or gives once), with their certificate.
- * details: { nonprofitName, kind, firstName, itemName, interval, certificateUrl, manageUrl }
+ * The welcome pack, right after someone starts sponsoring (or gives once): a thank-you, a short letter
+ * from the dog built from what the owner wrote on its profile, the photo certificate, and what happens next.
+ * details: { nonprofitName, kind, firstName, itemName, interval, certificateUrl, manageUrl,
+ *            isItem, isGroup, about, photoUrl, photoFocus, amountCents, holderName, page }
+ * page is the nonprofit's page settings (what a gift helps with, first person or not, update schedule).
+ * Only promises what Cover really does: updates only when they follow someone; nothing for one-time gifts.
  */
 export function welcomeEmail(details) {
-  const { nonprofitName, kind, firstName, itemName, interval, certificateUrl: cert, manageUrl: manage } = details;
+  const { nonprofitName, kind, firstName, itemName, interval, certificateUrl: cert, manageUrl: manage,
+    isItem = true, isGroup = false, about, photoUrl, photoFocus = "50% 38%", amountCents, holderName } = details;
+  const basics = pageBasics(details.page, kind);
   const once = interval === "once";
-  const everyone = kind === "animal" ? "every animal" : "everyone";
-  const subject = once ? `Thank you for your gift to ${nonprofitName}` : `Welcome! You're sponsoring ${itemName}`;
-  const lines = once
-    ? [`Thank you for your gift. It helps ${itemName} and ${everyone} at ${nonprofitName}.`, "Here's your photo certificate to keep or print."]
-    : [`Thank you for sponsoring ${itemName}. Your gift helps ${everyone} at ${nonprofitName}, and you'll get photos and news about ${itemName} along the way.`, "Here's your photo certificate to keep or print."];
+  const animal = kind === "animal";
+  const everyOne = animal ? `every ${basics.one}` : "everyone";
+  const amount = amountPhrase(amountCents, interval);
+  const photo = safePhoto(photoUrl);
+  const list = helpsList(basics.helps);
+  const letter = isItem && animal && basics.firstPerson;
+  const name = isItem ? itemName : nonprofitName;
+
+  const subject = once ? `Thank you for your gift to ${nonprofitName}` : `Welcome to ${name}'s team, ${firstName}`;
+  const intro = once
+    ? `Thank you for your ${amount ? `${amount} ` : ""}gift. It helps ${isItem ? `${itemName} and ` : ""}${everyOne} at ${nonprofitName}. Here's your thank-you pack.`
+    : isItem
+    ? `Thank you for sponsoring ${itemName}. Your ${amount ?? "gift"} helps ${everyOne} at ${nonprofitName}, and ${itemName} is the one you'll hear about. Here's your welcome pack.`
+    : `Thank you for sponsoring ${nonprofitName}. Your ${amount ?? "gift"} helps ${everyOne} there. Here's your welcome pack.`;
+
+  // The letter: in the dog's voice when the page talks in first person, otherwise "About ...".
+  const aboutText = typeof about === "string" && about.trim() ? about.trim() : "";
+  const helpsLine = list ? `Your gift helps with ${list} for ${isGroup ? "us" : "me"} and ${everyOne} here.` : `Your gift helps ${isGroup ? "us" : "me"} and ${everyOne} here.`;
+  const letterLines = letter ? [
+    aboutText ? `Here's what the people at ${nonprofitName} say about ${isGroup ? "us" : "me"}: "${aboutText}"` : "",
+    `${helpsLine}${once ? "" : ` ${isGroup ? "We'll" : "I'll"} send you photos and news along the way.`}`,
+  ].filter(Boolean) : [];
+  const greetingLine = isGroup ? `Hi ${firstName}! Meet the ${itemName}.` : `Hi ${firstName}! I'm ${itemName}.`;
+  const signOff = isGroup ? `Love, the ${itemName}` : `Love, ${itemName}`;
+  const thanksLine = once ? "Thank you for helping." : `Thank you for being on ${isGroup ? "our" : "my"} team.`;
+
+  const next = once ? [] : [
+    isItem ? ["This week", `your first photo of ${itemName}, from ${nonprofitName}.`] : null,
+    isItem ? [howOften(basics.updateMonths), `a new photo and a line about how ${itemName} is doing.`] : null,
+    isItem && animal ? [`The day ${itemName} ${basics.finishVerb}`, `the good news, and the chance to meet the next ${basics.one} who needs you.`] : null,
+    isItem && !animal ? [`If ${itemName} ${basics.finishVerb}`, "we'll tell you, and you can pick what to follow next."] : null,
+    manage ? ["Anytime", "see everyone you sponsor, their updates and your receipts on My sponsorships."] : null,
+  ].filter(Boolean);
+
   const footer = once ? { text: "", html: "" } : manageFooter(manage);
-  const text = [`Hi ${firstName},`, "", ...lines.flatMap((l) => [l, ""]), `Your certificate: ${cert}`, "", `With thanks,`, `${nonprofitName}, via Cover`,
-    ...(footer.text ? ["", "---", footer.text] : [])].join("\n");
-  const html = afterSignupHtml({
-    eyebrow: nonprofitName, heading: once ? "Thank you!" : `Welcome to ${itemName}'s team`, greeting: `Hi ${firstName},`, lines,
-    buttonText: "See my certificate", buttonUrl: cert, closing: ["With thanks,", nonprofitName],
-    footer: `${footer.html ? `${footer.html}<br>` : ""}Sent by Cover for ${escapeHtml(nonprofitName)}`,
+  const text = textLines([
+    `Hi ${firstName},`,
+    "",
+    intro,
+    "",
+    ...(letter ? [greetingLine, ...letterLines, thanksLine, signOff, ""] : aboutText && isItem ? [`About ${itemName}: ${aboutText}`, ""] : []),
+    `Your photo certificate: ${cert}`,
+    "",
+    ...(next.length ? ["What happens next", ...next.map(([when, what]) => `${when}: ${what}`), ""] : []),
+    manage && !once ? `My sponsorships: ${manage}` : "",
+    "",
+    "With thanks,",
+    `${nonprofitName}, via Cover`,
+    ...(footer.text ? ["", "---", footer.text] : []),
+  ]);
+
+  const letterHtml = letter
+    ? block(smallLabel(`A note from ${itemName}`)
+      + `<p style="margin:0 0 16px;font-family:${SERIF};font-style:italic;font-weight:460;font-size:26px;line-height:1.25;color:${MOSS}">${e(greetingLine)}</p>`
+      + letterLines.map((line) => para(e(line))).join("")
+      + para(`${e(thanksLine)}<br><span style="font-family:${SERIF};font-style:italic;font-size:20px;color:${MOSS}">${e(signOff)}</span>`, { margin: "0" }))
+    : aboutText && isItem
+    ? block(smallLabel(`About ${itemName}`) + para(e(aboutText)) + (list ? para(e(`Your gift helps with ${list} at ${nonprofitName}.`), { margin: "0" }) : ""))
+    : "";
+  const nextHtml = next.length
+    ? block(smallLabel("What happens next") + next.map(([when, what], i) => {
+      const words = when === "Anytime" && manage
+        ? `see everyone you sponsor, their updates and your receipts on <a href="${e(manage)}" style="color:${MOSS};font-weight:600">My sponsorships</a>.`
+        : e(what);
+      return para(`<b style="color:${INK}">${e(when)}:</b> ${words}`, { color: INK, margin: i === next.length - 1 ? "0" : "0 0 12px" });
+    }).join(""), true)
+    : "";
+
+  const html = emailShell({
+    eyebrow: nonprofitName,
+    dark: true,
+    photo: photoHtml(photo, name, 300, photoFocus),
+    titleHtml: once ? `Thank you ${accent("from all of us.", LIGHT_SAGE)}` : `Welcome to ${accent(`${name}'s team.`, LIGHT_SAGE)}`,
+    body: [
+      para(`Hi ${e(firstName)},`, { color: INK, size: 17 }),
+      para(e(intro), { color: INK, size: 17, margin: "0 0 24px" }),
+      letterHtml,
+      block(certificatePreview({ photo, focus: photoFocus, holderName: holderName || firstName, itemName: name, once, cert }), !nextHtml),
+      nextHtml,
+    ].join("\n"),
+    footer: [footer.html, sentBy(nonprofitName)],
   });
   return { subject, text, html };
 }
 
 /**
  * The email the person who was GIVEN a sponsorship gets on the day the giver picked.
- * details: { nonprofitName, kind, recipientName, giverName, itemName, interval, message, certificateUrl, stopUrl }
+ * details: { nonprofitName, kind, recipientName, giverName, itemName, interval, message, certificateUrl, stopUrl, photoUrl, photoFocus }
  */
 export function giftEmail(details) {
-  const { nonprofitName, recipientName, giverName, itemName, interval, message, certificateUrl: cert, stopUrl } = details;
+  const { nonprofitName, recipientName, giverName, itemName, interval, message, certificateUrl: cert, stopUrl, photoUrl, photoFocus } = details;
   const once = interval === "once";
   const subject = `${giverName} sponsored ${itemName} for you`;
   const lines = once
@@ -387,14 +604,14 @@ export function giftEmail(details) {
     `Your certificate: ${cert}`, "", `With thanks,`, `${nonprofitName}, via Cover`, ...(once ? [] : ["", "---", `Stop these updates: ${stopUrl}`])].join("\n");
   const html = afterSignupHtml({
     eyebrow: nonprofitName, heading: `A gift from ${giverName}`, greeting: `Hi ${recipientName},`, lines, quote: message || null,
-    buttonText: "See my certificate", buttonUrl: cert, closing: ["With thanks,", nonprofitName],
-    footer: `${once ? "" : `<a href="${escapeHtml(stopUrl)}" style="color:#6B747C">Stop these updates</a> · `}Sent by Cover for ${escapeHtml(nonprofitName)}`,
+    buttonText: "See my certificate", buttonUrl: cert, closing: ["With thanks,", nonprofitName], photo: photoHtml(photoUrl, itemName, 300, photoFocus),
+    footer: `${once ? "" : `<a href="${e(stopUrl)}" style="color:${INK_SOFT}">Stop these updates</a><br>`}${sentBy(nonprofitName)}`,
   });
   return { subject, text, html };
 }
 
 /**
- * The reminder an owner gets a week before a scheduled update.
+ * The reminder an owner gets a week before an update month they picked.
  * details: { nonprofitName, followLabel, dueLabel, dashboardUrl, sponsorCount }
  */
 export function reminderEmail(details) {
@@ -407,6 +624,49 @@ export function reminderEmail(details) {
   const text = ["Hi,", "", ...lines.flatMap((l) => [l, ""]), `Your dashboard: ${dashboardUrl}`, "", "Cover"].join("\n");
   const html = afterSignupHtml({
     eyebrow: "Cover", heading: `Your ${dueLabel} update is coming up`, greeting: "Hi,", lines,
+    buttonText: "Open my dashboard", buttonUrl: dashboardUrl, closing: null, footer: "Sent by Cover. You get this because you run a sponsor page.",
+  });
+  return { subject, text, html };
+}
+
+/**
+ * To a nonprofit's owner when a new sponsor has had no first photo after 5 days (the welcome pack
+ * told them to expect one in the first week).
+ * details: { nonprofitName, names: ["Falkor"], dashboardUrl }
+ */
+export function firstUpdateNudgeEmail(details) {
+  const { nonprofitName, names, dashboardUrl } = details;
+  const who = nameList(names);
+  const many = (names ?? []).length > 1;
+  const subject = many ? `New sponsors are waiting for a first photo` : `${who}'s new sponsor is waiting for a first photo`;
+  const lines = [
+    `${who} ${many ? "have" : "has"} a new sponsor who hasn't had a first update yet. Their welcome email said a first photo comes in the first week.`,
+    `A photo and one line takes about a minute. Open your dashboard, find ${many ? "each one" : who}, and tap "Post update".`,
+  ];
+  const text = ["Hi,", "", ...lines.flatMap((l) => [l, ""]), `Your dashboard: ${dashboardUrl}`, "", "Cover"].join("\n");
+  const html = afterSignupHtml({
+    eyebrow: nonprofitName, heading: many ? "New sponsors are waiting" : `${who}'s new sponsor is waiting`, greeting: "Hi,", lines,
+    buttonText: "Post an update", buttonUrl: dashboardUrl, closing: null, footer: "Sent by Cover. You get this because you run a sponsor page.",
+  });
+  return { subject, text, html };
+}
+
+/**
+ * The monthly reminder, 5 days before the month ends, for every dog (or program) with sponsors and no update yet that month.
+ * details: { nonprofitName, monthLabel, names: ["Falkor", "Becky"], dashboardUrl }
+ */
+export function monthlyReminderEmail(details) {
+  const { nonprofitName, monthLabel, names, dashboardUrl } = details;
+  const who = nameList(names);
+  const many = (names ?? []).length > 1;
+  const subject = `Time for ${monthLabel} updates to your sponsors`;
+  const lines = [
+    `${who} ${many ? "have" : "has"} sponsors waiting on a ${monthLabel} update. There are 5 days left in the month.`,
+    `${many ? "A photo and one line each is plenty, about a minute per update." : "A photo and one line is plenty, about a minute."} Open your dashboard and tap "Post update".`,
+  ];
+  const text = ["Hi,", "", ...lines.flatMap((l) => [l, ""]), `Your dashboard: ${dashboardUrl}`, "", "Cover"].join("\n");
+  const html = afterSignupHtml({
+    eyebrow: nonprofitName, heading: `${monthLabel} updates are due`, greeting: "Hi,", lines,
     buttonText: "Open my dashboard", buttonUrl: dashboardUrl, closing: null, footer: "Sent by Cover. You get this because you run a sponsor page.",
   });
   return { subject, text, html };
@@ -462,7 +722,7 @@ export function giftSetEmail(details) {
   const html = afterSignupHtml({
     eyebrow: nonprofitName, heading: "Your gift is set", greeting: `Hi ${giverName},`, lines, quote: message || null,
     buttonText: "Preview the certificate", buttonUrl: cert, closing: ["With thanks,", nonprofitName],
-    footer: `${footer.html ? `${footer.html}<br>` : ""}Sent by Cover for ${escapeHtml(nonprofitName)}`,
+    footer: `${footer.html ? `${footer.html}<br>` : ""}${sentBy(nonprofitName)}`,
   });
   return { subject, text, html };
 }

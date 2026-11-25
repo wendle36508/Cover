@@ -158,7 +158,10 @@ test("a gift's view uses Stripe's amount when it can, and Cover's record when St
   });
   assert.equal(withStripe.monthlyCents, 3000);
   assert.equal(withStripe.stripeReached, true);
-  assert.deepEqual(withStripe.following, { id: "i1", name: "Bella", photoUrl: "https://x/bella.jpg" });
+  assert.deepEqual(withStripe.following, { id: "i1", name: "Bella", photoUrl: "https://x/bella.jpg", focus: "50% 38%" });
+  assert.equal(withStripe.interval, "month");
+  assert.equal(withStripe.certificateUrl, null);
+  assert.deepEqual(withStripe.updates, []);
   assert.equal(withStripe.nonprofit.brandColor, "#E8743B");
   const offline = giftView({ sponsor, nonprofit: null, item: null, choices: null, stripe: null });
   assert.equal(offline.monthlyCents, 2500);

@@ -1,4 +1,5 @@
-// gifts.js - the "My gifts" page (covergiving.com/gifts.html), where sponsors manage their own monthly gifts.
+// gifts.js - the "My sponsorships" page (covergiving.com/gifts.html): everyone a sponsor supports, the updates
+// about them, their certificates and receipts, and managing each gift (approved mockup, Nov 25, 2026).
 //   * Opened from a "Manage my gift" link (gifts.html?t=TOKEN). The token is moved out of the address bar
 //     into this tab's memory right away, so it isn't left in history or shared screenshots.
 //   * No link? The page asks for their email and sends one (with the same bot check as checkout).
@@ -8,8 +9,10 @@
 import { applyBrand, safeImageUrl } from "./brand.js";
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL, TURNSTILE_SITE_KEY } from "./config.js";
 import {
-  demoGifts, followLine, helpsLine, money, monthYear, pickToken, readDollars, shortDate, statusInfo, TOKEN_KEY,
+  amountLabel, demoGifts, giftName, money, monthYear, paymentsFeed, pickToken, readDollars, shortDate, statusInfo, summaryLine, togetherLabel, TOKEN_KEY,
+  updatesFeed,
 } from "./gifts-logic.js";
+import { itemSlug } from "./sponsor.js";
 
 const $ = (id) => document.getElementById(id);
 const demo = new URLSearchParams(location.search).get("demo") === "1";
@@ -17,7 +20,6 @@ let token = "";
 let data = null;
 const open = new Map(); // gift id -> "amount" | "follow" | "cancel"
 const notes = new Map(); // gift id -> { tone, text } shown on that gift
-const receiptsOpen = new Set(); // gift ids whose past-gifts list is open (kept open when the page redraws)
 
 function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -79,7 +81,7 @@ async function demoCall(action, extra) {
   if (action === "request_link") return { sent: true };
   const gift = data.gifts.find((g) => g.id === extra.sponsorId);
   if (action === "card") return { url: "#demo-card-form" };
-  if (action === "amount") gift.monthlyCents = readDollars(extra.amount).cents;
+  if (action === "amount") gift.monthlyCents = gift.giftCents = readDollars(extra.amount).cents;
   if (action === "follow") gift.following = gift.choices.find((c) => c.id === extra.itemId);
   if (action === "updates") gift.updatesOff = !extra.on;
   if (action === "wall") gift.onWall = extra.on;
@@ -163,8 +165,8 @@ function showSignIn(message = "") {
       if (globalThis.turnstile) globalThis.turnstile.reset("#turnstile");
     }
   });
-  panel.append(el("h1", "", "Manage your monthly gifts"),
-    el("p", "lead", "Enter the email you give with and we'll send you a secure link. No password needed."));
+  panel.append(el("h1", "", "See your sponsorships"),
+    el("p", "lead", "Everyone you sponsor, their updates, your certificates and receipts. Enter the email you give with and we'll send you a secure link. No password needed."));
   if (message) panel.append(el("p", "notice warn", message));
   form.style.marginTop = "20px";
   panel.append(form);
@@ -176,49 +178,80 @@ function showLinkSent(email) {
   const panel = el("section", "panel signin");
   panel.append(
     el("h1", "", "Check your email"),
-    el("p", "lead", `If ${email} gives through Cover, a link to your gifts is on its way. It can take a minute, and it works for 60 days.`),
+    el("p", "lead", `If ${email} gives through Cover, a link to your sponsorships is on its way. It can take a minute, and it works for 60 days.`),
     button("Use a different email", "linklike", () => showSignIn()),
   );
   panel.lastChild.style.marginTop = "18px";
   show(panel);
 }
 
-// ---------- Your gifts ----------
+// ---------- My sponsorships ----------
 
-function giftHead(gift) {
-  const head = el("div", "gift-head");
-  const org = el("div", "org");
-  const initials = el("span", "brand-mark", gift.nonprofit.name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join(""));
-  const logo = imageSrc(gift.nonprofit.logo);
-  if (logo) {
-    const img = el("img", "brand-logo");
-    img.src = logo;
-    img.alt = "";
-    org.append(img);
-  } else {
-    org.append(initials);
-  }
-  org.append(el("span", "", gift.nonprofit.name));
-  const status = statusInfo(gift.status);
-  head.append(org, el("span", `pill ${status.tone}`, status.label));
-  return head;
+const managing = new Set(); // gift ids whose "Manage gift" section is open
+
+/** A photo cropped around the owner's chosen focus point (or a plain tile when there's none). */
+function focusedPhoto(url, alt, focus) {
+  const node = photo(url, alt);
+  if (focus && node.tagName === "IMG") node.style.objectPosition = focus;
+  return node;
 }
 
-function fact(label, value) {
-  const box = el("div", "fact");
-  box.append(el("small", "", label), el("b", "", value || "—"));
+/** The dog's (or program's) own page on the nonprofit's sponsor page. */
+function profileLink(gift) {
+  const params = new URLSearchParams({ org: gift.nonprofit.slug });
+  if (gift.following) params.set("dog", itemSlug(gift.following.name));
+  return `give.html?${params}`;
+}
+
+function linkTo(text, href, newTab = false) {
+  const a = el("a", "textlink", text);
+  a.href = href;
+  if (newTab) {
+    a.target = "_blank";
+    a.rel = "noopener";
+  }
+  return a;
+}
+
+function factPair(value, label) {
+  const box = el("div");
+  box.append(el("b", "", value), el("span", "", label));
   return box;
 }
 
-function facts(gift) {
-  const grid = el("div", "facts");
-  grid.append(
-    fact("Monthly gift", gift.coversFee ? `${money(gift.monthlyCents)} (${money(gift.giftCents)} + fee)` : money(gift.monthlyCents)),
-    fact(gift.canChange ? "Next gift" : "Status", gift.canChange ? shortDate(gift.nextCharge) : "No more charges"),
-    fact("Card", gift.card ? gift.card.label.replace(" ending ", " ··") : gift.stripeReached ? "None on file" : "Couldn't load"),
-    fact("Giving since", monthYear(gift.startedAt)),
+/** One card per sponsorship: photo, who, time together, amount, updates, and its links. */
+function teamCard(gift) {
+  const card = el("article", "one");
+  const name = giftName(gift);
+  const words = el("div", "w");
+  const org = el("span", "org", gift.nonprofit.name);
+  const status = statusInfo(gift.status);
+  if (gift.status === "past_due") org.append(el("span", "pill warn", status.label));
+  if (!gift.canChange) org.append(el("span", "pill ended", "Ended"));
+  const facts = el("div", "facts");
+  const count = gift.updates?.length ?? 0;
+  facts.append(
+    factPair(togetherLabel(gift.startedAt) || "New", "together"),
+    factPair(money(gift.giftCents ?? gift.monthlyCents), gift.interval === "year" ? "a year" : "a month"),
+    factPair(String(count), count === 1 ? "update" : "updates"),
   );
-  return grid;
+  const links = el("div", "links");
+  if (gift.certificateUrl) links.append(linkTo("Certificate", gift.certificateUrl, true));
+  if (gift.canChange) {
+    const manage = button(managing.has(gift.id) ? "Close" : "Manage gift", "textlink", () => {
+      if (managing.has(gift.id)) managing.delete(gift.id);
+      else managing.add(gift.id);
+      drawGifts();
+      if (managing.has(gift.id)) document.getElementById(`manage-${gift.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    links.append(manage);
+  }
+  if (gift.nonprofit.slug) links.append(linkTo(gift.following ? `${gift.following.name}'s page` : "Their page", profileLink(gift)));
+  words.append(el("h3", "", name), org, facts);
+  if (gift.status === "past_due") words.append(el("p", "notice warn", "Your last gift didn't go through. Open Manage gift to update your card."));
+  words.append(links);
+  card.append(focusedPhoto(gift.following?.photoUrl, name, gift.following?.focus), words);
+  return card;
 }
 
 /** Open one of a gift's boxes ("amount", "follow", "cancel"), or close it with null. */
@@ -264,7 +297,8 @@ function amountBox(gift) {
   const row = el("form", "amount-row");
   const label = el("label");
   const input = el("input");
-  Object.assign(input, { inputMode: "decimal", value: String((gift.giftCents ?? gift.monthlyCents) / 100), ariaLabel: "New monthly amount in dollars" });
+  const per = gift.interval === "year" ? "year" : "month";
+  Object.assign(input, { inputMode: "decimal", value: String((gift.giftCents ?? gift.monthlyCents) / 100), ariaLabel: `New ${per}ly amount in dollars` });
   label.append(input);
   const error = el("p", "error");
   const save = el("button", "btn btn-primary", "Save");
@@ -272,16 +306,16 @@ function amountBox(gift) {
   row.append(label, save, button("Never mind", "linklike", () => setPanel(gift, null)));
   row.addEventListener("submit", (event) => {
     event.preventDefault();
-    const checked = readDollars(input.value);
-    if (checked.error) {
-      error.textContent = checked.error;
+    const checked = per === "month" ? readDollars(input.value) : { cents: Math.round(Number(String(input.value).replace(/^\$/, "")) * 100) };
+    if (checked.error || !(checked.cents > 0)) {
+      error.textContent = checked.error ?? "Type an amount in dollars.";
       return;
     }
     save.disabled = true;
-    act(gift, "amount", { amount: input.value }, `Done. Your gift is now ${money(checked.cents)} a month, starting with your next gift.`);
+    act(gift, "amount", { amount: input.value }, `Done. Your gift is now ${money(checked.cents)} a ${per}, starting with your next gift.`);
   });
   const covers = gift.coversFee ? ` You chose to cover Cover's fee, so ${gift.nonprofit.name} gets the full amount; that stays on.` : "";
-  box.append(el("h3", "", "Change your monthly gift"), el("p", "", `The new amount starts with your next gift. Nothing is charged today.${covers}`), row, error);
+  box.append(el("h3", "", `Change your ${per}ly gift`), el("p", "", `The new amount starts with your next gift. Nothing is charged today.${covers}`), row, error);
   return box;
 }
 
@@ -294,9 +328,9 @@ function followBox(gift) {
     card.append(photo(choice.photoUrl, choice.name), el("b", "", choice.name));
     grid.append(card);
   }
-  box.append(el("h3", "", "Who would you like to follow?"), el("p", "", `You'll get their updates. Your gift still goes to ${gift.nonprofit.name}'s general fund.`), grid,
-    button("Never mind", "linklike", () => setPanel(gift, null)));
-  box.lastChild.style.marginTop = "12px";
+  const done = button("Never mind", "linklike", () => setPanel(gift, null));
+  done.style.marginTop = "16px";
+  box.append(el("h3", "", "Who would you like to follow?"), el("p", "", `You'll get their updates. Your gift still goes to ${gift.nonprofit.name}'s general fund.`), grid, done);
   return box;
 }
 
@@ -307,7 +341,7 @@ function cancelBox(gift) {
     button("Yes, cancel my gift", "btn btn-dark", () => act(gift, "cancel", {}, `Your gift to ${gift.nonprofit.name} is canceled. You won't be charged again. Thank you for everything you gave.`)),
     button("Keep my gift", "btn btn-ghost", () => setPanel(gift, null)),
   );
-  box.append(el("h3", "", `Cancel your ${money(gift.monthlyCents)} monthly gift?`),
+  box.append(el("h3", "", `Cancel your ${amountLabel(gift)} gift?`),
     el("p", "", `You won't be charged again. Nothing you've already given is refunded. You can always start again on ${gift.nonprofit.name}'s page.`), row);
   return box;
 }
@@ -330,81 +364,150 @@ function switches(gift) {
   return wrap;
 }
 
-function payments(gift) {
-  const list = el("details");
-  list.open = receiptsOpen.has(gift.id);
-  list.addEventListener("toggle", () => (list.open ? receiptsOpen.add(gift.id) : receiptsOpen.delete(gift.id)));
-  list.append(el("summary", "", gift.payments.length ? `Past gifts and receipts (${gift.payments.length})` : "Past gifts and receipts"));
-  if (!gift.payments.length) {
-    list.append(el("p", "muted", gift.stripeReached ? "No gifts yet." : "We couldn't load your past gifts just now. Try again in a minute."));
-    return list;
-  }
-  const table = el("table");
-  for (const payment of gift.payments) {
-    const tr = el("tr");
-    const receipt = el("td");
-    if (payment.receiptUrl) {
-      const link = el("a", "", "Receipt");
-      link.href = payment.receiptUrl;
-      link.target = "_blank";
-      link.rel = "noopener";
-      receipt.append(link);
-    }
-    tr.append(el("td", "", shortDate(payment.date)), el("td", "", money(payment.amountCents)), el("td", payment.paid ? "muted" : "", payment.status), receipt);
-    table.append(tr);
-  }
-  list.append(table);
-  return list;
+function manageFact(label, value) {
+  const box = el("div");
+  box.append(el("small", "", label), el("b", "", value || "None"));
+  return box;
 }
 
-function giftCard(gift) {
-  const card = el("article", "gift");
-  applyBrand(card, gift.nonprofit.brandColor);
-  const body = el("div", "gift-body");
-  const follow = el("div", "follow");
-  const words = el("div");
-  words.append(el("h2", "", followLine(gift)), el("p", "", helpsLine(gift)));
-  follow.append(photo(gift.following?.photoUrl, gift.following?.name ?? ""), words);
-  body.append(follow, facts(gift));
-
-  if (gift.status === "past_due") body.append(el("p", "notice warn", "Your last gift didn't go through. Update your card and we'll try again automatically."));
+/** Everything they can change about one gift: card, amount, who they follow, emails, the wall, cancel. */
+function manageSection(gift) {
+  const section = el("section", "manage");
+  section.id = `manage-${gift.id}`;
+  const head = el("div", "manage-head");
+  head.append(el("h3", "", `Your gift for ${giftName(gift)}`), button("Close", "linklike", () => {
+    managing.delete(gift.id);
+    drawGifts();
+  }));
+  const grid = el("div", "grid");
+  const per = gift.interval === "year" ? "Yearly gift" : "Monthly gift";
+  grid.append(
+    manageFact(per, gift.coversFee ? `${money(gift.monthlyCents)} (${money(gift.giftCents)} + fee)` : money(gift.monthlyCents)),
+    manageFact("Next gift", shortDate(gift.nextCharge)),
+    manageFact("Card", gift.card ? gift.card.label : gift.stripeReached ? "None on file" : "Couldn't load"),
+    manageFact("Giving since", monthYear(gift.startedAt)),
+  );
+  section.append(head, grid);
   const note = notes.get(gift.id);
-  if (note) body.append(el("p", `notice ${note.tone}`, note.text));
-
-  if (gift.canChange) {
-    const actions = el("div", "actions");
-    actions.append(
-      button("Update card", `btn ${gift.status === "past_due" ? "btn-primary" : "btn-ghost"}`, () => updateCard(gift)),
-      button("Change amount", "btn btn-ghost", () => setPanel(gift, "amount")),
-    );
-    if (gift.choices.length > 1 || (gift.choices.length === 1 && gift.following?.id !== gift.choices[0].id)) {
-      actions.append(button(gift.nonprofit.kind === "animal" ? "Follow someone else" : "Follow something else", "btn btn-ghost", () => setPanel(gift, "follow")));
-    }
-    body.append(actions);
-    const panel = { amount: amountBox, follow: followBox, cancel: cancelBox }[open.get(gift.id)];
-    if (panel) body.append(panel(gift));
-    body.append(switches(gift));
+  if (note) section.append(el("p", `notice ${note.tone}`, note.text));
+  const actions = el("div", "actions");
+  actions.append(
+    button("Update card", `btn ${gift.status === "past_due" ? "btn-primary" : "btn-ghost"}`, () => updateCard(gift)),
+    button("Change amount", "btn btn-ghost", () => setPanel(gift, "amount")),
+  );
+  if (gift.choices.length > 1 || (gift.choices.length === 1 && gift.following?.id !== gift.choices[0].id)) {
+    actions.append(button(gift.nonprofit.kind === "animal" ? "Follow someone else" : "Follow something else", "btn btn-ghost", () => setPanel(gift, "follow")));
   }
-  body.append(payments(gift));
-  if (gift.canChange && open.get(gift.id) !== "cancel") {
+  section.append(actions);
+  const panel = { amount: amountBox, follow: followBox, cancel: cancelBox }[open.get(gift.id)];
+  if (panel) section.append(panel(gift));
+  section.append(switches(gift));
+  if (open.get(gift.id) !== "cancel") {
     const cancel = button("Cancel this gift", "linklike", () => setPanel(gift, "cancel"));
     cancel.style.marginTop = "16px";
-    body.append(cancel);
+    section.append(cancel);
   }
-  card.append(giftHead(gift), body);
-  return card;
+  return section;
+}
+
+/** "The latest from your team": every update about who they sponsor, newest first. */
+function feedSection() {
+  const section = el("section");
+  section.style.paddingBottom = "0";
+  const h2 = el("h2", "", "The latest from ");
+  h2.append(el("span", "accent", "your team."));
+  section.append(el("span", "label", "Updates"), h2);
+  const posts = updatesFeed(data.gifts);
+  if (!posts.length) {
+    section.append(el("p", "quiet", "No updates yet. When a nonprofit sends one, it shows up here and in your email."));
+    return section;
+  }
+  const feed = el("div", "feed");
+  for (const post of posts) {
+    const row = el("div", "post");
+    const words = el("div");
+    words.append(el("div", "who", `${post.name}, ${post.org}`), el("p", "", `"${post.text}"`), el("div", "when", shortDate(post.date)));
+    row.append(photo(post.photoUrl || post.fallbackPhoto, post.name), words);
+    feed.append(row);
+  }
+  section.append(feed);
+  return section;
+}
+
+/** Certificates to keep or print, and every gift with its receipt. */
+function keepSection() {
+  const section = el("section");
+  section.style.paddingBottom = "0";
+  const two = el("div", "two");
+  const left = el("div");
+  left.append(el("span", "label", "Certificates"), el("h3", "", "Keep or print them."));
+  const certs = el("div", "certs");
+  for (const gift of data.gifts.filter((g) => g.certificateUrl)) {
+    const card = el("a", "cert");
+    card.href = gift.certificateUrl;
+    card.target = "_blank";
+    card.rel = "noopener";
+    card.append(focusedPhoto(gift.following?.photoUrl, "", gift.following?.focus), el("i", "", gift.holderName || data.firstName || ""),
+      el("span", "", `sponsors ${giftName(gift)}`));
+    certs.append(card);
+  }
+  if (certs.children.length) left.append(certs);
+  else left.append(el("p", "quiet", "Your certificates show up here once your first gift goes through."));
+
+  const right = el("div");
+  right.append(el("span", "label", "Receipts and history"), el("h3", "", "Every gift, in one place."));
+  const rows = paymentsFeed(data.gifts);
+  if (!rows.length) {
+    const reached = data.gifts.every((g) => g.stripeReached || !g.canChange);
+    right.append(el("p", "quiet", reached ? "No payments yet." : "We couldn't load your payments just now. Try again in a minute."));
+  } else {
+    const table = el("table");
+    const head = el("tr");
+    for (const title of ["Date", "For", "Amount", "Receipt"]) head.append(el("th", "", title));
+    table.append(head);
+    for (const payment of rows) {
+      const tr = el("tr");
+      const receipt = el("td");
+      if (payment.receiptUrl) {
+        const link = el("a", "", "View");
+        link.href = payment.receiptUrl;
+        link.target = "_blank";
+        link.rel = "noopener";
+        receipt.append(link);
+      } else if (!payment.paid) {
+        receipt.textContent = payment.status;
+      }
+      tr.append(el("td", "", shortDate(payment.date)), el("td", "", payment.name), el("td", "", money(payment.amountCents)), receipt);
+      table.append(tr);
+    }
+    right.append(table);
+  }
+  two.append(left, right);
+  section.append(two);
+  return section;
 }
 
 function drawGifts() {
   $("sign-out").hidden = demo;
-  const heading = el("div");
-  heading.append(el("h1", "", "Your gifts"), el("p", "lead", `Signed in as ${data.email}`));
+  const hello = el("section", "hello");
+  const h1 = el("h1", "", `Hi${data.firstName ? ` ${data.firstName}` : ""}, `);
+  h1.append(el("span", "accent", "here's your team."));
+  hello.append(el("span", "label", "My sponsorships"), h1, el("p", "lead", summaryLine(data.gifts)), el("p", "signed", `Signed in as ${data.email}`));
   if (!data.gifts.length) {
-    const empty = el("section", "panel");
-    empty.append(el("h2", "", "No gifts yet"), el("p", "lead", "We couldn't find any monthly gifts for this email. If you give with a different email, sign out and use that one."));
-    return show(heading, empty);
+    hello.querySelector(".lead").textContent = "We couldn't find any sponsorships for this email. If you give with a different email, sign out and use that one.";
+    const find = linkTo("Find someone to sponsor", "index.html#nonprofits");
+    find.className = "btn btn-moss";
+    find.style.marginTop = "32px";
+    hello.append(find);
+    return show(hello);
   }
-  show(heading, ...data.gifts.map(giftCard));
+  // Each gift's "Manage gift" controls open right under its own card (full width).
+  const mine = el("div", "mine");
+  for (const gift of data.gifts) {
+    mine.append(teamCard(gift));
+    if (gift.canChange && managing.has(gift.id)) mine.append(manageSection(gift));
+  }
+  show(hello, mine, feedSection(), keepSection());
 }
 
 // ---------- Start ----------
@@ -437,7 +540,9 @@ async function start() {
     drawGifts();
   } catch (failure) {
     if (failure.status === 403) return showSignIn(failure.message);
-    show(el("h1", "", "That didn't work"), el("p", "notice bad", failure.message));
+    const panel = el("section", "panel signin");
+    panel.append(el("h1", "", "That didn't work"), el("p", "notice bad", failure.message));
+    show(panel);
   }
 }
 

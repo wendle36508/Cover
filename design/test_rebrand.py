@@ -48,7 +48,6 @@ class RebrandTests(unittest.TestCase):
     def test_brick_uses_white_text_on_buttons_everywhere(self) -> None:
         rebrand.rebrand(self.root, rebrand.PALETTES["brick"])
         self.assertIn("--on-green: #FFFFFF;", self.read("docs/css/cover.css"))
-        self.assertIn("background:#C93A35;color:#FFFFFF;", self.read("supabase/functions/_shared/email.js"))
         self.assertIn("background:#C93A35;color:#FFFFFF;", self.read("supabase/templates/sign-in.html"))
         self.assertEqual(self.read("docs/css/cover.css").count("color: var(--on-green); display"), 2)
 

@@ -20,8 +20,10 @@
 //   { action: "send_due" }   (the database's 15-minute job, with the x-cron-secret header)
 //     sends every scheduled update whose time has come, plus welcome emails (with the photo
 //     certificate) and gift emails whose day has come
-//   { action: "reminders" }  (a daily job, same header) emails owners a week before each update
-//     month they picked in their settings
+//   { action: "reminders" }  (a daily job, same header) emails owners: a week before each update
+//     month they picked in their settings; 5 days before each month ends (when they didn't pick months)
+//     for the dogs with sponsors and no update yet that month; and when a new sponsor has had no first
+//     photo after 5 days (the welcome pack promises one in the first week)
 //
 // The photo certificate page: { action: "certificate", token } (a "cert" link) returns what it shows.
 //
@@ -33,11 +35,12 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 import { adminDatabase, json, requireSetting } from "../_shared/clients.ts";
-import { certificateView, recipientFor, remindersDue } from "../_shared/after-signup.js";
+import { certificateView, cleanUpdateMonths, recipientFor, remindersDue } from "../_shared/after-signup.js";
 import {
-  adoptionEmail, certificateUrl, fitsEmailBudget, fromLine, giftEmail, giftSetEmail, linkUrl, makeManageToken, makeToken, manageUrl, nextBudgetDay, readToken,
-  reminderEmail, REPLY_TO, SITE_URL, SPONSOR_EMAIL_DAILY_BUDGET, updateEmail, utcDayStart, welcomeEmail,
+  adoptionEmail, certificateUrl, firstUpdateNudgeEmail, fitsEmailBudget, fromLine, giftEmail, giftSetEmail, linkUrl, makeManageToken, makeToken, manageUrl,
+  monthlyReminderEmail, nextBudgetDay, readToken, reminderEmail, REPLY_TO, SITE_URL, SPONSOR_EMAIL_DAILY_BUDGET, updateEmail, utcDayStart, welcomeEmail,
 } from "../_shared/email.js";
+import { chosenGiftCents, FIRST_UPDATE_WINDOW_DAYS, monthlyReminderDue, needsFirstUpdate, pageBasics } from "../_shared/pack.js";
 import { corsHeaders, parseList } from "../_shared/sponsorship.js";
 
 class Problem extends Error {
@@ -48,6 +51,18 @@ class Problem extends Error {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PAYING = ["pending", "active", "past_due"];
+const DAY_MS = 86400000;
+
+/** Where a photo should be centered ("50% 38%"), from the owner's saved focus point. */
+function focusOf(item: { photo_focus_x?: number | null; photo_focus_y?: number | null } | null | undefined): string {
+  return `${item?.photo_focus_x ?? 50}% ${item?.photo_focus_y ?? 38}%`;
+}
+
+/** What the welcome letter quotes about a dog: the first paragraph of its story, or its short description. */
+function aboutOf(item: { story?: string | null; note?: string | null } | null | undefined): string {
+  const story = String(item?.story ?? "").split(/\n\s*\n/).map((part) => part.replace(/\s+/g, " ").trim()).find(Boolean);
+  return story || String(item?.note ?? "").trim();
+}
 const RESEND_BATCH = 100; // the most emails Resend takes in one request
 
 function readId(value: unknown, what: string): string {
@@ -252,10 +267,11 @@ async function sendUpdate(updateId: string) {
   if (!claimed) return { emailed: 0, sponsors: 0, emailsOn: true }; // someone else already sent it
 
   const [{ data: item }, { data: nonprofit }, { data: sponsors, error: sponsorError }] = await Promise.all([
-    db.from("follow_items").select("name").eq("id", claimed.item_id).single(),
-    db.from("nonprofits").select("name, kind").eq("id", claimed.nonprofit_id).single(),
-    db.from("sponsors").select("id, first_name, email, show_name, gift_name, gift_email, gift_sent_at").eq("item_id", claimed.item_id)
-      .in("status", ["active", "past_due"]).eq("updates_off", false),
+    db.from("follow_items").select("name, photo_focus_x, photo_focus_y").eq("id", claimed.item_id).single(),
+    db.from("nonprofits").select("name, kind, page").eq("id", claimed.nonprofit_id).single(),
+    db.from("sponsors")
+      .select("id, first_name, email, show_name, gift_name, gift_email, gift_sent_at, created_at, interval, amount_cents, monthly_cents, covers_fee, fee_percent")
+      .eq("item_id", claimed.item_id).in("status", ["active", "past_due"]).eq("updates_off", false),
   ]);
   if (sponsorError) throw sponsorError;
   // A gift's updates wait until its gift email has arrived, then go to the person it's for.
@@ -270,15 +286,19 @@ async function sendUpdate(updateId: string) {
   }
 
   const secret = requireSetting("EMAIL_LINK_SECRET");
+  const basics = pageBasics(nonprofit?.page, nonprofit?.kind);
   const outgoing: Outgoing[] = await Promise.all(readers.map(async (s) => {
     const to = s.to!;
     const stopToken = await makeToken(secret, s.id, "stop");
     const stopUrl = linkUrl("stop", stopToken);
     const email = updateEmail({
       nonprofitName: nonprofit?.name ?? "", kind: nonprofit?.kind ?? "program", firstName: to.firstName,
-      itemName: item?.name ?? "", body: claimed.body, photoUrl: claimed.photo_url, stopUrl,
+      itemName: item?.name ?? "", body: claimed.body, photoUrl: claimed.photo_url, photoFocus: focusOf(item), stopUrl,
       wallUrl: !to.giftFrom && s.show_name ? linkUrl("wall", stopToken) : null,
       manageUrl: to.giftFrom ? null : await manageLinkFor(secret, s.email), giftFrom: to.giftFrom,
+      // "2 months together" counts from the day a gift arrived for the person it's for.
+      startedAt: to.giftFrom ? s.gift_sent_at : s.created_at, amountCents: chosenGiftCents(s), interval: s.interval,
+      helps: basics.helps, one: basics.one,
     });
     return { sponsorId: s.id, to: to.to, from: fromLine(nonprofit?.name ?? ""), stopUrl, ...email };
   }));
@@ -349,17 +369,23 @@ async function sendAfterSignup(kind: "welcome" | "gift"): Promise<number> {
   rows = rows.filter((r) => mine.has(r.id));
   if (!rows.length) return 0;
 
-  const [{ data: nonprofits }, { data: items }] = await Promise.all([
-    db.from("nonprofits").select("id, name, kind").in("id", [...new Set(rows.map((r) => r.nonprofit_id))]),
-    db.from("follow_items").select("id, name").in("id", rows.map((r) => r.item_id).filter(Boolean) as string[]),
+  const [{ data: nonprofits }, { data: items }, { data: extras }] = await Promise.all([
+    db.from("nonprofits").select("id, name, kind, page").in("id", [...new Set(rows.map((r) => r.nonprofit_id))]),
+    db.from("follow_items").select("id, name, photo_url, photo_focus_x, photo_focus_y, note, story, is_group")
+      .in("id", rows.map((r) => r.item_id).filter(Boolean) as string[]),
+    db.from("sponsors").select("id, last_initial, business_name, amount_cents, monthly_cents, covers_fee, fee_percent").in("id", rows.map((r) => r.id)),
   ]);
   const npById = new Map((nonprofits ?? []).map((n) => [n.id, n]));
   const itemById = new Map((items ?? []).map((i) => [i.id, i]));
+  const extraById = new Map((extras ?? []).map((x) => [x.id, x]));
   const secret = requireSetting("EMAIL_LINK_SECRET");
 
   const outgoing: Outgoing[] = await Promise.all(rows.map(async (r) => {
-    const np = npById.get(r.nonprofit_id) ?? { name: "", kind: "program" };
-    const itemName = (r.item_id && itemById.get(r.item_id)?.name) || np.name;
+    const np = npById.get(r.nonprofit_id) ?? { name: "", kind: "program", page: {} };
+    const item = r.item_id ? itemById.get(r.item_id) ?? null : null;
+    const extra = extraById.get(r.id);
+    const itemName = item?.name || np.name;
+    const holderName = extra?.business_name || (extra?.last_initial ? `${r.first_name} ${extra.last_initial}.` : r.first_name);
     const cert = certificateUrl(await makeToken(secret, r.id, "cert"));
     const stopUrl = linkUrl("stop", await makeToken(secret, r.id, "stop"));
     // The welcome job also covers gifts: their buyer gets "your gift is set" (the person it's for gets the
@@ -369,9 +395,10 @@ async function sendAfterSignup(kind: "welcome" | "gift"): Promise<number> {
         today: easternToday(), message: r.gift_message, certificateUrl: cert, manageUrl: await manageLinkFor(secret, r.email) })
       : kind === "welcome"
       ? welcomeEmail({ nonprofitName: np.name, kind: np.kind, firstName: r.first_name, itemName, interval: r.interval, certificateUrl: cert,
-        manageUrl: await manageLinkFor(secret, r.email) })
+        manageUrl: await manageLinkFor(secret, r.email), isItem: Boolean(item), isGroup: item?.is_group === true, about: aboutOf(item),
+        photoUrl: item?.photo_url ?? null, photoFocus: focusOf(item), amountCents: chosenGiftCents(extra), holderName, page: np.page })
       : giftEmail({ nonprofitName: np.name, kind: np.kind, recipientName: r.gift_name ?? "", giverName: r.first_name, itemName, interval: r.interval,
-        message: r.gift_message, certificateUrl: cert, stopUrl });
+        message: r.gift_message, certificateUrl: cert, stopUrl, photoUrl: item?.photo_url ?? null, photoFocus: focusOf(item) });
     return { sponsorId: r.id, to: kind === "welcome" ? r.email : r.gift_email ?? "", from: fromLine(np.name), stopUrl, ...email };
   }));
   const ids = await sendAll(outgoing);
@@ -395,9 +422,12 @@ async function reminders(request: Request) {
   requireCron(request);
   const db = adminDatabase();
   const today = easternToday();
+  const monthly = monthlyReminderDue(today);
   const { data: nonprofits, error } = await db.from("nonprofits").select("id, name, follow_label, page").eq("is_test", false);
   if (error) throw error;
   let sent = 0;
+  let monthlySent = 0;
+  let firstUpdate = 0;
   for (const np of nonprofits ?? []) {
     const page = (np.page ?? {}) as Record<string, unknown>;
     for (const due of remindersDue(page.updateMonths, today)) {
@@ -407,8 +437,121 @@ async function reminders(request: Request) {
         console.error("Couldn't send reminder", np.id, failure);
       }
     }
+    // Nonprofits that picked their own update months get the reminder above instead of the monthly one.
+    if (monthly && !cleanUpdateMonths(page.updateMonths).length) {
+      try {
+        if (await remindMonthly(np, monthly)) monthlySent += 1;
+      } catch (failure) {
+        console.error("Couldn't send the monthly reminder", np.id, failure);
+      }
+    }
+    try {
+      if (await nudgeFirstUpdates(np)) firstUpdate += 1;
+    } catch (failure) {
+      console.error("Couldn't send the first-update reminder", np.id, failure);
+    }
   }
-  return { sent };
+  return { sent, monthly: monthlySent, firstUpdate };
+}
+
+/** The addresses of a nonprofit's owners (or, if none is marked owner, its whole team). */
+async function ownerEmails(nonprofitId: string): Promise<string[]> {
+  const db = adminDatabase();
+  const { data: staff, error } = await db.from("staff").select("user_id, role").eq("nonprofit_id", nonprofitId);
+  if (error) throw error;
+  const owners = (staff ?? []).filter((s) => s.role === "owner");
+  const people = owners.length ? owners : staff ?? [];
+  return (await Promise.all(people.map(async (s) => (await db.auth.admin.getUserById(s.user_id)).data.user?.email ?? null)))
+    .filter((e): e is string => Boolean(e));
+}
+
+/** Email the owners one reminder (logged like the others). Returns whether it went out. */
+async function sendOwnerEmail(nonprofitId: string, emails: string[], email: { subject: string; html: string; text: string }): Promise<boolean> {
+  const ids = await sendAll(emails.map((to) => ({ sponsorId: "", to, from: fromLine("Cover"), stopUrl: "", ...email })));
+  await logEmails(emails.map((_, i) => ({
+    sponsor_id: null, nonprofit_id: nonprofitId, item_id: null, kind: "reminder", status: ids[i] ? "sent" : "failed", provider_id: ids[i],
+  })));
+  return ids.some(Boolean);
+}
+
+type Reader = { id: string; item_id: string; created_at: string; gift_email: string | null; gift_sent_at: string | null };
+
+/** Sponsors who get this nonprofit's update emails right now (a gift counts once its gift email has arrived). */
+async function readingSponsors(nonprofitId: string): Promise<Reader[]> {
+  const { data, error } = await adminDatabase().from("sponsors").select("id, item_id, created_at, gift_email, gift_sent_at")
+    .eq("nonprofit_id", nonprofitId).in("status", ["active", "past_due"]).eq("updates_off", false).not("item_id", "is", null);
+  if (error) throw error;
+  return ((data ?? []) as Reader[]).filter((s) => !s.gift_email || s.gift_sent_at);
+}
+
+/** 5 days before the month ends: remind owners about every dog with sponsors and no update yet this month (once a month). */
+async function remindMonthly(np: { id: string; name: string }, due: { dueOn: string; label: string; monthStart: string }) {
+  const db = adminDatabase();
+  const itemIds = [...new Set((await readingSponsors(np.id)).map((s) => s.item_id))];
+  if (!itemIds.length) return false;
+  const { data: updates, error: updateError } = await db.from("item_updates").select("item_id, status")
+    .in("item_id", itemIds).gte("created_at", `${due.monthStart}T00:00:00-05:00`);
+  if (updateError) throw updateError;
+  const done = new Set((updates ?? []).filter((u) => u.status !== "failed").map((u) => u.item_id));
+  const waiting = itemIds.filter((id) => !done.has(id));
+  if (!waiting.length) return false; // every dog with sponsors already had its update
+  const { data: items, error: itemError } = await db.from("follow_items").select("id, name").in("id", waiting)
+    .eq("status", "active").order("sort_order");
+  if (itemError) throw itemError;
+  if (!items?.length) return false;
+
+  // Claim this month's reminder first: if it's already in the table, it was sent.
+  const { data: claimed, error: claimError } = await db.from("update_reminders")
+    .upsert({ nonprofit_id: np.id, due_on: due.dueOn }, { onConflict: "nonprofit_id,due_on", ignoreDuplicates: true }).select("nonprofit_id");
+  if (claimError) throw claimError;
+  if (!claimed?.length) return false;
+  const emails = await ownerEmails(np.id);
+  if (!emails.length) return false;
+  if (!fitsEmailBudget(await sentToday(), emails.length)) {
+    await db.from("update_reminders").delete().eq("nonprofit_id", np.id).eq("due_on", due.dueOn); // try again tomorrow
+    return false;
+  }
+  return sendOwnerEmail(np.id, emails, monthlyReminderEmail({
+    nonprofitName: np.name, monthLabel: due.label, names: items.map((i) => i.name), dashboardUrl: `${SITE_URL}/dashboard.html`,
+  }));
+}
+
+/** A new sponsor with no first photo after 5 days: remind the owners (once per sponsor). */
+async function nudgeFirstUpdates(np: { id: string; name: string }) {
+  const db = adminDatabase();
+  const since = new Date(Date.now() - (FIRST_UPDATE_WINDOW_DAYS + 1) * DAY_MS).toISOString();
+  const recent = (await readingSponsors(np.id))
+    // A gift's clock starts when it reached the person it's for.
+    .map((s) => ({ id: s.id, item_id: s.item_id, created_at: (s.gift_email ? s.gift_sent_at : s.created_at) ?? s.created_at }))
+    .filter((s) => s.created_at >= since);
+  if (!recent.length) return false;
+  const [{ data: updates, error: updateError }, { data: nudged, error: nudgedError }] = await Promise.all([
+    db.from("item_updates").select("item_id, status, sent_at, created_at").in("item_id", [...new Set(recent.map((s) => s.item_id))]).gte("created_at", since),
+    db.from("first_update_nudges").select("sponsor_id").in("sponsor_id", recent.map((s) => s.id)),
+  ]);
+  if (updateError) throw updateError;
+  if (nudgedError) throw nudgedError;
+  const waiting = needsFirstUpdate(recent, updates ?? [], new Set((nudged ?? []).map((n) => n.sponsor_id))) as typeof recent;
+  if (!waiting.length) return false;
+
+  // Claim them first, so two runs never remind twice about the same sponsor.
+  const { data: claimed, error: claimError } = await db.from("first_update_nudges")
+    .upsert(waiting.map((s) => ({ sponsor_id: s.id, nonprofit_id: np.id })), { onConflict: "sponsor_id", ignoreDuplicates: true }).select("sponsor_id");
+  if (claimError) throw claimError;
+  const mine = new Set((claimed ?? []).map((c) => c.sponsor_id));
+  const itemIds = [...new Set(waiting.filter((s) => mine.has(s.id)).map((s) => s.item_id))];
+  if (!itemIds.length) return false;
+  const { data: items, error: itemError } = await db.from("follow_items").select("id, name").in("id", itemIds).eq("status", "active");
+  if (itemError) throw itemError;
+  const emails = await ownerEmails(np.id);
+  if (!items?.length || !emails.length) return false;
+  if (!fitsEmailBudget(await sentToday(), emails.length)) {
+    await db.from("first_update_nudges").delete().in("sponsor_id", [...mine]); // try again tomorrow
+    return false;
+  }
+  return sendOwnerEmail(np.id, emails, firstUpdateNudgeEmail({
+    nonprofitName: np.name, names: items.map((i) => i.name), dashboardUrl: `${SITE_URL}/dashboard.html`,
+  }));
 }
 
 async function remindOwners(np: { id: string; name: string; follow_label: string | null }, due: { dueOn: string; label: string }) {
@@ -419,26 +562,18 @@ async function remindOwners(np: { id: string; name: string; follow_label: string
   if (claimError) throw claimError;
   if (!claimed?.length) return false;
 
-  const [{ data: staff, error: staffError }, { count }] = await Promise.all([
-    db.from("staff").select("user_id, role").eq("nonprofit_id", np.id),
+  const [emails, { count }] = await Promise.all([
+    ownerEmails(np.id),
     db.from("sponsors").select("id", { count: "exact", head: true }).eq("nonprofit_id", np.id).in("status", ["active", "past_due"]).eq("updates_off", false),
   ]);
-  if (staffError) throw staffError;
-  const owners = (staff ?? []).filter((s) => s.role === "owner");
-  const people = owners.length ? owners : staff ?? [];
-  const emails = (await Promise.all(people.map(async (s) => (await db.auth.admin.getUserById(s.user_id)).data.user?.email ?? null)))
-    .filter((e): e is string => Boolean(e));
   if (!emails.length || !count) return false; // no one to remind, or no sponsors to write to
   if (!fitsEmailBudget(await sentToday(), emails.length)) {
     await db.from("update_reminders").delete().eq("nonprofit_id", np.id).eq("due_on", due.dueOn); // try again tomorrow
     return false;
   }
-  const email = reminderEmail({
+  return sendOwnerEmail(np.id, emails, reminderEmail({
     nonprofitName: np.name, followLabel: np.follow_label || "Programs", dueLabel: due.label, dashboardUrl: `${SITE_URL}/dashboard.html`, sponsorCount: count,
-  });
-  const ids = await sendAll(emails.map((to) => ({ sponsorId: "", to, from: fromLine("Cover"), stopUrl: "", ...email })));
-  await logEmails(emails.map((_, i) => ({ sponsor_id: null, nonprofit_id: np.id, item_id: null, kind: "reminder", status: ids[i] ? "sent" : "failed", provider_id: ids[i] })));
-  return ids.some(Boolean);
+  }));
 }
 
 // ---------- The photo certificate page ----------

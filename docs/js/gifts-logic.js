@@ -1,5 +1,5 @@
-// gifts-logic.js - the parts of the "My gifts" page that don't touch the page itself (formatting,
-// labels, checks and the demo), so Node can test them. Used by gifts.js.
+// gifts-logic.js - the parts of the "My sponsorships" page (gifts.html) that don't touch the page itself
+// (formatting, labels, checks and the demo), so Node can test them. Used by gifts.js.
 
 export const TOKEN_KEY = "cover-gifts-token"; // kept for this browser tab only (sessionStorage)
 
@@ -44,6 +44,73 @@ export function helpsLine(gift) {
   return gift.canChange ? `Your gift helps ${who} at ${gift.nonprofit.name}.` : `Your gifts helped ${who} at ${gift.nonprofit.name}. Thank you.`;
 }
 
+/** "$25 a month" or "$300 a year" (the gift they chose, without any fee they added on top). */
+export function amountLabel(gift) {
+  return `${money(gift.giftCents ?? gift.monthlyCents)} a ${gift.interval === "year" ? "year" : "month"}`;
+}
+
+/** Who a gift is about: the one they follow, or the whole nonprofit. */
+export function giftName(gift) {
+  return gift.following?.name ?? gift.nonprofit.name;
+}
+
+/** How long a sponsorship has been going: "1 week", "3 weeks", "2 months", "1 year". Same rule as the update emails. */
+export function togetherLabel(startIso, now = new Date()) {
+  const start = new Date(startIso ?? "");
+  if (!startIso || Number.isNaN(start.getTime())) return "";
+  const days = Math.max(0, Math.floor((now.getTime() - start.getTime()) / 86400000));
+  if (days < 30) {
+    const weeks = Math.max(1, Math.floor(days / 7));
+    return `${weeks} ${weeks === 1 ? "week" : "weeks"}`;
+  }
+  const months = (now.getUTCFullYear() - start.getUTCFullYear()) * 12 + now.getUTCMonth() - start.getUTCMonth()
+    - (now.getUTCDate() < start.getUTCDate() ? 1 : 0);
+  if (months < 12) {
+    const shown = Math.max(1, months);
+    return `${shown} ${shown === 1 ? "month" : "months"}`;
+  }
+  const years = Math.floor(months / 12);
+  return `${years} ${years === 1 ? "year" : "years"}`;
+}
+
+/**
+ * The line under "Hi Sarah": "You sponsor 2 dogs at Lucky Pup Rescue, $35 a month in all. Thank you."
+ * Counts only gifts that are still going. The total shows only when every one is monthly.
+ */
+export function summaryLine(gifts) {
+  const going = (gifts ?? []).filter((g) => g.canChange);
+  if (!going.length) return "Thank you for everything you've given.";
+  const orgs = [...new Set(going.map((g) => g.nonprofit.name))];
+  const ones = [...new Set(going.map((g) => (g.following ? g.nonprofit.one || "" : "")))];
+  const where = ` at ${orgs.length === 1 ? orgs[0] : `${orgs.length} nonprofits`}`;
+  const total = going.every((g) => g.interval !== "year")
+    ? `, ${money(going.reduce((sum, g) => sum + (g.giftCents ?? g.monthlyCents ?? 0), 0))} a month${going.length > 1 ? " in all" : ""}`
+    : "";
+  if (going.length === 1) {
+    const only = going[0];
+    return only.following ? `You sponsor ${only.following.name}${where}${total}. Thank you.` : `You sponsor ${orgs[0]}${total}. Thank you.`;
+  }
+  // "2 dogs" when they all follow the same kind of one; otherwise "2 sponsorships".
+  if (ones.length === 1 && ones[0]) return `You sponsor ${going.length} ${ones[0]}s${where}${total}. Thank you.`;
+  return `You have ${going.length} sponsorships${where}${total}. Thank you.`;
+}
+
+/** Every update across their gifts, newest first: [{ date, text, photoUrl, name, org }]. */
+export function updatesFeed(gifts, max = 20) {
+  return (gifts ?? [])
+    .flatMap((g) => (g.updates ?? []).map((u) => ({ ...u, name: giftName(g), org: g.nonprofit.name, fallbackPhoto: g.following?.photoUrl ?? null })))
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, max);
+}
+
+/** Every payment across their gifts, newest first, with who it was for. */
+export function paymentsFeed(gifts, max = 24) {
+  return (gifts ?? [])
+    .flatMap((g) => (g.payments ?? []).map((p) => ({ ...p, name: giftName(g) })))
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, max);
+}
+
 /** Dollars typed in the amount box, checked the same way Cover's server checks them. Returns cents or an error. */
 export function readDollars(value) {
   const text = String(value ?? "").trim().replace(/^\$/, "");
@@ -67,11 +134,16 @@ export function demoGifts() {
   const paid = (daysAgo, cents = 2500) => ({ date: new Date(now - daysAgo * day).toISOString(), amountCents: cents, status: "Paid", paid: true, receiptUrl: "#receipt" });
   return {
     email: "sarah@example.com",
+    firstName: "Sarah",
     gifts: [
       {
-        id: "demo-1", status: "active", canChange: true, startedAt: new Date(now - 95 * day).toISOString(), monthlyCents: 2500,
-        updatesOff: false, onWall: true,
-        nonprofit: { name: "Harbor Paws Rescue", slug: "harbor-paws", kind: "animal", logo: null, brandColor: null },
+        id: "demo-1", status: "active", canChange: true, startedAt: new Date(now - 95 * day).toISOString(), monthlyCents: 2500, giftCents: 2500,
+        interval: "month", holderName: "Sarah K.", certificateUrl: "#demo-certificate", updatesOff: false, onWall: true,
+        updates: [
+          { date: new Date(now - 3 * day).toISOString(), text: "Bella learned to wait for her dinner this week. Her whole tail stopped wagging. Almost.", photoUrl: null },
+          { date: new Date(now - 33 * day).toISOString(), text: "Bella's first trip to the beach. She wasn't sure about the waves.", photoUrl: null },
+        ],
+        nonprofit: { name: "Harbor Paws Rescue", slug: "harbor-paws", kind: "animal", one: "dog", logo: null, brandColor: null },
         following: { id: "bella", name: "Bella", photoUrl: "photos/dog-smile.jpg" },
         choices: [
           { id: "bella", name: "Bella", photoUrl: "photos/dog-smile.jpg" },
@@ -84,9 +156,10 @@ export function demoGifts() {
         stripeReached: true,
       },
       {
-        id: "demo-2", status: "past_due", canChange: true, startedAt: new Date(now - 40 * day).toISOString(), monthlyCents: 1500,
-        updatesOff: true, onWall: false,
-        nonprofit: { name: "Eastside Community Pantry", slug: "pantry", kind: "program", logo: null, brandColor: null },
+        id: "demo-2", status: "past_due", canChange: true, startedAt: new Date(now - 40 * day).toISOString(), monthlyCents: 1500, giftCents: 1500,
+        interval: "month", holderName: "Sarah K.", certificateUrl: "#demo-certificate", updatesOff: true, onWall: false,
+        updates: [{ date: new Date(now - 10 * day).toISOString(), text: "The produce table fed 64 families on Saturday.", photoUrl: null }],
+        nonprofit: { name: "Eastside Community Pantry", slug: "pantry", kind: "program", one: "program", logo: null, brandColor: null },
         following: { id: "produce", name: "Fresh Produce Table", photoUrl: "photos/pantry-fruit.jpg" },
         choices: [
           { id: "produce", name: "Fresh Produce Table", photoUrl: "photos/pantry-fruit.jpg" },

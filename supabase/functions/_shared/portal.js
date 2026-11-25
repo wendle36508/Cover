@@ -10,6 +10,7 @@
 
 // Same limits as a nonprofit's own gift amount (see the nonprofits table).
 import { coveredTotalCents, giftFromCoveredTotal } from "./fees.js";
+import { pageBasics } from "./pack.js";
 
 export const MIN_MONTHLY_CENTS = 500;
 export const MAX_MONTHLY_CENTS = 100000;
@@ -143,7 +144,20 @@ export function chargeForGift(giftCents, sponsor) {
   return sponsor?.covers_fee === true && percent > 0 ? coveredTotalCents(giftCents, percent) : giftCents;
 }
 
-export function giftView({ sponsor, nonprofit, item, choices, stripe }) {
+/** How the sponsor's name reads on their certificate: the person a gift is for, a business, "Sarah K." or "Sarah". */
+export function holderName(sponsor) {
+  if (sponsor?.gift_name) return sponsor.gift_name;
+  if (sponsor?.business_name) return sponsor.business_name;
+  return sponsor?.last_initial ? `${sponsor.first_name} ${sponsor.last_initial}.` : sponsor?.first_name ?? "";
+}
+
+const httpsOnly = (url) => (typeof url === "string" && /^https:\/\/[^\s"'<>]+$/.test(url) ? url : null);
+
+/**
+ * One gift as the My sponsorships page shows it. certificateUrl and updates (the owner's updates about who
+ * they follow, newest first: [{ sent_at, body, photo_url }]) come from the server; nothing else private.
+ */
+export function giftView({ sponsor, nonprofit, item, choices, stripe, certificateUrl = /** @type {string | null} */ (null), updates = /** @type {any[]} */ ([]) }) {
   const page = nonprofit?.page ?? {};
   const subscription = stripe?.subscription ?? null;
   const priceCents = giftItem(subscription)?.price?.unit_amount;
@@ -164,10 +178,17 @@ export function giftView({ sponsor, nonprofit, item, choices, stripe }) {
       name: nonprofit?.name ?? "",
       slug: nonprofit?.slug ?? "",
       kind: nonprofit?.kind ?? "program",
+      one: pageBasics(page, nonprofit?.kind).one, // what they call the ones you follow: "dog"
       logo: page.logo ?? null,
       brandColor: page.brandColor ?? null,
     },
-    following: item ? { id: item.id, name: item.name, photoUrl: item.photo_url ?? null } : null,
+    interval: sponsor.interval === "year" ? "year" : "month",
+    holderName: holderName(sponsor),
+    certificateUrl,
+    updates: (updates ?? []).map((u) => ({ date: u.sent_at, text: u.body ?? "", photoUrl: httpsOnly(u.photo_url) })),
+    following: item
+      ? { id: item.id, name: item.name, photoUrl: item.photo_url ?? null, focus: `${item.photo_focus_x ?? 50}% ${item.photo_focus_y ?? 38}%` }
+      : null,
     choices: (choices ?? []).map((choice) => ({ id: choice.id, name: choice.name, photoUrl: choice.photo_url ?? null })),
     card: cardSummary(subscription),
     nextCharge: nextChargeDate(subscription),

@@ -69,7 +69,6 @@ def swaps_for(palette: Palette) -> list[Swap]:
     """Every text change needed to move the site from green to `palette`."""
     p = palette
     css = "docs/css/cover.css"
-    email = "supabase/functions/_shared/email.js"
     return [
         # The five color settings everything else reads from.
         Swap(css, f"--mint: {OLD_TINT};", f"--mint: {p.tint};"),
@@ -88,10 +87,7 @@ def swaps_for(palette: Palette) -> list[Swap]:
         Swap("docs/js/dashboard.js", f'?? "{OLD_ACCENT}"', f'?? "{p.accent}"'),
         Swap("docs/dashboard.html", f'placeholder="{OLD_ACCENT}"', f'placeholder="{p.accent}"'),
         Swap("docs/js/brand.js", f'BRAND_SWATCHES = ["{OLD_ACCENT}"', f'BRAND_SWATCHES = ["{p.accent}"'),
-        # Sponsor emails (adoption note, owner updates and the My gifts link email).
-        Swap(email, f"color:{OLD_ACCENT_DARK};margin:0 0 12px", f"color:{p.accent_dark};margin:0 0 12px", count=4),
-        Swap(email, f"background:{OLD_ACCENT};color:{OLD_ON_ACCENT};", f"background:{p.accent};color:{p.on_accent};", count=3),
-        Swap(email, f'style="color:{OLD_ACCENT_DARK};font-weight:700">', f'style="color:{p.accent_dark};font-weight:700">'),
+        # Sponsor emails moved to the moss brand on Nov 25, 2026 (their own colors), so they're no longer swapped here.
         # Sign-in email (has to be re-pasted into Supabase after this runs).
         Swap("supabase/templates/sign-in.html", f'<span style="color:{OLD_ACCENT}">', f'<span style="color:{p.accent}">'),
         Swap("supabase/templates/sign-in.html", f"background:{OLD_ACCENT};color:{OLD_ON_ACCENT};",

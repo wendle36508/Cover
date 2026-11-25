@@ -37,10 +37,10 @@ async function call(body) {
   return result;
 }
 
-/** "To change your card, amount or cancel, go to My gifts." with a link to the sponsor's My gifts page. */
+/** "To change your card, amount or cancel, go to My sponsorships." with a link to the sponsor's page. */
 function giftsLine() {
   const line = el("p", "", "To change your card or amount, or cancel, go to ");
-  const link = el("a", "", "My gifts");
+  const link = el("a", "", "My sponsorships");
   link.href = "gifts.html";
   link.style.textDecoration = "underline";
   line.append(link, ".");
