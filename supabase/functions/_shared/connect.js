@@ -162,7 +162,7 @@ const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{
 /** Read { action } from the dashboard's request. */
 export function readAction(body) {
   const action = body?.action;
-  if (action !== "session" && action !== "status") throw new Error("Unknown action.");
+  if (action !== "session" && action !== "status" && action !== "income") throw new Error("Unknown action.");
   return action;
 }
 

@@ -12,6 +12,7 @@ import {
   EMBEDDED_COMPONENTS, isMissingAccount, pickContactEmail, readAction, readNonprofitId, shouldTryFallback, shouldUseV1Fallback,
 } from "../_shared/connect.js";
 import { corsHeaders, parseList } from "../_shared/sponsorship.js";
+import { incomeByMonth, incomeSince, MAX_CHARGES } from "../_shared/income.js";
 
 class NotAllowed extends Error {}
 
@@ -141,9 +142,20 @@ Deno.serve(async (request) => {
     }
     if (!accountId) {
       if (action === "status") return json({ status: "not_started", live: false, message: connectionMessage("not_started") }, 200, cors);
+      if (action === "income") return json(incomeByMonth([], new Date()), 200, cors); // no payouts yet: no income, nothing created
       accountId = await createAccount(nonprofit, await contactEmail(db, nonprofit.id, user.email ?? ""));
       const { error } = await db.from("nonprofits").update({ stripe_account_id: accountId }).eq("id", nonprofit.id);
       if (error) throw error;
+    }
+
+    // The dashboard's income chart: real payments on their Stripe account, by month. Read only.
+    if (action === "income") {
+      const charges: Stripe.Charge[] = [];
+      for await (const charge of stripeClient().charges.list({ created: { gte: incomeSince() }, limit: 100 }, { stripeAccount: accountId })) {
+        charges.push(charge);
+        if (charges.length >= MAX_CHARGES) break;
+      }
+      return json({ ...incomeByMonth(charges, new Date()), complete: charges.length < MAX_CHARGES }, 200, cors);
     }
 
     if (action === "session") {

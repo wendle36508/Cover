@@ -64,11 +64,11 @@ class RebrandTests(unittest.TestCase):
         self.assertEqual({f: self.read(f) for f in FILES}, after_first)
 
     def test_missing_file_is_reported_and_nothing_written(self) -> None:
-        (self.root / "docs/js/brand.js").unlink()
+        (self.root / "supabase/templates/sign-in.html").unlink()
         before = self.read("docs/css/cover.css")
         with self.assertRaises(rebrand.RebrandError) as caught:
             rebrand.rebrand(self.root, rebrand.PALETTES["terracotta"])
-        self.assertIn("missing file: docs/js/brand.js", str(caught.exception))
+        self.assertIn("missing file: supabase/templates/sign-in.html", str(caught.exception))
         self.assertEqual(self.read("docs/css/cover.css"), before)
 
     def test_empty_folder_gives_a_clear_error_not_a_crash(self) -> None:

@@ -20,10 +20,12 @@ import { drawQr, qrFileName, shareLink, signLink } from "./share.js";
 import { ICON_LABELS, ICON_NAMES } from "./icons.js";
 import { MONTH_SHORT, pageSettings, TEMPLATES } from "./templates.js";
 import { callServer, pageUrl, supabase } from "./supabase.js";
+import { chartDollars, drawIncomeChart } from "./income-chart.js";
+import { DEMO, demoDashboard, demoIncome } from "./dashboard-demo.js";
 
 const LOGO_LONG_SIDE = 512; // logos are small on screen; this keeps them sharp on phones
 const CHECK_SVG = '<svg viewBox="0 0 24 24"><polyline points="5,12.5 10,17 19,7" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/></svg>';
-const AVATAR_COLORS = ["#C98B5E", "#5B8F7E", "#7B7FB8", "#B86E7B", "#6E9BB8", "#A08A4E"];
+const AVATAR_COLORS = ["#4B5A2A", "#7A6A4F", "#5D6B7A", "#8A5A4A", "#56623F", "#6B6247"]; // quiet, square initials (new look)
 const $ = (id) => document.getElementById(id);
 
 const state = { user: null, nonprofit: null, items: [], sponsors: [], connect: null, mounted: new Set(), editing: null, finishing: null, accountCreated: false, role: null, admin: false, memberships: [], creatingFor: null, focus: { x: 50, y: 38 }, look: { logo: "", coverPhoto: "" }, morePhotos: [] };
@@ -103,6 +105,41 @@ async function refreshStripeStatus() {
   }
 }
 
+// ---------- Money in: the last 12 months of real payments ----------
+
+let incomeFor = null; // which nonprofit the chart was drawn for (it's drawn once per visit)
+
+async function drawIncome() {
+  if (incomeFor === state.nonprofit.id) return;
+  incomeFor = state.nonprofit.id;
+  let income = null;
+  try {
+    income = DEMO ? demoIncome() : hasStripeAccount() ? await callServer("stripe-connect", { action: "income", nonprofitId: state.nonprofit.id }) : null;
+  } catch (error) {
+    console.warn("Couldn't load income", error);
+    $("income-note").textContent = "We couldn't load your payments just now. Refresh to try again.";
+    incomeFor = null;
+    return;
+  }
+  if (!income) {
+    $("income-note").textContent = "Set up payouts, and every gift that comes in shows here month by month.";
+    $("income-chart").replaceChildren();
+    return;
+  }
+  $("income-sum").textContent = `${chartDollars(income.thisMonthCents)} this month`;
+  $("income-note").textContent = income.totalCents
+    ? `${chartDollars(income.totalCents)} in the last 12 months. Real payments to your Stripe account, after refunds.`
+    : "No payments yet. Your first gift shows here.";
+  drawIncomeChart($("income-chart"), income);
+  const head = el("tr");
+  ["Month", "Sponsorships", "One-time gifts", "Total"].forEach((h) => head.append(el("th", "", h)));
+  $("income-table").replaceChildren(head, ...[...income.months].reverse().map((m) => {
+    const tr = el("tr");
+    tr.append(el("td", "", `${m.label} ${m.year}`), el("td", "", chartDollars(m.sponsorCents)), el("td", "", chartDollars(m.oneTimeCents)), el("td", "", chartDollars(m.totalCents)));
+    return tr;
+  }));
+}
+
 // ---------- Stripe's embedded screens ----------
 
 function waitForConnectJs() {
@@ -127,8 +164,8 @@ async function stripeConnect() {
       return clientSecret;
     },
     // Stripe's screens load the same font so they match the rest of the dashboard.
-    fonts: [{ cssSrc: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" }],
-    appearance: { variables: { colorPrimary: "#0B6B47", fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif", borderRadius: "10px" } },
+    fonts: [{ cssSrc: "https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600&display=swap" }],
+    appearance: { variables: { colorPrimary: "#4B5A2A", colorBackground: "#FAF7F1", fontFamily: "'DM Sans', system-ui, sans-serif", borderRadius: "0px" } },
   });
   return state.connect;
 }
@@ -152,7 +189,10 @@ async function mountStripe(component, mountId, configure) {
 function drawOverview() {
   const np = state.nonprofit;
   const stats = monthStats(state.sponsors, np.monthly_goal_cents);
-  $("hello").textContent = `${greeting()}, ${np.name}`;
+  const accent = el("span", "accent", `${np.name}.`);
+  $("hello").replaceChildren(`${greeting()}, `, accent);
+  $("demo-note").hidden = !DEMO;
+  drawIncome();
   $("page-link-text").textContent = publicUrl().replace(/^https?:\/\//, "");
   $("view-page").href = publicUrl();
   $("view-page-2").href = publicUrl();
@@ -363,6 +403,7 @@ function drawSponsors() {
 function drawItems() {
   $("items-title").textContent = label();
   $("nav-items-label").textContent = label();
+  $("tab-items-label").textContent = label().split(" ")[0];
   $("add-item").textContent = `+ Add ${singular().toLowerCase()}`;
   const counts = countsByItem(state.sponsors);
   const cards = state.items.map((item) => {
@@ -917,7 +958,7 @@ function drawLookPreviews() {
 
 /** The color circles; the one matching the color box is marked. Picking one previews it right away. */
 function drawSwatches() {
-  const current = normalizeHex($("p-color").value) ?? "#22C67A";
+  const current = normalizeHex($("p-color").value) ?? "#4B5A2A";
   $("swatches").replaceChildren(...BRAND_SWATCHES.map((color) => {
     const button = el("button", "swatch");
     button.type = "button";
@@ -1189,7 +1230,9 @@ async function copyLink() {
 function show(view) {
   if (view === "connect" && state.nonprofit.is_live) view = "overview";
   document.querySelectorAll("[data-view]").forEach((section) => (section.hidden = section.dataset.view !== view));
-  document.querySelectorAll(".side [data-nav]").forEach((link) => link.classList.toggle("on", link.dataset.nav === view));
+  document.querySelectorAll(".side [data-nav], .tabbar [data-nav]").forEach((link) => link.classList.toggle("on", link.dataset.nav === view));
+  $("tab-more").classList.toggle("on", ["page", "payments", "settings"].includes(view));
+  closeTabSheet();
   history.replaceState(null, "", `#${view}`);
   window.scrollTo(0, 0);
   if (view === "connect") drawConnect();
@@ -1215,6 +1258,16 @@ document.querySelectorAll("[data-nav]").forEach((link) => link.addEventListener(
   event.preventDefault();
   show(link.dataset.nav);
 }));
+// Phones: "More" opens Your page, Payments & payouts and Settings.
+function closeTabSheet() {
+  $("tab-sheet").hidden = true;
+  $("tab-more").setAttribute("aria-expanded", "false");
+}
+$("tab-more").addEventListener("click", () => {
+  const open = $("tab-sheet").hidden;
+  $("tab-sheet").hidden = !open;
+  $("tab-more").setAttribute("aria-expanded", String(open));
+});
 document.querySelectorAll("[data-copy-link]").forEach((button) => button.addEventListener("click", copyLink));
 $("add-item").addEventListener("click", () => openItem(null));
 $("item-close").addEventListener("click", () => $("item-dialog").close());
@@ -1238,8 +1291,11 @@ function drawAll() {
   $("org-logo").hidden = !logo;
   $("org-initials").hidden = Boolean(logo);
   if (logo) $("org-logo").src = logo;
-  applyBrand(document.body, np.page?.brandColor);
-  $("me").textContent = state.user.email;
+  $("phone-org-name").textContent = np.name;
+  $("phone-org-logo").hidden = !logo;
+  if (logo) $("phone-org-logo").src = logo;
+  applyBrand(document.body, null); // Cover's tool, Cover's colors: their color shows on their sponsor page
+  $("me").textContent = DEMO ? "Demo" : state.user.email;
   // Cover's 3% fee: told upfront in setup and on the payments screen, only once Cover switches it on.
   document.querySelectorAll("[data-fee-note]").forEach((note) => (note.hidden = np.cover_fee_on !== true));
   drawOverview();
@@ -1446,6 +1502,16 @@ $("create-form").addEventListener("submit", async (event) => {
 // ---------- start ----------
 
 async function start() {
+  if (DEMO) {
+    Object.assign(state, demoDashboard());
+    $("loading").hidden = true;
+    $("create").hidden = true;
+    $("app").hidden = false;
+    drawAll();
+    const wanted = location.hash.replace("#", "");
+    show(document.querySelector(`[data-view="${wanted}"]`) ? wanted : "overview");
+    return;
+  }
   // Arriving from the sign-in email: check its one-time token first. A bad or used link goes back to
   // the sign-in page with a clear message, instead of silently asking to sign in again.
   const linkResult = await finishSignInFromLink(supabase);

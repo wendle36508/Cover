@@ -1,0 +1,165 @@
+/* dashboard-look.css - the owner dashboard in Cover's new look (mockup approved by Tanner, Nov 25, 2026).
+   Loaded after cover.css and dashboard.css, which keep the layout every button and screen relies on;
+   this file only changes how it looks: cream and moss, Space Grotesk headings, DM Sans text, thin lines,
+   square edges, no shadows, no icons. Plus the phone menu and the "Money in" chart. */
+
+:root {
+  --deep: #2F3A24; --moss: #4B5A2A; --cream: #F4EFE6; --paper: #FAF7F1; --sage: #DCE3C8; --light-sage: #B4BE93;
+  --ink: #2B2A26; --ink-soft: #5D5B56; --line: #D9D2C3;
+  /* The older names the dashboard's layout uses, pointed at the new palette. */
+  --body: var(--ink-soft); --muted: var(--ink-soft); --bg: var(--paper); --soft: var(--cream); --mint: var(--sage);
+  --green: var(--moss); --green-dark: var(--moss); --on-green: var(--cream); --radius: 0;
+}
+
+body { background: var(--cream); color: var(--ink); font-family: "DM Sans", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+h1, h2, h3, .month .big, .tile b { font-family: "Space Grotesk", sans-serif; font-weight: 700; letter-spacing: -0.018em; }
+.accent { font-family: "Fraunces", serif; font-style: italic; font-weight: 460; font-variation-settings: "opsz" 144, "SOFT" 100; letter-spacing: 0; color: var(--moss); }
+
+/* Square edges and flat surfaces everywhere in the dashboard (the one round thing left is the to-do ring). */
+.app *, dialog, dialog *, .toast-msg, .wrap-create * { border-radius: 0 !important; box-shadow: none !important; }
+.todo .ring { border-radius: 50% !important; }
+.crop-dot { border-radius: 50% !important; box-shadow: 0 1px 4px rgba(0, 0, 0, .35) !important; }
+.swatch { border-radius: 50% !important; box-shadow: 0 0 0 1px var(--line) !important; }
+.swatch[aria-pressed="true"] { box-shadow: 0 0 0 2px var(--ink) !important; }
+
+/* ---------- side menu ---------- */
+.side { background: var(--cream); border-right: 1px solid var(--line); padding: 24px 0; gap: 0; }
+.side .cover-logo { display: block; padding: 0 24px 24px; border-bottom: 1px solid var(--line); }
+.side .cover-logo img { height: 22px; width: auto; display: block; }
+.side .org { padding: 20px 24px; margin-bottom: 8px; border-bottom: 1px solid var(--line); font-weight: 600; font-size: 15px; }
+.side .org .brand-logo { width: 40px; height: 40px; object-fit: contain; background: #fff; border: 1px solid var(--line); }
+.side .org .brand-mark { width: 40px; height: 40px; background: var(--deep) !important; color: var(--cream) !important; }
+.side a { padding: 12px 24px; gap: 0; font-size: 15px; font-weight: 400; color: var(--ink-soft); border-left: 3px solid transparent; text-decoration: none; }
+.side a svg { display: none; }
+.side a:hover { color: var(--ink); }
+.side a.on { background: var(--paper); color: var(--ink); font-weight: 600; border-left-color: var(--moss); }
+.side .bottom { margin: auto 24px 0; padding: 16px 0 0; }
+.side .admin-tools { padding: 0 24px 16px; }
+
+/* ---------- main area ---------- */
+main { padding: 40px 48px 64px; }
+.top { padding-bottom: 24px; border-bottom: 1px solid var(--line); margin-bottom: 32px; }
+.top h1 { font-size: 36px; line-height: 1.1; }
+.top p { color: var(--ink-soft); margin-top: 8px; }
+.demo-note { display: inline-block; background: #F3E3C3; color: #5C4310; font-size: 13px; padding: 4px 8px; }
+.linkbox { background: transparent; border: 0; padding: 0; gap: 12px; }
+.linkbox #page-link-text { display: none; }
+.grid { gap: 48px; }
+.panel { background: transparent; border: 0; border-top: 1px solid var(--line); padding: 24px 0 0; }
+.grid > div > .panel:first-child { border-top: 0; padding-top: 0; }
+.panel h2 { font-size: 20px; margin-bottom: 16px; align-items: baseline; }
+.panel h2 a { color: var(--moss); font-family: "DM Sans", sans-serif; font-size: 14px; letter-spacing: 0; cursor: pointer; }
+.month .big { font-size: 56px; }
+.month .big small { font-family: "DM Sans", sans-serif; font-size: 17px; color: var(--ink-soft); font-weight: 400; }
+.month .bar, .bar { height: 6px; background: var(--line); margin: 16px 0 8px; overflow: hidden; }
+.month .bar i, .bar i { display: block; height: 100%; background: var(--moss); }
+.month .meta { font-size: 13px; color: var(--ink-soft); }
+.tiles { gap: 0; margin-top: 24px; border-top: 1px solid var(--line); }
+.tile { background: transparent; padding: 16px 16px 16px 0; border-bottom: 1px solid var(--line); }
+.tile:nth-child(even) { padding-left: 16px; border-left: 1px solid var(--line); }
+.tile b { font-size: 30px; }
+.tile em, .tile em + span, .tile span:last-child:not(:first-child) { font-size: 12px; color: var(--moss); font-weight: 600; font-style: normal; }
+.progress-note { font-size: 13px; color: var(--ink-soft); }
+.todo li { padding: 12px 0; }
+.todo .ring { width: 18px; height: 18px; border-width: 1.5px; }
+.todo .done-text { text-decoration: none; color: var(--ink-soft); }
+.todo .go { color: var(--moss); font-weight: 600; font-size: 14px; }
+.todo svg, .check svg { color: var(--moss); }
+th { font-size: 12px; color: var(--ink-soft); }
+td { border-bottom: 1px solid var(--line); }
+.avatar { width: 32px; height: 32px; }
+.status { font-size: 12px; font-weight: 600; padding: 4px 8px; }
+.s-active { background: var(--sage); color: var(--deep); }
+.s-late { background: #F3E3C3; color: #5C4310; }
+.s-new { background: var(--paper); color: var(--ink-soft); border: 1px solid var(--line); }
+.s-off { background: var(--line); color: var(--ink-soft); }
+.alert, .helper-note { background: #F3E3C3; border: 0; color: #5C4310; }
+.empty { color: var(--ink-soft); }
+
+/* Buttons */
+.btn { font-family: "DM Sans", sans-serif; font-weight: 600; border: 1.5px solid transparent; }
+.btn-primary { background: var(--moss); color: var(--cream); }
+.btn-primary:hover { background: var(--deep); }
+.btn-dark { background: var(--deep); color: var(--cream); }
+.btn-ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn-ghost:hover { border-color: var(--ink); }
+.mini-btn, .add-row { color: var(--moss); }
+.mini-btn { background: var(--paper); border-color: var(--line); }
+
+/* Dogs */
+.items { gap: 24px; }
+.item-card { background: transparent; border: 0; border-top: 1px solid var(--line); padding-top: 16px; }
+.item-card .b { padding: 12px 0 0; }
+.item-card h3 { font-size: 20px; }
+.item-card .actions { gap: 12px; align-items: center; }
+.item-card .actions .btn { padding: 8px 12px; font-size: 14px; }
+.add-card { background: transparent; border: 1.5px dashed var(--line); color: var(--ink-soft); min-height: 260px; margin-top: 17px; }
+.add-card .plus { background: var(--sage); color: var(--deep); }
+
+/* Forms and pop-ups */
+.field-group input, .field-group textarea, .field-group select, .hex, .set-row input, .set-row select, .set-row textarea, .admin-tools select, .share-link {
+  background: var(--paper); border: 1px solid var(--line); color: var(--ink); }
+.field-group input:focus, .field-group textarea:focus, .field-group select:focus, .hex:focus { outline: 2px solid var(--moss); outline-offset: 0; border-color: var(--moss); }
+.connect-box { background: transparent; border: 0; border-top: 1px solid var(--line); padding: 24px 0 0; }
+.fee-note, .share-qr, .invite-message, .bulk-status { background: var(--paper); border: 1px solid var(--line); color: var(--ink-soft); }
+.months label { background: var(--paper); }
+.months label:has(input:checked) { border-color: var(--moss); background: var(--sage); }
+details.extras, .set-row.story, .set-row.qa { border-color: var(--line); }
+.fact-picks button { background: var(--paper); }
+.fact-picks button[aria-pressed="true"] { background: var(--deep); border-color: var(--deep); color: var(--cream); }
+.sponsor-dialog { background: var(--paper); border: 0; border-top: 2px solid var(--moss); }
+.sponsor-dialog::backdrop { background: rgba(47, 58, 36, .55); }
+.dialog-head { border-bottom: 1px solid var(--line); }
+.dialog-head h2 { font-size: 22px; }
+.toast-msg { background: var(--deep); color: var(--cream); }
+.saved-note { color: var(--moss); }
+
+/* ---------- Money in (the line chart) ---------- */
+.income h2 { margin-bottom: 4px; }
+.income-sum { font-family: "DM Sans", sans-serif; font-size: 14px; font-weight: 600; color: var(--moss); letter-spacing: 0; }
+.income-note { font-size: 13px; color: var(--ink-soft); margin-bottom: 8px; }
+.ic-wrap { position: relative; }
+.ic-wrap svg { display: block; overflow: visible; touch-action: pan-y; }
+.ic-grid { stroke: var(--line); stroke-width: 1; }
+.ic-axis { fill: var(--ink-soft); font-family: "DM Sans", sans-serif; font-size: 11px; }
+.ic-line { fill: none; stroke: var(--moss); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.ic-dot { fill: var(--moss); stroke: var(--cream); stroke-width: 2; }
+.ic-value { fill: var(--ink); font-family: "Space Grotesk", sans-serif; font-size: 13px; font-weight: 700; }
+.ic-guide { stroke: var(--ink-soft); stroke-width: 1; stroke-dasharray: 3 3; }
+.ic-hit { fill: transparent; cursor: crosshair; }
+.ic-tip { position: absolute; top: 0; background: var(--deep); color: var(--cream); padding: 8px 12px; font-size: 13px; pointer-events: none; min-width: 180px; }
+.ic-tip b { display: block; font-weight: 600; }
+.ic-tip span { color: var(--light-sage); font-size: 12px; }
+.income-table { margin-top: 8px; font-size: 14px; }
+.income-table summary { cursor: pointer; color: var(--moss); font-weight: 600; font-size: 13px; }
+.income-table table { margin-top: 8px; }
+
+/* ---------- phones: their name on top, a menu along the bottom ---------- */
+.phone-top, .tabbar, .tab-sheet { display: none; }
+@media (max-width: 860px) {
+  .app { padding-bottom: 72px; }
+  .side { display: none; }
+  .phone-top { display: flex; align-items: center; height: 56px; padding: 0 16px; border-bottom: 1px solid var(--line); background: var(--cream); position: sticky; top: 0; z-index: 10; font-weight: 600; }
+  .phone-top .who { display: flex; align-items: center; gap: 8px; }
+  .phone-top img { width: 28px; height: 28px; object-fit: contain; background: #fff; border: 1px solid var(--line); }
+  .tabbar { display: grid; grid-template-columns: repeat(4, 1fr); position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--paper); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom); }
+  .tabbar a, .tabbar button { font: inherit; font-size: 13px; color: var(--ink-soft); background: none; border: 0; border-top: 2px solid transparent; padding: 12px 0 16px; text-align: center; text-decoration: none; cursor: pointer; }
+  .tabbar .on { color: var(--ink); font-weight: 600; border-top-color: var(--moss); }
+  .tab-sheet:not([hidden]) { display: grid; position: fixed; left: 0; right: 0; bottom: 56px; z-index: 19; background: var(--paper); border-top: 2px solid var(--moss); padding: 8px 0; }
+  .tab-sheet a { padding: 14px 24px; font-size: 16px; color: var(--ink); text-decoration: none; cursor: pointer; }
+  main { padding: 24px 16px 40px; }
+  .top h1 { font-size: 28px; }
+  .grid { gap: 32px; }
+  .tiles { grid-template-columns: 1fr 1fr !important; }
+  .month .big { font-size: 44px; }
+  .linkbox { flex-wrap: wrap; }
+}
+
+/* To-do ticks: a plain moss check mark, no box */
+.todo .check { background: none !important; width: 20px; height: 20px; color: var(--moss); display: inline-grid; place-items: center; flex: none; }
+.todo .check svg { width: 18px; height: 18px; }
+
+/* Dog cards: one main button (Post update); Edit, Share and Mark adopted are quiet links (approved mockup) */
+.item-card .actions .btn-primary { order: -1; }
+.item-card .actions .btn-ghost, .item-card .actions .btn-dark { background: none; border: 0; color: var(--moss); padding: 8px 4px; }
+.item-card .actions .btn-ghost:hover, .item-card .actions .btn-dark:hover { color: var(--deep); text-decoration: underline; }

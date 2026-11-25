@@ -7,6 +7,9 @@
 <link rel="icon" href="brand/icon-32.png" type="image/png" sizes="32x32"><link rel="apple-touch-icon" href="brand/icon-180.png">
 <link rel="stylesheet" href="css/cover.css">
 <link rel="stylesheet" href="css/dashboard.css">
+<!-- The new look (approved by Tanner, Nov 25, 2026): Cover's cream and moss, on top of the layout above. -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600&family=Fraunces:ital,opsz,wght,SOFT@1,144,460,100&family=Space+Grotesk:wght@700&display=swap">
+<link rel="stylesheet" href="css/dashboard-look.css?v=20261125e">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@700&display=swap">
 <!-- Stripe's embedded screens (sign-up, payments, payouts) must load from Stripe's own site. -->
 <script src="https://connect-js.stripe.com/v1.0/connect.js" async></script>
@@ -39,7 +42,10 @@
 
 <!-- The dashboard -->
 <div class="app" id="app" hidden>
+  <!-- On phones: their name at the top, and a menu at the bottom -->
+  <header class="phone-top"><span class="who"><img id="phone-org-logo" alt="" hidden><span id="phone-org-name"></span></span></header>
   <aside class="side">
+    <a class="cover-logo" href="index.html" aria-label="Cover"><img src="brand/logo.png" alt="Cover"></a>
     <div class="org"><span class="brand-mark" style="background:var(--deep);color:var(--green)" id="org-initials"></span><img class="brand-logo" id="org-logo" alt="" hidden><span id="org-name"></span></div>
     <div class="admin-tools" id="admin-tools" hidden>
       <label for="np-switch" class="admin-label">Nonprofit</label>
@@ -61,7 +67,7 @@
     <!-- Overview -->
     <section class="view" data-view="overview">
       <div class="top">
-        <div><h1 id="hello"></h1><p>Here's how this month is going.</p></div>
+        <div><h1 id="hello"></h1><p>Here's how this month is going.</p><p class="demo-note" id="demo-note" hidden>Demo with sample sponsors and numbers. Nothing here is real, and nothing you press is saved or sent.</p></div>
         <div class="linkbox"><span id="page-link-text"></span><button class="btn btn-dark" type="button" data-copy-link>Copy link</button><button class="btn btn-primary" type="button" id="share-page">Share</button><a class="btn btn-ghost" id="view-page" target="_blank" rel="noopener">View page</a></div>
       </div>
       <div class="grid">
@@ -72,11 +78,18 @@
             <div class="bar"><i id="m-bar"></i></div>
             <div class="meta"><span id="m-pct"></span><span id="m-togo"></span></div>
             <div class="tiles">
-              <div class="tile"><span>Active sponsors</span><b id="t-active"></b><em id="t-active-new"></em></div>
+              <div class="tile"><span>Monthly sponsors</span><b id="t-active"></b><em id="t-active-new"></em></div>
               <div class="tile"><span>Businesses</span><b id="t-biz"></b><em id="t-biz-new"></em></div>
               <div class="tile"><span>New this month</span><b id="t-new"></b><span>sponsors joined</span></div>
               <div class="tile"><span>One-time gifts</span><b id="t-once"></b><span id="t-once-sum"></span></div>
             </div>
+          </div>
+          <!-- Money in: the last 12 months of real payments (from their Stripe account) -->
+          <div class="panel income" style="margin-top:22px">
+            <h2>Money in <span class="income-sum" id="income-sum"></span></h2>
+            <p class="income-note" id="income-note">Loading the last 12 months…</p>
+            <div class="income-chart" id="income-chart"></div>
+            <details class="income-table"><summary>See the months as a table</summary><div class="table-wrap"><table id="income-table"></table></div></details>
           </div>
           <div class="panel" style="margin-top:22px">
             <h2>Newest sponsors <a data-nav="sponsors">See all</a></h2>
@@ -157,7 +170,7 @@
           <div class="panel">
             <h2>Brand color</h2>
             <div class="swatches" id="swatches"></div>
-            <input class="hex" id="p-color" name="brandColor" maxlength="7" placeholder="#22C67A" aria-label="Color code">
+            <input class="hex" id="p-color" name="brandColor" maxlength="7" placeholder="#4B5A2A" aria-label="Color code">
             <p class="look-hint">Used for your buttons, progress bar and highlights. Text color adjusts so it's always readable.</p>
             <div class="field-error" id="pe-brandColor"></div>
           </div>
@@ -252,6 +265,12 @@
       </div>
     </section>
   </main>
+
+  <!-- On phones: the menu along the bottom (More opens the rest) -->
+  <nav class="tabbar" aria-label="Dashboard">
+    <a data-nav="overview">Home</a><a data-nav="items" id="tab-items-label">Dogs</a><a data-nav="sponsors">Sponsors</a><button type="button" id="tab-more" aria-expanded="false" aria-controls="tab-sheet">More</button>
+  </nav>
+  <div class="tab-sheet" id="tab-sheet" hidden><a data-nav="page">Your page</a><a data-nav="payments">Payments &amp; payouts</a><a data-nav="settings">Settings</a></div>
 </div>
 
 <!-- Add or edit a thing to follow -->
@@ -361,6 +380,6 @@
 </dialog>
 
 <div class="toast-msg" id="toast-msg" role="status" hidden></div>
-<script type="module" src="js/dashboard.js"></script>
+<script type="module" src="js/dashboard.js?v=20261125e"></script>
 </body>
 </html>

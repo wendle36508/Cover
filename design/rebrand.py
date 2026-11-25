@@ -82,11 +82,7 @@ def swaps_for(palette: Palette) -> list[Swap]:
              "background: var(--green); color: var(--on-green); display: inline-grid;"),
         Swap(css, "background: var(--green); color: var(--ink); display: grid;",
              "background: var(--green); color: var(--on-green); display: grid;"),
-        # Stripe's payout boxes and the dashboard color picker.
-        Swap("docs/js/dashboard.js", f'colorPrimary: "{OLD_ACCENT_DARK}"', f'colorPrimary: "{p.accent_dark}"'),
-        Swap("docs/js/dashboard.js", f'?? "{OLD_ACCENT}"', f'?? "{p.accent}"'),
-        Swap("docs/dashboard.html", f'placeholder="{OLD_ACCENT}"', f'placeholder="{p.accent}"'),
-        Swap("docs/js/brand.js", f'BRAND_SWATCHES = ["{OLD_ACCENT}"', f'BRAND_SWATCHES = ["{p.accent}"'),
+        # The dashboard and its color picker moved to the moss brand on Nov 25, 2026, so they're no longer swapped here.
         # Sponsor emails moved to the moss brand on Nov 25, 2026 (their own colors), so they're no longer swapped here.
         # Sign-in email (has to be re-pasted into Supabase after this runs).
         Swap("supabase/templates/sign-in.html", f'<span style="color:{OLD_ACCENT}">', f'<span style="color:{p.accent}">'),

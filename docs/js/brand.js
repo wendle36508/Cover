@@ -3,7 +3,7 @@
 // dashboard and the donor page. Everything a nonprofit types is checked here before it's
 // shown to donors: colors must be real hex colors and links must be plain https addresses.
 
-export const BRAND_SWATCHES = ["#22C67A", "#E8743B", "#2F6FDB", "#7B4FC9", "#D6406B", "#14181C"];
+export const BRAND_SWATCHES = ["#4B5A2A", "#E8743B", "#2F6FDB", "#7B4FC9", "#D6406B", "#14181C"]; // Cover moss first (new look)
 export const THANKS_MAX = 300;
 const INK = "#14181C";
 const WHITE = "#FFFFFF";
