@@ -35,7 +35,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { adminDatabase, json, requireSetting } from "../_shared/clients.ts";
 import { certificateView, recipientFor, remindersDue } from "../_shared/after-signup.js";
 import {
-  adoptionEmail, certificateUrl, fitsEmailBudget, fromLine, giftEmail, linkUrl, makeManageToken, makeToken, manageUrl, nextBudgetDay, readToken,
+  adoptionEmail, certificateUrl, fitsEmailBudget, fromLine, giftEmail, giftSetEmail, linkUrl, makeManageToken, makeToken, manageUrl, nextBudgetDay, readToken,
   reminderEmail, REPLY_TO, SITE_URL, SPONSOR_EMAIL_DAILY_BUDGET, updateEmail, utcDayStart, welcomeEmail,
 } from "../_shared/email.js";
 import { corsHeaders, parseList } from "../_shared/sponsorship.js";
@@ -326,7 +326,7 @@ async function sendDue(request: Request) {
 
 type SignupRow = {
   id: string; nonprofit_id: string; item_id: string | null; first_name: string; email: string; interval: string | null;
-  gift_name: string | null; gift_email: string | null; gift_message: string | null;
+  gift_name: string | null; gift_email: string | null; gift_message: string | null; gift_send_on: string | null;
 };
 
 /**
@@ -362,7 +362,12 @@ async function sendAfterSignup(kind: "welcome" | "gift"): Promise<number> {
     const itemName = (r.item_id && itemById.get(r.item_id)?.name) || np.name;
     const cert = certificateUrl(await makeToken(secret, r.id, "cert"));
     const stopUrl = linkUrl("stop", await makeToken(secret, r.id, "stop"));
-    const email = kind === "welcome"
+    // The welcome job also covers gifts: their buyer gets "your gift is set" (the person it's for gets the
+    // gift email on the chosen day, from the gift job).
+    const email = kind === "welcome" && r.gift_name
+      ? giftSetEmail({ nonprofitName: np.name, giverName: r.first_name, recipientName: r.gift_name, itemName, sendOn: r.gift_send_on,
+        today: easternToday(), message: r.gift_message, certificateUrl: cert, manageUrl: await manageLinkFor(secret, r.email) })
+      : kind === "welcome"
       ? welcomeEmail({ nonprofitName: np.name, kind: np.kind, firstName: r.first_name, itemName, interval: r.interval, certificateUrl: cert,
         manageUrl: await manageLinkFor(secret, r.email) })
       : giftEmail({ nonprofitName: np.name, kind: np.kind, recipientName: r.gift_name ?? "", giverName: r.first_name, itemName, interval: r.interval,
@@ -372,7 +377,7 @@ async function sendAfterSignup(kind: "welcome" | "gift"): Promise<number> {
   const ids = await sendAll(outgoing);
   const emailsOn = Boolean(Deno.env.get("RESEND_API_KEY"));
   await logEmails(rows.map((r, i) => ({
-    sponsor_id: r.id, nonprofit_id: r.nonprofit_id, item_id: r.item_id, kind,
+    sponsor_id: r.id, nonprofit_id: r.nonprofit_id, item_id: r.item_id, kind: kind === "welcome" && r.gift_name ? "gift_set" : kind,
     status: ids[i] ? "sent" : emailsOn ? "failed" : "skipped", provider_id: ids[i],
   })));
   return ids.filter(Boolean).length;

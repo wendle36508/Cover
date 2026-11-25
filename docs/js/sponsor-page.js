@@ -7,7 +7,6 @@
 
 import { applyBrand, safeImageUrl } from "./brand.js";
 import { openCheckout, setUpCheckout, showReturnThanks } from "./checkout.js";
-import { iconSvg } from "./icons.js";
 import { loadLiveOrg } from "./live.js";
 import { shareLink } from "./share.js";
 import { browseList, factChips, filterOptions, profileHeading, profileLabels, readView, SORTS, viewLink } from "./sponsor-page-logic.js";
@@ -58,19 +57,29 @@ function section(className, ...children) {
   return s;
 }
 
-function heading(eyebrow, title, lead) {
+/** A label and a headline; accent is the one green italic phrase at the end (optional, 2 to 4 words). */
+function heading(eyebrow, title, lead, accent = "") {
   const box = el("div");
-  box.append(el("div", "sp-eyebrow", eyebrow), el("h2", "sp-h2", title));
+  const h2 = el("h2", "sp-h2", accent ? `${title} ` : title);
+  if (accent) h2.append(el("span", "accent", accent));
+  box.append(el("div", "sp-eyebrow", eyebrow), h2);
   if (lead) box.append(el("p", "sp-lead", lead));
   return box;
+}
+
+/** Cover's own "covered" drawings stand in for each "gift helps with" choice (no generic icons). */
+const DRAWING_FOR = { bowl: "bowl", home: "house", learn: "book", cart: "apple", leaf: "apple" };
+function drawingFor(icon) {
+  return `brand/drawings/covered-${DRAWING_FOR[icon] ?? "heart"}.png`;
 }
 
 function helpsGrid(helps, four = false) {
   const grid = el("div", `sp-helps${four ? " four" : ""}`);
   for (const help of helps) {
     const card = el("div", "sp-help");
-    const icon = el("span", "ic");
-    icon.innerHTML = iconSvg(help.icon); // one of Cover's own fixed icons, never typed text
+    const icon = el("img", "ic");
+    icon.src = drawingFor(help.icon);
+    icon.alt = "";
     card.append(icon, el("b", "", help.title));
     if (help.text) card.append(el("span", "", help.text));
     grid.append(card);
@@ -116,18 +125,24 @@ function drawChrome(page) {
 
 function drawHome() {
   const main = el("div");
-  const hero = el("div", "container");
-  const heroGrid = el("div", "sp-hero");
-  const words = el("div");
-  words.append(el("div", "sp-eyebrow", org.name), el("h1", "", `Sponsor a ${settings.one}`));
-  const price = el("p", "sp-price");
-  price.append(el("b", "", "Any amount"), ", monthly or one time");
-  words.append(price, link("btn btn-primary btn-lg", `Choose a ${settings.one} to sponsor`, viewLink(org.slug, "browse")));
+  // The photo sits beside the words (never under them), so text never covers a face.
+  const hero = el("header", "sp-hero");
   const heroImg = el("img");
   heroImg.src = safeImageUrl(org.heroPhotoWide) || org.items[0]?.photo || "photos/dog-smile.jpg";
   heroImg.alt = "";
-  heroGrid.append(words, heroImg);
-  hero.append(heroGrid);
+  const words = el("div", "dark sp-hero-words");
+  const h1 = el("h1", "", "Sponsor ");
+  h1.append(el("span", "accent", `a ${settings.one}.`));
+  words.append(el("div", "sp-eyebrow", org.name), h1);
+  const price = el("p", "sp-price");
+  price.append(el("b", "", "Any amount"), ", monthly or one time.");
+  const cta = link("btn btn-cream btn-lg", `Choose a ${settings.one} to sponsor`, viewLink(org.slug, "browse"));
+  const arrow = el("img");
+  arrow.src = "brand/drawings/arrow-moss.png";
+  arrow.alt = "";
+  cta.append(arrow);
+  words.append(price, cta);
+  hero.append(heroImg, words);
   main.append(hero);
 
   if (settings.stats.length) {
@@ -137,14 +152,14 @@ function drawHome() {
       box.append(el("b", "", s.value), el("span", "", s.label));
       return box;
     }));
-    main.append(section("soft", heading("Why we need you", org.headline || `Every ${settings.one} deserves a good start.`), stats));
+    main.append(section("dark", heading("Why we need you", org.headline || `Every ${settings.one} deserves a good start.`), stats));
   }
 
   const two = el("div", "sp-two");
   const left = el("div");
-  left.append(heading("What sponsors receive", "More than a thank-you."), ticks(receiveList(settings)));
+  left.append(heading("What sponsors receive", "More than", "", "a thank-you."), ticks(receiveList(settings)));
   const right = el("div");
-  right.append(heading("How your gift helps", "Every month, it pays for:"), helpsGrid(settings.helps.slice(0, 4)));
+  right.append(heading("How your gift helps", "Every month,", "", "it pays for:"), helpsGrid(settings.helps.slice(0, 4)));
   right.append(el("p", "sp-pool", `Every gift goes into one fund for ${midSentence(org.everyone)}. Your ${settings.one} is who you'll hear about.`));
   two.append(left, right);
   main.append(section("", two));
@@ -157,10 +172,10 @@ function drawHome() {
   ];
   steps.append(...stepText.map(([h, p], i) => {
     const box = el("div", "sp-step");
-    box.append(el("div", "n", String(i + 1)), el("h3", "", h), el("p", "", p));
+    box.append(el("div", "n", String(i + 1).padStart(2, "0")), el("h3", "", `${h}.`), el("p", "", p));
     return box;
   }));
-  const how = section("soft", heading("How it works", "Three steps, about a minute."), steps);
+  const how = section("dark", heading("How it works", "Three steps, about a minute."), steps);
   how.id = "how";
   main.append(how);
 
@@ -180,7 +195,7 @@ function drawHome() {
       card.append(body);
       return card;
     }));
-    main.append(section("", heading("Happy endings", "Who our sponsors have helped."), stories));
+    main.append(section("", heading("Happy endings", "Who our sponsors", "", "have helped."), stories));
   }
 
   const wall = thankYouWall();
@@ -193,30 +208,26 @@ function drawHome() {
     d.append(el("summary", "", item.q), el("p", "", item.a));
     return d;
   }));
-  const closing = el("div", "sp-center");
-  closing.style.marginTop = "30px";
+  const closing = el("div");
+  closing.style.marginTop = "48px";
   closing.append(link("btn btn-primary btn-lg", `Choose a ${settings.one} to sponsor`, viewLink(org.slug, "browse")));
-  const questions = section("", heading("Questions", "Good to know"), faq, closing);
+  const questions = section("", heading("Questions", "Good to know."), faq, closing);
   questions.id = "questions";
   main.append(questions);
-  // Grey and white take turns, whichever optional sections (numbers, happy endings) this page has.
-  [...main.querySelectorAll(".sp-section")].forEach((s, i) => s.classList.toggle("soft", i % 2 === 0));
   $("main").replaceChildren(main);
 }
 
 const WALL_FIRST_SHOW = 24; // names on the card before "See everyone"
 
-/** The handwritten thank-you card (same as the old page): only sponsors who said yes, names only. */
+/** The thank-you wall: only sponsors who said yes, names only. */
 function thankYouWall() {
   const names = org.wall ?? [];
   if (!names.length) return null;
   const wall = el("section", "thanks-wall sp-wall");
   const c = el("div", "container");
   const card = el("div", "note-card");
-  const title = el("h2", "note-title", "Thank you ");
-  const heart = el("span", "", "♥");
-  heart.setAttribute("aria-hidden", "true");
-  title.append(heart);
+  const title = el("h2", "sp-h2", "Thank you, ");
+  title.append(el("span", "accent", "neighbors."));
   const list = el("ul", "sigs");
   const more = el("button", "link-btn wall-more", "See everyone →");
   more.type = "button";
@@ -226,30 +237,26 @@ function thankYouWall() {
   };
   more.addEventListener("click", () => draw(true));
   draw(false);
-  card.append(title, list, el("p", "note-from", `love, everyone at ${org.name}`));
-  c.append(el("div", "eyebrow", "Our sponsors"), card, more);
+  card.append(list, el("p", "note-from", `Love, everyone at ${org.name}`));
+  c.append(el("div", "sp-eyebrow", "Our sponsors"), title, card, more);
   wall.append(c);
   return wall;
 }
 
 // ---------- browse list ----------
 
+/** A full-photo card: the photo fills it, the name and facts sit on a deep moss fade at the bottom. */
 function card(item) {
-  const box = el("article", "sp-card");
-  const ph = link("ph", null, viewLink(org.slug, "profile", item));
-  ph.append(photoOf(item));
-  if (item.isGroup) ph.append(el("span", "grp", "Group"));
+  const box = link("sp-card", null, viewLink(org.slug, "profile", item));
+  box.append(photoOf(item), el("div", "fade"));
+  if (item.isGroup) box.append(el("span", "grp", "Group"));
   const body = el("div", "body");
   body.append(el("h3", "", item.name));
   const chips = factChips(item, settings.factFields);
   const tags = chips.length ? chips.map((c) => c.value) : item.badge ? [item.badge] : [];
-  if (tags.length) {
-    const row = el("div", "sp-chips");
-    row.append(...tags.map((t) => el("span", "sp-chip", t)));
-    body.append(row);
-  }
-  body.append(link("btn btn-dark btn-block", `Meet ${item.name}`, viewLink(org.slug, "profile", item)));
-  box.append(ph, body);
+  if (tags.length) body.append(el("p", "facts", tags.join(", ")));
+  body.append(el("span", "btn btn-cream btn-block", `Meet ${item.name}`));
+  box.append(body);
   return box;
 }
 
@@ -258,7 +265,7 @@ function drawBrowse() {
   let filterKey = "all";
   let sortKey = "waiting";
   const head = el("div", "container sp-browse-head");
-  head.append(heading(`Our ${settings.follow.toLowerCase()}`, `Choose a ${settings.one} to sponsor`, `Whoever you pick, your gift helps ${midSentence(org.everyone)}.`));
+  head.append(heading(`Our ${settings.follow.toLowerCase()}`, `Choose a ${settings.one}`, `Whoever you pick, your gift helps ${midSentence(org.everyone)}.`, "to sponsor."));
   const tools = el("div", "sp-tools");
   const count = el("p", "sp-count");
   const grid = el("div", "sp-grid");
@@ -420,7 +427,7 @@ function drawProfile(item) {
   }
   wrap.append(block(`Sponsor ${item.name} and you'll get`, ticks(receiveList(settings, item.name))));
   const again = el("div", "sp-center");
-  again.style.margin = "40px 0 10px";
+  again.style.margin = "48px 0 16px";
   again.append(sponsorButton(item, "btn btn-primary btn-lg"));
   wrap.append(again);
 

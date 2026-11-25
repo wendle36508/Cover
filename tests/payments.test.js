@@ -109,8 +109,8 @@ test("the card form is a monthly subscription shown inside the page", () => {
 
 test("the card form takes cards and Link only, never pay-later options", () => {
   const request = checkoutRequest({ nonprofit, item, sponsorId: "sp_1", signup: readSignup(signup), siteUrl: "https://cover.example/" });
-  assert.deepEqual(request.payment_method_types, ["card", "link"]);
-  for (const payLater of ["klarna", "afterpay_clearpay", "affirm", "zip"]) assert.ok(!request.payment_method_types.includes(payLater), payLater);
+  assert.deepEqual(request.allowed_payment_method_types, ["card", "link"]);
+  for (const payLater of ["klarna", "afterpay_clearpay", "affirm", "zip"]) assert.ok(!request.allowed_payment_method_types.includes(payLater), payLater);
   assert.equal(request.return_url, "https://cover.example/give.html?org=harbor-paws&session_id={CHECKOUT_SESSION_ID}");
 });
 

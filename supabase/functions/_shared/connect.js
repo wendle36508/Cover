@@ -105,6 +105,28 @@ export function cardPaymentsStatusV1(account) {
   return "not_started";
 }
 
+/**
+ * What a Stripe "account updated" message means for Cover (Nov 25, 2026). Reads the older-style account
+ * object Stripe sends with the message. Returns:
+ *   live    - the page should take gifts (Stripe can charge cards for this nonprofit)
+ *   problem - a plain-English line when Stripe needs something or has paused the account, else null
+ *   key     - what exactly Stripe is asking for, so the same problem is emailed only once
+ */
+export function accountHealth(account) {
+  const req = account?.requirements ?? {};
+  const live = account?.charges_enabled === true && account?.capabilities?.card_payments === "active";
+  const due = [...new Set([...(req.past_due ?? []), ...(req.currently_due ?? [])])].sort();
+  const disabled = typeof req.disabled_reason === "string" && req.disabled_reason ? req.disabled_reason : "";
+  // Stripe still checking what was sent is normal and needs nothing from anyone, so it isn't a problem.
+  const waitingOnStripe = disabled === "requirements.pending_verification" && !due.length;
+  if ((!due.length && !disabled) || waitingOnStripe) return { live, problem: null, key: null };
+  const paused = account?.charges_enabled !== true || account?.payouts_enabled !== true;
+  const problem = paused
+    ? "Stripe needs one more thing before gifts and payouts can continue."
+    : "Stripe needs one more thing. Gifts still work, but it should be done soon.";
+  return { live, problem, key: [disabled, ...due].filter(Boolean).join(",") };
+}
+
 /** Where the nonprofit is with Stripe: "active" means they can take payments. */
 export function cardPaymentsStatus(account) {
   return account?.configuration?.merchant?.capabilities?.card_payments?.status ?? "not_started";

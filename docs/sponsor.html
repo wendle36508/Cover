@@ -6,14 +6,15 @@
 <meta name="robots" content="noindex">
 <title>Sponsor | Cover</title>
 <link rel="icon" href="brand/icon-32.png" type="image/png" sizes="32x32"><link rel="apple-touch-icon" href="brand/icon-180.png">
-<link rel="stylesheet" href="css/cover.css">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,600&family=Fraunces:ital,opsz,wght,SOFT@1,144,460,100&family=Space+Grotesk:wght@700&display=swap">
+<link rel="stylesheet" href="css/brand.css">
 <link rel="stylesheet" href="css/sponsor.css">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&display=swap">
 <script src="https://js.stripe.com/endive/stripe.js"></script>
 </head>
 <body>
-<!-- The new sponsor pages (phase 1, Nov 23, 2026): home, browse list and profiles, Dogs Trust-style,
-     for any nonprofit. Not linked from anywhere yet; give.html stays the live page until Tanner switches. -->
+<!-- The sponsor pages (Nov 23, 2026; new look Nov 25): home, browse list and profiles, Dogs Trust-style,
+     for any nonprofit. Nonprofits switched over in HQ get here from their give.html links. -->
 <nav class="sp-nav">
   <div class="container">
     <a class="sp-org" id="org-link"><img id="org-logo" alt="" hidden><span class="brand-mark" id="org-initials"></span><span id="org-name"></span></a>
@@ -22,7 +23,7 @@
   </div>
 </nav>
 <main id="main"><p class="sp-loading">Loading…</p></main>
-<footer class="sp-foot"><div class="container"><span id="foot-name"></span><span class="powered-by">Powered by<img src="brand/logo.png" alt="Cover"></span></div></footer>
+<footer class="sp-foot"><div class="container"><span id="foot-name"></span><a class="powered-by" href="index.html">Powered by<img src="brand/logo-cream.png" alt="Cover"></a></div></footer>
 <!-- The new checkout (phase 3): any amount; Monthly, Yearly or One time; gift (phase 4); Cover's fee when on. -->
 <dialog class="sponsor-dialog" id="checkout" aria-labelledby="co-title">
   <div class="dialog-head">

@@ -94,7 +94,7 @@ function draw(data) {
         name,
         yesNo(n.is_live, "Live", "Not yet"),
         yesNo(n.owner_joined, "Joined", n.invite_pending ? "Invited" : "None"),
-        yesNo(n.payouts_started, "Started", "Not started"),
+        n.stripe_alert ? el("span", "no", "Stripe needs something") : yesNo(n.payouts_started, "Started", "Not started"),
         `${n.things_to_follow} (${n.with_photos} with photos)`,
         String(n.active_sponsors),
         dollars(n.monthly_cents),

@@ -411,3 +411,58 @@ export function reminderEmail(details) {
   });
   return { subject, text, html };
 }
+
+// ---------- Stripe alerts and gift confirmations (Nov 25, 2026) ----------
+
+/**
+ * To a nonprofit's owner (and Cover) when Stripe needs something for their account.
+ * details: { nonprofitName, problem, dashboardUrl }
+ */
+export function stripeAlertEmail(details) {
+  const { nonprofitName, problem, dashboardUrl } = details;
+  const subject = `Stripe needs one more thing for ${nonprofitName}`;
+  const lines = [problem, "It usually takes a few minutes. Open your dashboard, go to Payments & payouts, and follow the steps there."];
+  const text = ["Hi,", "", ...lines.flatMap((l) => [l, ""]), `Your dashboard: ${dashboardUrl}`, "", "Cover"].join("\n");
+  const html = afterSignupHtml({
+    eyebrow: nonprofitName, heading: "Stripe needs one more thing", greeting: "Hi,", lines,
+    buttonText: "Open Payments & payouts", buttonUrl: dashboardUrl, closing: null,
+    footer: "Sent by Cover. You get this because you run a sponsor page on Cover.",
+  });
+  return { subject, text, html };
+}
+
+const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/** "Thursday, December 25" for a "2026-12-25" day (no time zone surprises). */
+export function dayLabel(isoDay) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDay ?? "");
+  if (!m) return "";
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  return `${DAYS[d.getUTCDay()]}, ${MONTH_NAMES[d.getUTCMonth()]} ${d.getUTCDate()}`;
+}
+
+/**
+ * To the person who BOUGHT a gift sponsorship, right after paying: when it arrives and a preview.
+ * details: { nonprofitName, giverName, recipientName, itemName, sendOn, today, message, certificateUrl, manageUrl }
+ * sendOn and today are "YYYY-MM-DD" (Eastern). To change the day, they reply (no self-serve change yet).
+ */
+export function giftSetEmail(details) {
+  const { nonprofitName, giverName, recipientName, itemName, sendOn, today, message, certificateUrl: cert, manageUrl: manage } = details;
+  const arrivesToday = !sendOn || sendOn <= today;
+  const when = arrivesToday ? "today" : `on ${dayLabel(sendOn)}`;
+  const subject = `Your gift for ${recipientName} is set`;
+  const lines = [
+    `Thank you. We'll email ${recipientName} ${when} with ${itemName}'s photo certificate${message ? " and your message" : ""}. From then on, they'll get the photos and news.`,
+    arrivesToday ? "Here's a preview of the certificate they'll get." : `Here's a preview of the certificate. To change the day or your message before then, just reply to this email.`,
+  ];
+  const footer = manageFooter(manage);
+  const text = [`Hi ${giverName},`, "", ...lines.flatMap((l) => [l, ""]), ...(message ? [`Your message: "${message}"`, ""] : []),
+    `Certificate preview: ${cert}`, "", "With thanks,", `${nonprofitName}, via Cover`, ...(footer.text ? ["", "---", footer.text] : [])].join("\n");
+  const html = afterSignupHtml({
+    eyebrow: nonprofitName, heading: "Your gift is set", greeting: `Hi ${giverName},`, lines, quote: message || null,
+    buttonText: "Preview the certificate", buttonUrl: cert, closing: ["With thanks,", nonprofitName],
+    footer: `${footer.html ? `${footer.html}<br>` : ""}Sent by Cover for ${escapeHtml(nonprofitName)}`,
+  });
+  return { subject, text, html };
+}

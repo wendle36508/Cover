@@ -94,7 +94,7 @@ export function checkoutRequest({ nonprofit, item, sponsorId, signup, siteUrl, p
     mode: "subscription",
     ui_mode: "embedded_page",
     redirect_on_completion: "if_required",
-    payment_method_types: PAYMENT_METHOD_TYPES,
+    allowed_payment_method_types: PAYMENT_METHOD_TYPES, // Stripe renamed this (API 2026-09-30); the old name now fails every checkout
     return_url: `${returnUrl.href}&session_id={CHECKOUT_SESSION_ID}`,
     customer_email: signup.email,
     client_reference_id: sponsorId,
@@ -369,7 +369,7 @@ function oneTimeRequest({ nonprofit, item, sponsorId, signup, returnUrl, charged
     mode: "payment",
     ui_mode: "embedded_page",
     redirect_on_completion: "if_required",
-    payment_method_types: PAYMENT_METHOD_TYPES,
+    allowed_payment_method_types: PAYMENT_METHOD_TYPES, // Stripe renamed this (API 2026-09-30); the old name now fails every checkout
     return_url: `${returnUrl.href}&session_id={CHECKOUT_SESSION_ID}`,
     customer_email: signup.email,
     client_reference_id: sponsorId,
